@@ -2,7 +2,7 @@
 
 ## Latest checkpoint: local browser milestone verified, independent review next
 
-Manager verified the integrated code at `337af5cd081572d1fa555475b22b73735f58772e`, with a final browser-script change to use a standard Full HD projector (1920×1080). The canonical checkout is being placed on `demo/owl-plate-ready`; `integration/owl-plate-verified` preserves the integration worktree. The exact checkpoint HEAD is recorded in the T3 manager thread after this documentation commit. Original `main` remains `d11c4be01bcbd375dafabf50c2f59c6daaf513ec`. No pushes, default-branch merges, deployments, survey distribution or submission occurred.
+Manager verified the integrated code at `337af5cd081572d1fa555475b22b73735f58772e`, with a final browser-script change to use a standard Full HD projector (1920×1080). The canonical checkout is now on `demo/owl-plate-ready`; `integration/owl-plate-verified` preserves the integration worktree. The exact checkpoint HEAD is recorded in the T3 manager thread after this documentation commit. Original `main` remains `d11c4be01bcbd375dafabf50c2f59c6daaf513ec`. No pushes, default-branch merges, deployments, survey distribution or submission occurred.
 
 Accepted original worker commits: backend `f712f4087ed2f3c9d5e5f7a213b195f8cb83af1e`, web `f748c8325890a0aec58643c30138ef942b208121`, eval `bd423acf364f235661f596833206bd7236b73173`; manager FCM `3b35054c111099512d6a7fe442ec9a6b1a8c77c5`. All were inspected and cherry-picked by the integrator, then composition fixes were committed. All workers are finished; Claude remains idle because the intended label is unresolved. Thread links below preserve their live records.
 
@@ -18,6 +18,8 @@ Submission package: `submission/Owl_Plate_Pitch.pptx` (seven editable slides, sp
 
 Next: fresh OpenCode `openrouter/z-ai/glm-5.3` review of the exact checkpoint SHA for overbooking, privacy and offline reliability. Review status and any fixes will be recorded in the manager thread and a subsequent handoff checkpoint. Questions for Johaan below remain the prioritized return queue; no secrets belong in chat. The latest useful decisions are approved Android/iPhone recipients and private Firebase/Gemini access, labeled food photos, survey distribution ownership, and campus policy/coordinates. Live Entra and deployment remain deferred; the local app deliberately fails closed outside explicit demo mode.
 
+Canonical checkout checks: clean switch to the ready branch, `main` SHA unchanged, route smoke passed again from `/home/node/projects/owl-plate`, and `npm ci` succeeded. Its audit reported 35 dependency advisories overall; `npm audit --omit=dev` reported 17 (13 high, four moderate, zero critical), through deck.gl loaders/texture tooling, Firebase's unused Firestore/gRPC dependency path, and Next's nested PostCSS. These were inspected; no forced downgrades or major migrations were applied. The local demo uses trusted repository CSS and H3 cells, no external archives/models, and only Firebase messaging imports. Dependency remediation is a deployment-readiness item, in addition to production auth/live service access; this branch is a local demo milestone, not approved for public deployment.
+
 Deadline: Friday November 20, 2026 at noon America/New_York (17:00 UTC). Johaan submits. Thursday evening reserved for rehearsal, physical-phone capture and backup. No pushes, default-branch merges, deployments, survey distribution or submission authorized.
 
 ## Preflight
@@ -32,12 +34,12 @@ Confirmed capabilities: Codex `codex/gpt-6.1-sol`; Antigravity `antigravity/gemi
 
 | Priority | Decision needed | Blocks | Safe interim choice | Latest useful time |
 |---|---|---|---|---|
-| 1 | Which exact Claude model did “Uber’s Wi-Fi” mean? T3 lists Opus 5.5, Sonnet 5.5, Fable 5.2, Haiku 5.5; none matches that label. | Claude backend routing | Leave Claude idle; Codex backend fallback | Before reassignment; independent work proceeds |
-| 2 | Which Android and Home Screen iPhone are authorized demo recipients, and when can owners participate? | Physical push proof and recording | Synthetic log only; no real notifications | Wednesday evening; Thursday rehearsal latest |
-| 3 | Provide access via private secret cards/existing environment for Gemini model/key and Firebase configuration when ready. Do not put secrets in chat. | Live vision and push verification | Explicit cached fixture and log adapter | Wednesday evening to collect evidence |
-| 4 | Supply tray photo(s), hand-counted servings and ingredient/menu allergen labels. | Measured vision accuracy and known-photo cache | Clearly labeled offline fixtures; no accuracy claims | Thursday afternoon |
-| 5 | Approve survey distribution/channel and nominate owner; real results needed with n. | Campus impact evidence | Prepare copy locally, no distribution | Wednesday to allow Thursday close |
-| 6 | Confirm KSU food redistribution policy/contact and verified building coordinates. | Campus policy claims and real map | Synthetic origin; no approval claims | Before physical rehearsal/pitch |
+| 1 | Which Android and Home Screen iPhone are authorized demo recipients, and when can owners participate? | Physical push proof and recording | Synthetic log only; no real notifications | Wednesday evening; Thursday rehearsal latest |
+| 2 | Provide access via private secret cards/existing environment for Gemini model/key and Firebase configuration when ready. Do not put secrets in chat. | Live vision and push verification | Explicit cached fixture and log adapter; encrypted FCM path ready for configuration | Wednesday evening to collect evidence |
+| 3 | Supply tray photo(s), hand-counted servings and ingredient/menu allergen labels. | Measured vision accuracy and known-photo cache | Clearly labeled offline fixtures; no accuracy claims | Thursday afternoon |
+| 4 | Approve survey distribution/channel and nominate owner; real results needed with n. | Campus impact evidence | Copy prepared locally, no distribution | Wednesday to allow Thursday close |
+| 5 | Confirm KSU food redistribution policy/contact and verified building coordinates. | Campus policy claims and real map | Synthetic origin; no approval claims | Before physical rehearsal/pitch |
+| 6 | Which exact Claude model did “Uber’s Wi-Fi” mean? T3 lists Opus 5.5, Sonnet 5.5, Fable 5.2, Haiku 5.5; none matches that label. | Optional future Claude routing; backend is completed by Codex | Leave Claude idle | Before any reassignment |
 
 Entra and deployment access will be queued only when needed. Meal swipes, Bedrock, Twilio, live Entra and learned show rate are deferred in that order to protect the demo loop.
 
