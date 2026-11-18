@@ -149,6 +149,35 @@ test("photo upload allows at least 60 seconds and uses the selected file", async
   assert.equal(calls.fixtures, 0);
 });
 
+test("createDrop surfaces 503 vision_unavailable server message without falling back to fixture", async () => {
+  const { api, calls } = loadClient({
+    fetch: async () =>
+      Response.json(
+        {
+          detail: {
+            code: "vision_unavailable",
+            message:
+              "Live vision via OpenRouter is temporarily unavailable. Please try again.",
+          },
+        },
+        { status: 503 },
+      ),
+  });
+  await assert.rejects(
+    api.createDrop(
+      new File([new Uint8Array([137, 80, 78, 71])], "food.png", {
+        type: "image/png",
+      }),
+    ),
+    (error) =>
+      error.status === 503 &&
+      error.code === "vision_unavailable" &&
+      error.message ===
+        "Live vision via OpenRouter is temporarily unavailable. Please try again.",
+  );
+  assert.equal(calls.fixtures, 0);
+});
+
 test("projector discovery comes from API without host browser storage", async () => {
   const { api } = loadClient({
     fetch: async (url, options) => {

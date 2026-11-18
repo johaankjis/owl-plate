@@ -5,10 +5,24 @@ export type HostViewStep = "upload" | "review" | "counts";
 export const HOST_POLL_INTERVAL_MS = 2000;
 
 /**
- * Maps DropResponse.vision_source ("gemini" | "fixture") to the exact Contract v2.1 UI badge label.
+ * Maps DropResponse.vision_source ("openrouter" | "gemini" | "fixture") to the exact Contract v2.2 UI badge label.
  */
 export function getVisionSourceLabel(visionSource: VisionSource): string {
-  return visionSource === "gemini" ? "Live Gemini" : "Saved demo estimate";
+  if (visionSource === "openrouter") {
+    return "Live Gemini via OpenRouter";
+  }
+  if (visionSource === "gemini") {
+    return "Live Gemini";
+  }
+  return "Saved demo estimate";
+}
+
+/**
+ * Returns true when the drop estimate came from a live vision provider ("gemini" or "openrouter")
+ * rather than the offline/demo fixture.
+ */
+export function isLiveVisionSource(visionSource: VisionSource): boolean {
+  return visionSource === "gemini" || visionSource === "openrouter";
 }
 
 /**
