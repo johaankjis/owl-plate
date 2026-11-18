@@ -1,5 +1,38 @@
 # Owl Plate checkpoint
 
+## Current priority — app deployment review, November 18, 2026
+
+Johaan's latest direction supersedes the old survey-first ordering below:
+**focus on the existing Owl Plate app; survey collection remains off, n=0.**
+The application source candidate remains `98e5074e86139500127b2b96c51c4de5af56fed6`
+on `demo/owl-plate-ready`; no application code changed in this checkpoint.
+
+- Approval bundle: `submission/DEPLOYMENT_APPROVAL.md`. Recommend Vercel web +
+  Render paid Starter API and Basic-256mb PostgreSQL, 1 GB, same region. Expected
+  ~$13–14/month base; proposed up-to-$15 base allowance, subject to creation quote,
+  tax/usage and Vercel eligibility. Requires approval of the exception to AWS,
+  account binding, source transfer and publication. No provisioning/deployment.
+- Single API instance/worker keeps the existing 10-second scheduler running;
+  verify natural expiry/widening without requests or demo-clock advance, plus
+  restart persistence, after deployment. Free sleeping API is unsuitable.
+- Local HTTPS preview restored at `https://localhost:3443/`; host/student and
+  proxied health return 200. Local certificate/loopback only. Fixture vision,
+  simulated notifications, survey `accepting:false`, actual local n=0 verified.
+  API/web/TLS ports 8017/3017/3443; keep running during review. Supervisor PID
+  `/tmp/owl-https-review/preview.pid`; SIGTERM that process for clean owned shutdown.
+  DeckScout port 8000 untouched. No public URL or final phone-sharing QR yet.
+- Existing exact-SHA GLM review of `98e5074` is still awaiting its completion
+  report at this checkpoint; no polling/relaunch. Flag preview-affecting findings
+  when completion arrives. Earlier safety reviews remain recorded below.
+- Physical Android/iPhone push receipts and real-photo vision n remain zero.
+  Mobile local emulation evidence and 96.6-second captioned fallback preserved.
+
+Prioritized return decisions: (1) deployment bundle/accounts/base budget/source
+transfer; (2) authorized Android A + Home Screen iPhone C and a test slot;
+(3) private Firebase/Gemini access plus counted/ingredient-labeled tray photos;
+(4) speaker roles/actual team rehearsal. Survey is deferred, collection off.
+Submission remains Johaan's approval/action by Nov 20 noon Eastern.
+
 ## Questions for Johaan — return queue (survey first)
 
 **1. Approve the standalone survey and direct-sharing plan.** The final form is

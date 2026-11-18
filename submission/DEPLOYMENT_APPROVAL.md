@@ -1,92 +1,134 @@
-# Owl Plate HTTPS demo and survey — approval candidate
+# Owl Plate app — deployment approval bundle
 
-**Prepared, not deployed.** No public HTTPS origin has been assigned. Vercel web
-is Johaan's selected target; API hosting remains to be selected. The supervised
-hackathon experience uses the existing app, not a replacement site.
+Prepared November 18, 2026. **Not deployed; approval pending. Survey collection
+stays off (`SURVEY_ENABLED=false`), n=0.** The reviewed application at
+`98e5074e86139500127b2b96c51c4de5af56fed6` is the deployment source candidate;
+this update changes documentation only. Main/default branch stays untouched.
 
-## What is ready
+## Proposed target and cost
 
-- Existing host/student/projector routes; same-origin `/backend` proxy so phone
-  browsers do not call their own localhost or make mixed HTTP/HTTPS requests.
-- Standalone `/survey`, separate from demo persona UI and sign-in. Eight reviewed
-  questions, optional answers, affirmative consent, bounded optional feedback.
-- Collection defaults off. Preview submissions are not stored/counted, n=0.
-  Approved responses deduplicate retries, survive demo resets and have no public
-  listing/count endpoint. Export/count is operator-only via `scripts/survey_results.py`.
-- Vercel settings, server environment template and API Dockerfile under `deploy/`.
-  API package and PostgreSQL DDL checked; no Docker executable or live Postgres
-  instance was available, so container execution/live database remain pending.
-- Separate demo and survey QR generator; local samples independently decoded.
-  They are marked LOCAL REVIEW ONLY and encode localhost. Do not distribute them.
-- The checked PowerPoint/PDF and 96.6s captioned fallback remain unchanged.
+Keep the existing Next.js app on **Vercel**. Recommend **Render paid Web Service
+(Starter / 512 MB) + managed PostgreSQL (Basic-256mb), 1 GB initial storage**, in
+the same region/account. This is a proposed hackathon hosting exception to the
+original AWS deployment plan, requiring Johaan's approval.
 
-## Phone/browser evidence
+Expected monthly base: API $7 + PostgreSQL compute $6 = $13; allow up to $0.30
+for 1 GB storage pending the dashboard's included-storage treatment. Budget
+**about $13–14/month**, before tax or excess usage. Vercel Hobby is $0 if the
+account/project qualifies; no paid Vercel upgrade is included. Proposed base
+budget authorization: **up to $15/month**, with no plan upgrades, extra services,
+or storage autoscaling without another approval. This is a planning allowance,
+not an enforced total-bill cap; bandwidth/build overages can still apply. Confirm
+the creation-screen quote before provisioning. If it differs, return for approval.
+No Gemini usage, domain purchase or separate worker is included in this estimate.
+After the hackathon, Johaan decides the retention/deletion date to stop costs.
 
-Chromium emulation for Pixel 7 and iPhone 13, through a local HTTPS proxy with an
-explicitly trusted test certificate, passed upload → fixture review → safety
-checks → publish → A/C invites → B exclusion → A claim → explicit +60s demo clock
-→ D wave two → reset. Survey preview, optional clearing, consent, no horizontal
-overflow and no page errors passed. Browser requests stayed on the HTTPS origin.
-These are emulated browser results with fixture vision/simulated notifications;
-not public TLS, Safari verification, physical phones or push receipts.
+Pricing checked against Render's official pricing and cost guide on Nov 18:
+https://render.com/pricing
+https://render.com/articles/how-much-does-cloud-application-hosting-cost-for-small-businesses
+Vercel plan: https://vercel.com/docs/plans/hobby
 
-WebKit's downloaded runtime loaded but stalled creating a page on this host.
-Safari/Home Screen iPhone checks remain pending. Shared browser tools also lacked
-host libraries; isolated local Playwright used, no system packages installed.
+## Account, source and private setup
 
-## Final sharing plan for approval
+1. Johaan chooses/authorizes the Vercel account/project and Render account with
+   billing. No account binding or credentials currently exist here. Use private
+   secret cards or the provider dashboards, never chat, for credentials.
+2. Approve how this exact local SHA reaches the builder: an approved private Git
+   remote/branch push for Render's repository build, or an approved private image
+   registry. Existing local commits have not been pushed. Disable automatic
+   deployment; deploy the recorded SHA manually. Do not merge into main.
+3. Create paid PostgreSQL and API in the same Render region (proposed Virginia,
+   subject to availability). Use the private/internal DB URL with the SQLAlchemy
+   `postgresql+psycopg://` scheme and `sslmode=require`; restrict external database
+   access. Start with 1 GB; no storage autoscaling. Create no object storage.
+4. API: repository-root build context, `deploy/api.Dockerfile`, `PORT=8017`, one
+   instance, one Uvicorn worker, health `/health`. Set private `DATABASE_URL`,
+   `AUTH_MODE=demo`, `DEMO_MODE=true`, `VISION_PROVIDER=fixture`,
+   `NOTIFICATION_PROVIDER=log`, `SURVEY_ENABLED=false`. Set CORS to the assigned
+   web origin. No live provider secrets are required for this initial preview.
+5. Vercel: root `apps/web`, `npm ci`, `npm run build`;
+   `NEXT_PUBLIC_API_URL=/backend`, `NEXT_PUBLIC_UI_FIXTURE_MODE=false`,
+   `OWL_API_ORIGIN=<actual API HTTPS origin>` before building. Use assigned HTTPS
+   provider domains first; no purchased domain. Confirm both testers can open the
+   deployment through its protection settings before generating the QR.
 
-Audience: KSU students invited **directly in person** by Johaan or a named
-teammate. Use only the standalone survey QR/link with the exact invitation in
-`SURVEY.md`; no Discord, group-channel posts, bulk messages or mailing lists.
-Form review: `SURVEY_APPROVAL.html` and actual mobile screenshot
-`evidence/mobile-https/chromium-iphone-layout-survey.png`.
+## Invitation scheduler
 
-After an origin is assigned, the separate targets are:
+The existing FastAPI lifespan starts an asyncio task that calls `backend.tick`
+every **10 seconds**. Keep **one paid always-running API instance and one worker**;
+no additional scheduler service, cron job or browser activity is required. Render
+Free sleeps after 15 minutes without inbound traffic and is unsuitable for this
+scheduler. Restarts pause ticks until startup; PostgreSQL retains deadlines/state.
+After deployment, prove a natural 60-second invite expiry and second-wave widening
+with no demo clock advance and no API requests during the wait; then inspect the
+persisted wave/invite timestamps with a read-only database query **before**
+opening a route that could trigger lazy expiry. Repeat after an API restart to check persistence
+and resumed ticking. Health alone does not prove scheduler progress. Avoid
+redeploys during rehearsal; overlapping rollout processes may briefly coexist,
+with existing transactional deduplication protecting invites/holds.
 
-- Demo QR: `<assigned HTTPS web origin>/` → existing host/student choices.
-- Survey QR: `<assigned HTTPS web origin>/survey` → standalone form.
+Render references:
+https://render.com/docs/free
+https://render.com/docs/web-services
+https://render.com/docs/postgresql-creating-connecting
 
-These are target paths, **not live URLs**. Generate the final PNGs with
-`scripts/build_qr.py --origin <assigned HTTPS web origin> --output submission/qr`;
-verify by decoding and opening both on authorized phones. Never replace the
-origin with an invented or unreserved domain.
+## Phone verification after approval and publication
 
-## Decisions needed before publishing/distribution
+1. Open the **actual assigned HTTPS origin** on authorized Android Chrome and
+   iPhone Safari; verify trusted TLS, no localhost API requests, no mixed content,
+   usable portrait forms/buttons and no horizontal overflow. Record OS/browser
+   versions and run ID. Decode/open the generated demo QR on both phones.
+2. Reset once, select synthetic identities, then run the existing host upload →
+   fixture estimate → edit servings → complete safety review → publish flow.
+   Confirm A/C invites, B dairy exclusion, A's single idempotent hold, counts and
+   capacity response. Wait for C to expire naturally, then D ring 4 without
+   contacting earlier invitees again. Check decline/reset and DB restart recovery.
+   This run proves app behavior; log notifications remain **simulated**.
+3. iPhone: add the app to Home Screen and launch from its icon. Web Push requires
+   iOS 16.4+ and Home Screen installation. Android: use supported Chrome and
+   enable notifications through the app's user gesture. Inspect service-worker
+   registration/permission on both. Installation/permission is not receipt proof.
+4. For a separate live-push run only after authorized testers/private Firebase
+   setup: set encrypted token storage, exact synthetic A/C recipient allowlist,
+   Firebase messaging config/VAPID and service-account access privately. Reset
+   **before** registering tokens; background/lock both devices, publish once and
+   record each actual receipt time, tap-through and generic lock-screen text.
+   Record failure honestly. Current receipt evidence: **none**.
+5. Keep `/backend/survey/status` at `accepting:false`; count actual submissions
+   operator-side (currently n=0). Run source-labeled Gemini/photo evaluation only
+   when separately supplied credentials and counted/ingredient-labeled photos
+   exist. Live vision accuracy remains unverified (real-photo n=0).
 
-1. Approve creation/binding of the Vercel web project in the chosen account.
-2. Select/provide the API service's account/HTTPS origin and durable PostgreSQL
-   endpoint. Intended architecture is AWS; use `deploy/api.Dockerfile`. Approve
-   any provisioning cost before creation. No paid service is provisioned now.
-3. Approve the final form and direct in-person sharing owner. Publishing the
-   preview does not itself approve enabling collection or distributing the QR.
-4. After actual HTTPS checks and the collection safeguards below, approve opening `SURVEY_ENABLED=true` and direct
-   sharing. Count only real persisted responses; current n=0.
+Apple Web Push reference:
+https://webkit.org/blog/13966/webkit-features-in-safari-16-4/
 
-Public review remains fixture vision + simulated notifications, synthetic demo
-auth. Live Gemini/FCM requires separate private configuration and explicitly
-approved testers. Deployment and hackathon submission are Johaan's approval/action.
-Deadline remains Friday November 20, 2026, noon Eastern / 17:00 UTC.
+## Current evidence, limits and rollback
 
-## Public collection gate — independent review condition
+Local HTTPS is running at **https://localhost:3443/** on this machine only, with
+a local test certificate; host `/host`, student `/student`, and proxied health
+respond 200; health explicitly reports simulated notifications. Survey status
+reports `accepting:false`, actual persisted local n=0. Ports: API 8017, web 3017,
+TLS 3443. Supervisor PID file `/tmp/owl-https-review/preview.pid`; stop only that
+process with SIGTERM when review ends. No public tunnel or trusted public phone
+URL is implied. Never share the localhost QR as a public demo link.
 
-The independent GLM review passed the local candidate at
-`98e5074e86139500127b2b96c51c4de5af56fed6`. It did not approve public collection.
-Distinct anonymous UUIDs can currently create unlimited submissions once the gate
-opens. Retry deduplication does not establish unique people or prevent abuse.
+Prior Chromium Pixel 7/iPhone layout checks passed the host/student flow, labeled
+fixture/log, without mixed content/overflow. Physical Safari/Android, public TLS,
+container startup and live PostgreSQL remain pending. Automated checks at the
+candidate: 73 API, 116 eval-calculation and 5 client tests; lint/types/build passed.
+The new exact-SHA GLM review has not returned as of this update; preview-affecting
+findings will be flagged when it does. No second reviewer or duplicate task started.
 
-Before enabling collection, implement a gateway rate limit or an application row
-ceiling, verify it on the selected API service, and name the operator who can
-close the gate. Controls must cover the direct API origin as well as the Vercel
-proxy; CORS alone is insufficient. Do not store IP addresses in survey rows.
-Keep `SURVEY_ENABLED=false` until the control is demonstrated and Johaan approves
-collection/distribution. Preview deployment may stay gate-off. The control is
-pending, not implemented or verified by this document.
+This is a supervised synthetic demo using visible demo credentials/shared reset,
+not production access control. Dependency advisories remain a readiness item.
+FCM sends currently hold the DB transaction; review latency during the authorized
+push run. Keep collection off, fixture/log labels on, and limit sharing to the
+approved rehearsal audience. Retain the checked deck and **96.6-second captioned
+fallback**. If deployment verification fails, use that fallback; stop/deactivate
+paid compute only with Johaan's approved retention/cleanup decision.
 
-Serve the form only over trusted HTTPS: its anonymous retry ID uses secure-context
-`crypto.randomUUID()`. Verify HTTP redirects to HTTPS and the assigned origin on
-both physical phones. Local emulation is not physical-device evidence.
-
-Run operator count/export from the repository root with the intended private
-`DATABASE_URL`. Its fallback SQLite path is CWD-relative; verify the selected
-database before reporting n. Counts mean submissions, not verified unique people.
+Approval requested together: Vercel project/account binding, Render API+Postgres
+instead of AWS for the hackathon, the up-to-$15 monthly base allowance, approved
+source transfer/push or image publication, and limited-audience preview publication.
+Survey collection/distribution, live notification sends and submission remain
+separate and unapproved. Deadline: Friday Nov 20, 2026, noon Eastern / 17:00 UTC.

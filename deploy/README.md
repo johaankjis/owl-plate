@@ -2,8 +2,9 @@
 
 Web target selected by Johaan: **Vercel**. Root directory `apps/web`; copy the
 settings in `deploy/vercel.json` into that project's Vercel configuration (the
-file is a review artifact, not a claim the project exists). API hosting remains
-to be selected. Intended architecture remains FastAPI/Python 3.11 and PostgreSQL
+file is a review artifact, not a claim the project exists). Recommend Render paid Starter API + Basic-256mb PostgreSQL (1 GB) for the
+hackathon; selection and provisioning remain unapproved. See the current
+`submission/DEPLOYMENT_APPROVAL.md` for the account/budget/scheduler/phone bundle. Intended architecture remains FastAPI/Python 3.11 and PostgreSQL
 on AWS; `deploy/api.Dockerfile` packages this service for the selected host.
 No project, domain, paid service, deployment or tunnel has been created.
 
