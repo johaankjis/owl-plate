@@ -11,20 +11,46 @@ import time
 from pathlib import Path
 
 import httpx
+from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "apps" / "web"
 STAMP = WEB / ".next" / "owl-present-stamp"
+# Confirmed 2026-11-18 on ai.google.dev/gemini-api/docs/models: stable, multimodal
+# (Text, Image, Audio, Video, PDF) generateContent model.
+DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
 DEMO_ENV = {
     "AUTH_MODE": "demo",
     "DEMO_MODE": "true",
-    "VISION_PROVIDER": "fixture",
     "NOTIFICATION_PROVIDER": "log",
     "SURVEY_ENABLED": "false",
     "OWL_ORIGIN_PROXY_REQUIRED": "false",
     "NEXT_PUBLIC_API_URL": "/backend",
     "NEXT_PUBLIC_UI_FIXTURE_MODE": "false",
 }
+
+
+def resolve_gemini_credentials() -> tuple[str, str]:
+    """Read live-vision credentials from the shell or the gitignored .env, never printing them."""
+    load_dotenv(ROOT / ".env")
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        sys.exit(
+            "GEMINI_API_KEY is required for --vision gemini.\n"
+            f"Put GEMINI_API_KEY=... in {ROOT / '.env'} (that file is gitignored),\n"
+            "or run: export GEMINI_API_KEY=... in this shell.\n"
+            "Create a key at https://aistudio.google.com/apikey and never commit or share it."
+        )
+    model = os.getenv("GEMINI_MODEL", "").strip() or DEFAULT_GEMINI_MODEL
+    return api_key, model
+
+
+def vision_environment(mode: str) -> dict[str, str]:
+    """Turn the selected vision mode into API-process environment overrides."""
+    if mode == "fixture":
+        return {"VISION_PROVIDER": "fixture"}
+    api_key, model = resolve_gemini_credentials()
+    return {"VISION_PROVIDER": "gemini", "GEMINI_API_KEY": api_key, "GEMINI_MODEL": model}
 
 
 def build_fingerprint() -> str:
@@ -91,9 +117,10 @@ def stop(signum: int, frame: object) -> None:
 
 def run(args: argparse.Namespace) -> None:
     """Supervise API and web together so Ctrl+C always leaves the laptop clean."""
+    vision_env = vision_environment(args.vision)
     database = ROOT / "build" / "present.db"
     database.parent.mkdir(exist_ok=True)
-    env = {**os.environ, **DEMO_ENV}
+    env = {**os.environ, **DEMO_ENV, **vision_env}
     env["DATABASE_URL"] = f"sqlite:///{database}"
     env["OWL_API_ORIGIN"] = f"http://127.0.0.1:{args.api_port}"
     env["CORS_ORIGINS"] = f"http://localhost:{args.port}"
@@ -125,10 +152,15 @@ def run(args: argparse.Namespace) -> None:
         wait_healthy(f"http://127.0.0.1:{args.port}/backend/health")
         reset(args.api_port)
         base = f"http://localhost:{args.port}"
+        mode_line = (
+            "LIVE GEMINI VISION (analyzes the uploaded photo)"
+            if args.vision == "gemini"
+            else "SAVED DEMO ESTIMATE (fixture)"
+        )
         print(
             "\n"
             "  Owl Plate demo ready (clean state, live-visitor scenario)\n"
-            "  Mode: FIXTURE VISION + SIMULATED NOTIFICATIONS (no live AI, no real push)\n\n"
+            f"  Mode: {mode_line} + SIMULATED NOTIFICATIONS (no real push)\n\n"
             f"  Home       {base}/\n"
             f"  Host       {base}/host\n"
             f"  Join       {base}/join\n"
@@ -156,6 +188,9 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset-only", action="store_true", help="reset a running demo")
     parser.add_argument("--scenario", choices=["visitors", "seeded"], default="visitors")
+    parser.add_argument(
+        "--vision", choices=["fixture", "gemini"], default="fixture", help="vision provider"
+    )
     parser.add_argument("--rebuild", action="store_true", help="force a fresh web build")
     parser.add_argument("--host", default=os.getenv("PRESENT_HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=int(os.getenv("WEB_PORT", "3017")))

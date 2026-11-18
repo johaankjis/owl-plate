@@ -372,14 +372,23 @@ class Backend:
         except Exception as exc:
             raise DomainError("invalid_photo", "A valid JPEG or PNG is required.", 422) from exc
         if self.analyze is None:
-            raise DomainError("provider_unavailable", "Vision unavailable.", 503)
+            raise DomainError(
+                "vision_unavailable",
+                "Food photo analysis is not configured. Ask the organizer to check the vision setup.",
+                503,
+            )
         try:
             estimate, source = self.analyze(photo, host_note)
             estimate = VisionEstimate.model_validate(estimate).model_copy(deep=True)
             if source not in {"fixture", "gemini"} or (source == "fixture" and not self.demo_mode):
                 raise ValueError("Invalid source")
         except Exception as exc:
-            raise DomainError("provider_unavailable", "Vision unavailable.", 503) from exc
+            # Live vision never falls back to the fixture: fail the request without a drop.
+            raise DomainError(
+                "vision_unavailable",
+                "Food photo analysis is unavailable right now. Wait a moment and try again.",
+                503,
+            ) from exc
         estimate.diet_tags = [d for d in estimate.diet_tags if d not in RELIGIOUS_DIETS]
         if estimate.confidence < 0.6:
             estimate.allergens_likely = list(ALLERGENS)

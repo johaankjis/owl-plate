@@ -78,7 +78,12 @@ def build_vision_provider() -> VisionProvider:
             raise ValueError("Fixture vision requires explicit demo mode and demo auth")
         return SafeVision(FixtureVision())
     if mode == "gemini":
-        return SafeVision(
-            GeminiVision(os.getenv("GEMINI_API_KEY", ""), os.getenv("GEMINI_MODEL", ""))
-        )
+        api_key = os.getenv("GEMINI_API_KEY", "").strip()
+        model = os.getenv("GEMINI_MODEL", "").strip()
+        if not api_key or not model:
+            raise ValueError(
+                "Gemini vision requires GEMINI_API_KEY and GEMINI_MODEL; set them in the "
+                "gitignored .env at the repo root or in the launching shell"
+            )
+        return SafeVision(GeminiVision(api_key, model))
     raise ValueError("Unsupported VISION_PROVIDER")
