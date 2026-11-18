@@ -1,19 +1,23 @@
 /**
- * HTTP Client for Owl Plate frozen milestone contract v1.
+ * HTTP Client for Owl Plate frozen milestone contract v1 + Revamp contract v2.
  *
  * Uses NEXT_PUBLIC_API_URL (defaults to http://localhost:8017).
- * Sends explicit synthetic Bearer credential in demo mode:
- *   Authorization: Bearer demo-host | demo-projector | demo-student-A..E
+ * Sends explicit synthetic Bearer credential or visitor session token in demo mode:
+ *   Authorization: Bearer demo-host | demo-projector | demo-student-A..E | demo-session-...
  *
  * API is the default. Standalone UI fixtures require explicit build-time opt-in.
  * Network errors and failed mutations never become synthetic successes.
  */
 
 import type {
+  AuthToken,
   ClaimResponse,
-  DemoCredential,
   DemoActiveDropResponse,
+  DemoAreasResponse,
+  DemoCredential,
+  DemoResetRequest,
   DemoResetResponse,
+  DemoStatusResponse,
   DemoTick,
   DemoTickResponse,
   DispatchResponse,
@@ -22,11 +26,15 @@ import type {
   ErrorDetail,
   InviteResponse,
   InvitesResponse,
+  JoinRequest,
+  JoinResponse,
   Preferences,
   PresenceRequest,
   PresenceResponse,
   PushTokenRequest,
   PushTokenResponse,
+  SessionLeftResponse,
+  SessionStudent,
 } from "./types/api";
 import {
   fixtureClaimInvite,
@@ -34,9 +42,14 @@ import {
   fixtureDeclineInvite,
   fixtureDemoReset,
   fixtureDemoTick,
+  fixtureGetDemoAreas,
+  fixtureGetDemoStatus,
   fixtureGetDispatch,
   fixtureGetDrop,
   fixtureGetMyInvites,
+  fixtureGetMySession,
+  fixtureJoinSession,
+  fixtureLeaveSession,
   fixturePickupClaim,
   fixturePublishDrop,
   fixtureRegisterPushToken,
@@ -76,6 +89,10 @@ export class ApiContractError extends Error {
   }
 }
 
+function buildApiUrl(path: string): string {
+  return `${API_BASE_URL}${path}`;
+}
+
 async function parseErrorResponse(res: Response): Promise<ApiContractError> {
   try {
     const body = (await res.json()) as {
@@ -111,18 +128,50 @@ async function parseErrorResponse(res: Response): Promise<ApiContractError> {
   );
 }
 
+function normalizeFixtureError(err: unknown): ApiContractError {
+  if (err instanceof ApiContractError) {
+    return err;
+  }
+  if (
+    typeof err === "object" &&
+    err !== null &&
+    "status" in err &&
+    "code" in err &&
+    typeof (err as { status: unknown }).status === "number" &&
+    typeof (err as { code: unknown }).code === "string"
+  ) {
+    const typed = err as { status: number; code: string; message?: string };
+    return new ApiContractError(
+      typed.status,
+      typed.code,
+      typed.message || "Fixture error",
+    );
+  }
+  return new ApiContractError(
+    400,
+    "fixture_error",
+    err instanceof Error ? err.message : "Fixture error",
+  );
+}
+
 async function request<T>(
   path: string,
   options: RequestInit,
-  credential: DemoCredential,
+  credential: AuthToken | null,
   fixtureFn: () => T,
   timeoutMs = 15000,
 ): Promise<ApiResult<T>> {
   if (UI_FIXTURE_MODE) {
-    return { data: fixtureFn(), source: "offline_fixture" };
+    try {
+      return { data: fixtureFn(), source: "offline_fixture" };
+    } catch (err) {
+      throw normalizeFixtureError(err);
+    }
   }
   const headers = new Headers(options.headers);
-  headers.set("Authorization", `Bearer ${credential}`);
+  if (credential) {
+    headers.set("Authorization", `Bearer ${credential}`);
+  }
   if (
     !(options.body instanceof FormData) &&
     options.body &&
@@ -135,7 +184,7 @@ async function request<T>(
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const res = await fetch(`${API_BASE_URL}${path}`, {
+    const res = await fetch(buildApiUrl(path), {
       ...options,
       headers,
       signal: controller.signal,
@@ -161,6 +210,59 @@ async function request<T>(
   }
 }
 
+export async function getDemoAreas(): Promise<ApiResult<DemoAreasResponse>> {
+  return request<DemoAreasResponse>(
+    "/demo/areas",
+    { method: "GET" },
+    null,
+    () => fixtureGetDemoAreas(),
+  );
+}
+
+export async function joinDemoSession(
+  req: JoinRequest,
+): Promise<ApiResult<JoinResponse>> {
+  return request<JoinResponse>(
+    "/sessions",
+    { method: "POST", body: JSON.stringify(req) },
+    null,
+    () => fixtureJoinSession(req),
+  );
+}
+
+export async function getMySession(
+  credential: AuthToken,
+): Promise<ApiResult<SessionStudent>> {
+  return request<SessionStudent>(
+    "/sessions/me",
+    { method: "GET" },
+    credential,
+    () => fixtureGetMySession(credential),
+  );
+}
+
+export async function leaveDemoSession(
+  credential: AuthToken,
+): Promise<ApiResult<SessionLeftResponse>> {
+  return request<SessionLeftResponse>(
+    "/sessions/me",
+    { method: "DELETE" },
+    credential,
+    () => fixtureLeaveSession(credential),
+  );
+}
+
+export async function getDemoStatus(
+  credential: DemoCredential = "demo-projector",
+): Promise<ApiResult<DemoStatusResponse>> {
+  return request<DemoStatusResponse>(
+    "/demo/status",
+    { method: "GET" },
+    credential,
+    () => fixtureGetDemoStatus(),
+  );
+}
+
 export async function createDrop(
   photo: File,
   hostNote: string | undefined,
@@ -172,14 +274,13 @@ export async function createDrop(
     form.append("host_note", hostNote.trim());
   }
 
-  const result = await request<DropResponse>(
+  return request<DropResponse>(
     "/drops",
     { method: "POST", body: form },
     credential,
     () => fixtureCreateDrop(hostNote),
     65000,
   );
-  return result;
 }
 
 export async function updateDrop(
@@ -199,18 +300,17 @@ export async function publishDrop(
   dropId: string,
   credential: DemoCredential = "demo-host",
 ): Promise<ApiResult<DropResponse>> {
-  const result = await request<DropResponse>(
+  return request<DropResponse>(
     `/drops/${encodeURIComponent(dropId)}/publish`,
     { method: "POST" },
     credential,
     () => fixturePublishDrop(dropId),
   );
-  return result;
 }
 
 export async function getDrop(
   dropId: string,
-  credential: DemoCredential,
+  credential: AuthToken,
 ): Promise<ApiResult<DropResponse>> {
   return request<DropResponse>(
     `/drops/${encodeURIComponent(dropId)}`,
@@ -221,7 +321,7 @@ export async function getDrop(
 }
 
 export async function getMyInvites(
-  credential: DemoCredential,
+  credential: AuthToken,
 ): Promise<ApiResult<InvitesResponse>> {
   return request<InvitesResponse>(
     "/students/me/invites",
@@ -233,7 +333,7 @@ export async function getMyInvites(
 
 export async function claimInvite(
   inviteId: string,
-  credential: DemoCredential,
+  credential: AuthToken,
 ): Promise<ApiResult<ClaimResponse>> {
   return request<ClaimResponse>(
     `/invites/${encodeURIComponent(inviteId)}/claim`,
@@ -245,7 +345,7 @@ export async function claimInvite(
 
 export async function declineInvite(
   inviteId: string,
-  credential: DemoCredential,
+  credential: AuthToken,
 ): Promise<ApiResult<InviteResponse>> {
   return request<InviteResponse>(
     `/invites/${encodeURIComponent(inviteId)}/decline`,
@@ -257,25 +357,25 @@ export async function declineInvite(
 
 export async function releaseClaim(
   claimId: string,
-  credential: DemoCredential,
+  credential: AuthToken,
 ): Promise<ApiResult<ClaimResponse>> {
   return request<ClaimResponse>(
     `/claims/${encodeURIComponent(claimId)}/release`,
     { method: "POST" },
     credential,
-    () => fixtureReleaseClaim(claimId),
+    () => fixtureReleaseClaim(claimId, credential),
   );
 }
 
 export async function pickupClaim(
   claimId: string,
-  credential: DemoCredential,
+  credential: AuthToken,
 ): Promise<ApiResult<ClaimResponse>> {
   return request<ClaimResponse>(
     `/claims/${encodeURIComponent(claimId)}/pickup`,
     { method: "POST" },
     credential,
-    () => fixturePickupClaim(claimId),
+    () => fixturePickupClaim(claimId, credential),
   );
 }
 
@@ -293,7 +393,7 @@ export async function getDispatchView(
 
 export async function updateMyPreferences(
   prefs: Preferences,
-  credential: DemoCredential,
+  credential: AuthToken,
 ): Promise<ApiResult<Preferences>> {
   return request<Preferences>(
     "/students/me/preferences",
@@ -305,7 +405,7 @@ export async function updateMyPreferences(
 
 export async function checkInPresence(
   req: PresenceRequest,
-  credential: DemoCredential,
+  credential: AuthToken,
 ): Promise<ApiResult<PresenceResponse>> {
   return request<PresenceResponse>(
     "/students/me/presence",
@@ -317,7 +417,7 @@ export async function checkInPresence(
 
 export async function registerPushToken(
   req: PushTokenRequest,
-  credential: DemoCredential,
+  credential: AuthToken,
 ): Promise<ApiResult<PushTokenResponse>> {
   return request<PushTokenResponse>(
     "/students/me/push-token",
@@ -329,12 +429,16 @@ export async function registerPushToken(
 
 export async function resetDemoState(
   credential: DemoCredential = "demo-host",
+  req?: DemoResetRequest,
 ): Promise<ApiResult<DemoResetResponse>> {
   return request<DemoResetResponse>(
     "/demo/reset",
-    { method: "POST" },
+    {
+      method: "POST",
+      ...(req ? { body: JSON.stringify(req) } : {}),
+    },
     credential,
-    () => fixtureDemoReset(),
+    () => fixtureDemoReset(req),
   );
 }
 

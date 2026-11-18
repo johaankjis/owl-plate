@@ -9,27 +9,24 @@ import {
   DIETS,
   RELIGIOUS_DIETS,
   type Allergen,
-  type DemoCredential,
   type Diet,
   type DropEdit,
   type DropResponse,
   type SafetyReview,
 } from "../../lib/types/api";
 import {
-  advanceDemoClock,
   createDrop,
   getDrop,
   getActiveDrop,
   publishDrop,
-  resetDemoState,
   updateDrop,
   INITIAL_DATA_SOURCE,
   type DataSourceMode,
 } from "../../lib/api-client";
-import { formatEasternTime } from "../../lib/time";
+
+const HOST_CREDENTIAL = "demo-host" as const;
 
 export default function HostPage() {
-  const [credential, setCredential] = useState<DemoCredential>("demo-host");
   const [sourceMode, setSourceMode] =
     useState<DataSourceMode>(INITIAL_DATA_SOURCE);
   const [drop, setDrop] = useState<DropResponse | null>(null);
@@ -57,7 +54,6 @@ export default function HostPage() {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [serverTimeIso, setServerTimeIso] = useState<string | null>(null);
 
   const syncFormFromDrop = useCallback((d: DropResponse) => {
     setServingsFinal(d.servings_final);
@@ -80,12 +76,12 @@ export default function HostPage() {
 
   useEffect(() => {
     let active = true;
-    getActiveDrop(credential)
+    getActiveDrop(HOST_CREDENTIAL)
       .then((activeDrop) => {
         if (!active) return null;
         setSourceMode(activeDrop.source);
         return activeDrop.data.drop_id
-          ? getDrop(activeDrop.data.drop_id, credential)
+          ? getDrop(activeDrop.data.drop_id, HOST_CREDENTIAL)
           : null;
       })
       .then((res) => {
@@ -103,7 +99,7 @@ export default function HostPage() {
     return () => {
       active = false;
     };
-  }, [credential, syncFormFromDrop]);
+  }, [syncFormFromDrop]);
 
   const removedEstimatedAllergens = drop
     ? drop.vision.allergens_likely.filter(
@@ -149,14 +145,14 @@ export default function HostPage() {
     try {
       if (!selectedFile)
         throw new Error("Select a JPEG or PNG food photo first.");
-      const res = await createDrop(selectedFile, hostNote, credential);
+      const res = await createDrop(selectedFile, hostNote, HOST_CREDENTIAL);
       setDrop(res.data);
       setSourceMode(res.source);
       syncFormFromDrop(res.data);
       setStatusMessage(
         `Photo processed (${
           res.data.vision_source === "fixture"
-            ? "Cached Fixture Vision Estimate"
+            ? "Cached fixture estimate (simulated)"
             : "Live Gemini Vision"
         }). Review servings, allergens, and safety checklist below.`,
       );
@@ -185,10 +181,14 @@ export default function HostPage() {
     setErrorMessage(null);
     setStatusMessage(null);
     try {
-      const res = await updateDrop(drop.id, buildDropEditPayload(), credential);
+      const res = await updateDrop(
+        drop.id,
+        buildDropEditPayload(),
+        HOST_CREDENTIAL,
+      );
       setDrop(res.data);
       setSourceMode(res.source);
-      setStatusMessage("Host review saved (PATCH /drops/{id}).");
+      setStatusMessage("Host review saved.");
     } catch (err) {
       setErrorMessage(
         err instanceof Error ? err.message : "Failed to update drop",
@@ -204,13 +204,12 @@ export default function HostPage() {
     setErrorMessage(null);
     setStatusMessage(null);
     try {
-      // Save latest review first via PATCH /drops/{id}, then POST /drops/{id}/publish
       const patched = await updateDrop(
         drop.id,
         buildDropEditPayload(),
-        credential,
+        HOST_CREDENTIAL,
       );
-      const published = await publishDrop(patched.data.id, credential);
+      const published = await publishDrop(patched.data.id, HOST_CREDENTIAL);
       setDrop(published.data);
       setSourceMode(published.source);
       setStatusMessage(
@@ -225,109 +224,62 @@ export default function HostPage() {
     }
   };
 
-  const handleDemoReset = async () => {
-    setBusyAction("reset");
-    setErrorMessage(null);
-    setStatusMessage(null);
-    try {
-      const res = await resetDemoState(credential);
-      setSourceMode(res.source);
-      setDrop(null);
-      setSelectedFile(null);
-      setServerTimeIso(null);
-      setStatusMessage(
-        `Reset complete: ${res.data.students} simulated students seeded. No drop or invitations. Upload a photo to begin.`,
-      );
-    } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to reset demo state",
-      );
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
-  const handleAdvance60s = async () => {
-    setBusyAction("tick");
-    setErrorMessage(null);
-    setStatusMessage(null);
-    try {
-      const res = await advanceDemoClock(60, credential);
-      setSourceMode(res.source);
-      setServerTimeIso(res.data.server_time);
-      if (drop) {
-        const refreshed = await getDrop(drop.id, credential);
-        setDrop(refreshed.data);
-      }
-      setStatusMessage(
-        `Advanced demo clock by +60 seconds (Server time: ${formatEasternTime(
-          res.data.server_time,
-        )}). Expired invites widen to the next H3 wave ring.`,
-      );
-    } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to advance demo clock",
-      );
-    } finally {
-      setBusyAction(null);
-    }
-  };
+  const currentStep = !drop ? 1 : drop.status === "draft" ? 2 : 3;
 
   return (
     <div className="min-h-screen bg-owl-black text-zinc-100">
       <DemoHeader
-        credential={credential}
-        onCredentialChange={setCredential}
         sourceMode={sourceMode}
         visionSource={drop?.vision_source}
         isDemo={drop?.is_demo ?? true}
-        allowedRoles={["host"]}
       />
 
-      <main className="mx-auto max-w-5xl space-y-6 px-4 py-6">
-        {/* Top Banner & Demo Controls */}
-        <section className="flex flex-col justify-between gap-4 rounded-xl border border-zinc-800 bg-owl-slate p-5 sm:flex-row sm:items-center">
+      <main className="mx-auto max-w-4xl space-y-6 px-4 py-6">
+        {/* Header & 3-Step Indicator */}
+        <section className="space-y-4 rounded-xl border border-zinc-800 bg-owl-slate p-5">
           <div>
             <h1 className="text-2xl font-bold text-white">
-              Event Host — Post Leftover Food
+              Share Leftover Event Food
             </h1>
             <p className="mt-1 text-sm text-zinc-300">
-              One photo, review the AI estimate, confirm food safety, and
-              publish. Hosts see serving counts.
+              Three quick steps: upload a food photo, review the AI estimate,
+              confirm food safety and publish. Hosts see serving counts only.
             </p>
           </div>
 
-          {/* Demo Host Controls: Reset & Advance 60s */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              data-testid="demo-reset-button"
-              disabled={busyAction !== null}
-              onClick={handleDemoReset}
-              className="rounded-lg border border-zinc-700 bg-zinc-800 px-3.5 py-2 text-xs font-semibold text-zinc-100 transition hover:bg-zinc-700 disabled:opacity-50"
+          <ol
+            aria-label="Host posting steps"
+            className="grid grid-cols-3 gap-2 text-xs font-semibold"
+          >
+            <li
+              className={`rounded-lg border px-3 py-2 ${
+                currentStep === 1
+                  ? "border-owl-gold bg-owl-gold/15 text-owl-gold"
+                  : "border-zinc-800 bg-owl-black/60 text-zinc-300"
+              }`}
             >
-              {busyAction === "reset" ? "Resetting..." : "Reset Demo State"}
-            </button>
-            <button
-              type="button"
-              data-testid="demo-advance-60s-button"
-              disabled={busyAction !== null}
-              onClick={handleAdvance60s}
-              className="rounded-lg border border-owl-gold/50 bg-owl-gold/15 px-3.5 py-2 text-xs font-semibold text-owl-gold transition hover:bg-owl-gold/25 disabled:opacity-50"
+              1. Upload
+            </li>
+            <li
+              className={`rounded-lg border px-3 py-2 ${
+                currentStep === 2
+                  ? "border-owl-gold bg-owl-gold/15 text-owl-gold"
+                  : "border-zinc-800 bg-owl-black/60 text-zinc-300"
+              }`}
             >
-              {busyAction === "tick" ? "Advancing..." : "Advance Clock +60s"}
-            </button>
-          </div>
+              2. Review
+            </li>
+            <li
+              className={`rounded-lg border px-3 py-2 ${
+                currentStep === 3
+                  ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
+                  : "border-zinc-800 bg-owl-black/60 text-zinc-300"
+              }`}
+            >
+              3. Publish
+            </li>
+          </ol>
         </section>
-
-        {serverTimeIso && (
-          <div className="rounded-lg border border-sky-500/30 bg-sky-950/20 px-4 py-2 text-xs text-sky-200">
-            Injectable Demo Clock (America/New_York):{" "}
-            <strong className="font-semibold">
-              {formatEasternTime(serverTimeIso)}
-            </strong>
-          </div>
-        )}
 
         {statusMessage && (
           <div
@@ -349,13 +301,12 @@ export default function HostPage() {
 
         {/* Step 1: Upload Photo */}
         <section className="rounded-xl border border-zinc-800 bg-owl-slate p-5">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-semibold text-owl-gold">
-              Step 1: Snap or Upload Food Photo
+              Step 1: Upload Food Photo
             </h2>
             <span className="text-xs text-zinc-400">
-              Photos must show food only. Uploaded photos are processed without
-              storage.
+              Photos must show food only. Processed without permanent storage.
             </span>
           </div>
 
@@ -379,9 +330,6 @@ export default function HostPage() {
                 onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
                 className="mt-1.5 block w-full rounded-lg border border-zinc-700 bg-owl-black px-3 py-2 text-xs text-zinc-200 file:mr-3 file:rounded file:border-0 file:bg-owl-gold file:px-2.5 file:py-1 file:text-xs file:font-semibold file:text-owl-black"
               />
-              <p className="mt-1 text-[11px] text-zinc-400">
-                Select a food-only JPEG or PNG photo.
-              </p>
             </div>
 
             <div className="sm:col-span-1">
@@ -417,142 +365,121 @@ export default function HostPage() {
           </form>
         </section>
 
-        {/* Step 2 & 3: Review Vision Estimate, Confirm Safety, and Publish */}
+        {/* Step 2 & Step 3: Review Vision Estimate and Publish */}
         {drop && (
-          <div className="grid gap-6 lg:grid-cols-12">
-            {/* Left Column: AI Vision Estimate & Live Counts */}
-            <section className="space-y-4 rounded-xl border border-zinc-800 bg-owl-slate p-5 lg:col-span-5">
+          <div className="space-y-6">
+            {/* Step 2: Review AI Estimate & Details */}
+            <section className="space-y-5 rounded-xl border border-zinc-800 bg-owl-slate p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-lg font-semibold text-white">
-                  Vision Estimate
+                <h2 className="text-lg font-semibold text-owl-gold">
+                  Step 2: Review AI Estimate
                 </h2>
-                <span
-                  data-testid="drop-vision-source-pill"
-                  className={`rounded-md px-2.5 py-1 text-xs font-bold ${
-                    drop.vision_source === "fixture"
-                      ? "border border-amber-400/40 bg-amber-500/15 text-amber-300"
-                      : "border border-emerald-400/40 bg-emerald-500/15 text-emerald-300"
-                  }`}
-                >
-                  {drop.vision_source === "fixture"
-                    ? "CACHED FIXTURE ESTIMATE (Simulated)"
-                    : "LIVE GEMINI VISION"}
-                </span>
-              </div>
-
-              <div className="rounded-lg border border-zinc-800 bg-owl-black/60 p-3 text-xs space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-zinc-400">Drop ID:</span>
-                  <code className="text-zinc-200">{drop.id}</code>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-zinc-400">Status:</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {drop.vision_source === "fixture" ? (
+                    <span
+                      data-testid="fixture-label"
+                      className="rounded-md border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 text-xs font-bold text-amber-300"
+                    >
+                      Cached fixture estimate (simulated)
+                    </span>
+                  ) : (
+                    <span
+                      data-testid="drop-vision-source-pill"
+                      className="rounded-md border border-emerald-400/40 bg-emerald-500/15 px-2.5 py-1 text-xs font-bold text-emerald-300"
+                    >
+                      Live Gemini Vision
+                    </span>
+                  )}
                   <span
                     data-testid="host-drop-status"
-                    className="font-bold uppercase text-owl-gold"
+                    className="rounded bg-owl-black px-2.5 py-1 text-xs font-bold uppercase text-owl-gold"
                   >
-                    {drop.status}
+                    Status: {drop.status}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-zinc-400">AI Confidence:</span>
-                  <span className="font-semibold text-zinc-200">
-                    {Math.round(drop.vision.confidence * 100)}% (Range{" "}
-                    {drop.vision.servings_low}–{drop.vision.servings_high}{" "}
-                    servings)
-                  </span>
+              </div>
+
+              {/* Detected items & confidence */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-lg border border-zinc-800 bg-owl-black/60 p-3.5 text-xs space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-zinc-400">Detected Food:</span>
+                    <span className="font-semibold text-zinc-200">
+                      Confidence {Math.round(drop.vision.confidence * 100)}% (
+                      {drop.vision.servings_low}–{drop.vision.servings_high}{" "}
+                      servings)
+                    </span>
+                  </div>
+                  <ul className="space-y-1.5 text-sm">
+                    {drop.vision.items.map((item, idx) => (
+                      <li
+                        key={`${item.name}-${idx}`}
+                        className="flex items-center justify-between rounded bg-owl-black/70 px-2.5 py-1.5"
+                      >
+                        <span className="font-medium text-zinc-100">
+                          {item.name}
+                        </span>
+                        <span className="text-xs text-zinc-400">
+                          ~{item.count_estimate} {item.portion_unit}(s)
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  {drop.vision.confidence < 0.6 && (
+                    <p className="rounded bg-amber-500/20 p-2 text-amber-200">
+                      Low vision confidence (&lt;60%): all 9 common allergens
+                      were automatically flagged.
+                    </p>
+                  )}
                 </div>
-                {drop.vision.confidence < 0.6 && (
-                  <p className="rounded bg-amber-500/20 p-2 text-amber-200">
-                    Low vision confidence (&lt;60%): all 9 common allergens were
-                    automatically flagged.
-                  </p>
-                )}
-              </div>
 
-              <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-                  Detected Items
-                </h3>
-                <ul className="mt-2 space-y-1.5 text-sm">
-                  {drop.vision.items.map((item, idx) => (
-                    <li
-                      key={`${item.name}-${idx}`}
-                      className="flex items-center justify-between rounded-lg bg-owl-black/50 px-3 py-2"
-                    >
-                      <span className="font-medium text-zinc-100">
-                        {item.name}
-                      </span>
-                      <span className="text-xs text-zinc-400">
-                        ~{item.count_estimate} {item.portion_unit}(s)
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                {drop.vision.notes && (
-                  <p className="mt-2 text-xs italic text-zinc-400">
-                    Note: {drop.vision.notes}
-                  </p>
-                )}
-              </div>
-
-              {/* Allergen Display with mandatory warning */}
-              <AllergenListDisplay
-                allergens={allergensFinal}
-                notice={drop.allergen_notice}
-                title="Active Drop Allergens"
-              />
-
-              {/* Aggregate Counts Only (Privacy rule: hosts see counts only, never names) */}
-              <div className="rounded-lg border border-zinc-800 bg-owl-black/60 p-4">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-                  Aggregate Serving Counts (Anonymous)
-                </h3>
-                <div className="mt-3 grid grid-cols-4 gap-2 text-center">
-                  <div className="rounded bg-zinc-900 p-2">
-                    <div className="text-lg font-bold text-white">
-                      {drop.counts.total}
+                {/* Anonymous serving counts */}
+                <div className="rounded-lg border border-zinc-800 bg-owl-black/60 p-3.5">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                    Serving Counts (Anonymous)
+                  </h3>
+                  <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+                    <div className="rounded bg-zinc-900 p-2">
+                      <div className="text-lg font-bold text-white">
+                        {drop.counts.total}
+                      </div>
+                      <div className="text-[11px] text-zinc-400">Total</div>
                     </div>
-                    <div className="text-[11px] text-zinc-400">Total</div>
-                  </div>
-                  <div className="rounded bg-zinc-900 p-2">
-                    <div
-                      data-testid="host-count-available"
-                      className="text-lg font-bold text-emerald-400"
-                    >
-                      {drop.counts.available}
+                    <div className="rounded bg-zinc-900 p-2">
+                      <div
+                        data-testid="host-count-available"
+                        className="text-lg font-bold text-emerald-400"
+                      >
+                        {drop.counts.available}
+                      </div>
+                      <div className="text-[11px] text-zinc-400">Available</div>
                     </div>
-                    <div className="text-[11px] text-zinc-400">Available</div>
-                  </div>
-                  <div className="rounded bg-zinc-900 p-2">
-                    <div
-                      data-testid="host-count-held"
-                      className="text-lg font-bold text-amber-400"
-                    >
-                      {drop.counts.held}
+                    <div className="rounded bg-zinc-900 p-2">
+                      <div
+                        data-testid="host-count-held"
+                        className="text-lg font-bold text-amber-400"
+                      >
+                        {drop.counts.held}
+                      </div>
+                      <div className="text-[11px] text-zinc-400">Held</div>
                     </div>
-                    <div className="text-[11px] text-zinc-400">Held</div>
-                  </div>
-                  <div className="rounded bg-zinc-900 p-2">
-                    <div className="text-lg font-bold text-sky-400">
-                      {drop.counts.picked_up}
+                    <div className="rounded bg-zinc-900 p-2">
+                      <div className="text-lg font-bold text-sky-400">
+                        {drop.counts.picked_up}
+                      </div>
+                      <div className="text-[11px] text-zinc-400">Picked Up</div>
                     </div>
-                    <div className="text-[11px] text-zinc-400">Picked Up</div>
                   </div>
                 </div>
               </div>
-            </section>
 
-            {/* Right Column: Host Review & Safety Confirmation */}
-            <section className="space-y-5 rounded-xl border border-zinc-800 bg-owl-slate p-5 lg:col-span-7">
-              <h2 className="text-lg font-semibold text-owl-gold">
-                Step 2: Review & Confirm Safety Before Publishing
-              </h2>
-
-              {/* Servings & Location */}
+              {/* Servings & Location Inputs */}
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
-                  <label className="block text-xs font-medium text-zinc-300">
+                  <label
+                    htmlFor="servings-input"
+                    className="block text-xs font-medium text-zinc-300"
+                  >
                     Final Servings
                   </label>
                   <div className="mt-1.5 flex items-center gap-2">
@@ -567,6 +494,7 @@ export default function HostPage() {
                       −
                     </button>
                     <input
+                      id="servings-input"
                       type="number"
                       data-testid="servings-input"
                       min={1}
@@ -616,7 +544,7 @@ export default function HostPage() {
                     htmlFor="room-input"
                     className="block text-xs font-medium text-zinc-300"
                   >
-                    Room & Expiry (min)
+                    Room &amp; Expiry (min)
                   </label>
                   <div className="mt-1.5 flex gap-2">
                     <input
@@ -650,9 +578,9 @@ export default function HostPage() {
               {/* Allergens Editor */}
               <div>
                 <div className="flex flex-wrap items-center justify-between gap-1">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
                     Allergens ({ALLERGEN_WARNING_TEXT})
-                  </label>
+                  </span>
                   <span className="text-[11px] text-amber-300">
                     AI flagged:{" "}
                     {drop.vision.allergens_likely.join(", ") || "none"}
@@ -682,21 +610,24 @@ export default function HostPage() {
                     );
                   })}
                 </div>
-                <p className="mt-1.5 text-[11px] text-amber-300/90">
-                  Every allergen display carries:{" "}
-                  <strong>{ALLERGEN_WARNING_TEXT}</strong>.
-                </p>
               </div>
+
+              {/* Mandatory Allergen Display Box */}
+              <AllergenListDisplay
+                allergens={allergensFinal}
+                notice={drop.allergen_notice}
+                title="Active Drop Allergens"
+              />
 
               {/* Diet Tags Editor */}
               <div>
                 <div className="flex flex-wrap items-center justify-between gap-1">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
                     Dietary Tags
-                  </label>
+                  </span>
                   <span className="text-[11px] text-zinc-400">
-                    Halal, Kosher, and Pork-Free cannot be inferred by AI and
-                    require host confirmation.
+                    Halal, Kosher, and Pork-Free require explicit host
+                    confirmation.
                   </span>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -723,13 +654,15 @@ export default function HostPage() {
                   })}
                 </div>
               </div>
+            </section>
 
-              {/* Mandatory Safety Review Checklist */}
+            {/* Step 3: Safety Checklist & Publish */}
+            <section className="space-y-4 rounded-xl border border-zinc-800 bg-owl-slate p-5">
+              <h2 className="text-lg font-semibold text-owl-gold">
+                Step 3: Confirm Food Safety &amp; Publish
+              </h2>
+
               <div className="space-y-2.5 rounded-xl border border-zinc-700 bg-owl-black/80 p-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-owl-gold">
-                  Mandatory Host Safety Checklist
-                </h3>
-
                 <label className="flex cursor-pointer items-start gap-2.5 text-xs text-zinc-200">
                   <input
                     type="checkbox"
@@ -787,7 +720,6 @@ export default function HostPage() {
                   </span>
                 </label>
 
-                {/* Conditional / Explicit Check 4: Clearing estimated allergens */}
                 <label
                   className={`flex cursor-pointer items-start gap-2.5 rounded-lg p-2 text-xs ${
                     requiresIngredientCheck
@@ -816,7 +748,6 @@ export default function HostPage() {
                   </span>
                 </label>
 
-                {/* Conditional / Explicit Check 5: Religious diet confirmation */}
                 <label
                   className={`flex cursor-pointer items-start gap-2.5 rounded-lg p-2 text-xs ${
                     requiresReligiousConfirmation
@@ -846,8 +777,7 @@ export default function HostPage() {
                 </label>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+              <div className="flex flex-wrap items-center justify-end gap-3 pt-1">
                 <button
                   type="button"
                   data-testid="save-review-button"
@@ -855,7 +785,7 @@ export default function HostPage() {
                   onClick={handleSaveReview}
                   className="rounded-lg border border-zinc-700 bg-owl-black px-4 py-2.5 text-xs font-semibold text-zinc-200 transition hover:bg-zinc-800 disabled:opacity-50"
                 >
-                  {busyAction === "patch" ? "Saving..." : "Save Review (PATCH)"}
+                  {busyAction === "patch" ? "Saving..." : "Save Review"}
                 </button>
 
                 <button
