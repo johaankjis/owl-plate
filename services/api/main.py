@@ -115,7 +115,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:3017").split(","),
-        allow_methods=["GET", "POST", "PATCH", "PUT"],
+        allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
     )
     app.include_router(build_router(backend, register_push_token=register_push_token))
