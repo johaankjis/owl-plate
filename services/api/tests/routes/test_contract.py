@@ -251,3 +251,52 @@ def test_unvalidated_and_oversize_upload_rejected_without_vision(backend):
     with pytest.raises(DomainError) as exc:
         backend.create_drop(host, b"photo")
     assert exc.value.status == 422
+
+
+@pytest.mark.parametrize(
+    ("preferences", "error_code"),
+    [({"allergens": ["dairy"]}, "allergen_conflict"), ({"diets": ["vegetarian"]}, "diet_mismatch")],
+)
+def test_claim_rechecks_preferences_changed_after_invite(client, backend, preferences, error_code):
+    """Prevent stale invitations from bypassing a student's updated food filters."""
+    drop = publish_drop(backend, servings=2)
+    invite = invitation(backend, "A", drop.id)
+    student_headers = headers("demo-student-A")
+    changed = client.put(
+        "/students/me/preferences",
+        headers=student_headers,
+        json={"allergens": [], "diets": [], **preferences},
+    )
+    assert changed.status_code == 200
+    rejected = client.post(f"/invites/{invite.id}/claim", headers=student_headers)
+    assert rejected.status_code == 409
+    assert rejected.json()["detail"]["code"] == error_code
+    assert backend.get_drop(backend.actor("demo-host"), str(drop.id)).counts.held == 0
+    assert invitation(backend, "A", drop.id).status == "sent"
+    assert (
+        client.put(
+            "/students/me/preferences", headers=student_headers, json={"allergens": [], "diets": []}
+        ).status_code
+        == 200
+    )
+    assert client.post(f"/invites/{invite.id}/claim", headers=student_headers).status_code == 200
+
+
+def test_existing_hold_retry_survives_preferences_change(client, backend):
+    """Keep retries idempotent without creating another hold after filters change."""
+    drop = publish_drop(backend, servings=2)
+    invite = invitation(backend, "A", drop.id)
+    student_headers = headers("demo-student-A")
+    path = f"/invites/{invite.id}/claim"
+    held = client.post(path, headers=student_headers)
+    assert held.status_code == 200
+    assert (
+        client.put(
+            "/students/me/preferences",
+            headers=student_headers,
+            json={"allergens": ["dairy"], "diets": []},
+        ).status_code
+        == 200
+    )
+    assert client.post(path, headers=student_headers).json() == held.json()
+    assert backend.get_drop(backend.actor("demo-host"), str(drop.id)).counts.held == 1

@@ -57,7 +57,7 @@ How Owl Plate fits together. Update this file when the shape of the system chang
 ```
 
 Allergen enum: dairy, egg, gluten, peanut, tree_nut, soy, fish, shellfish, sesame.
-Diet enum: vegetarian, vegan, halal_unknown, pork_free_unknown. Religious diet compliance cannot be judged from a photo, so those tags only come from the host, never from vision.
+Diet enum: vegetarian, vegan, halal, kosher, pork_free. Religious diet compliance cannot be judged from a photo, so those tags only come from the host, never from vision.
 
 ### Dispatch (`services/api/dispatch/`)
 Pure engine. Spec in `DISPATCH.md`.

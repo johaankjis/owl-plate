@@ -491,6 +491,13 @@ class Backend:
             if invite.status != "sent" or previous:
                 raise DomainError("invalid_state", "This invitation is no longer available.")
             drop = self._get(session, Drop, invite.drop_id)
+            student = self._get(session, Student, actor.id)
+            if set(student.data.get("allergens", [])) & set(drop.data["allergens_final"]):
+                raise DomainError("allergen_conflict", "This food conflicts with your allergens.")
+            if not set(student.data.get("diets", [])) <= set(drop.data["diet_tags_final"]):
+                raise DomainError(
+                    "diet_mismatch", "This food does not meet your dietary preferences."
+                )
             if session.exec(
                 select(Claim).where(Claim.student_id == actor.id, Claim.status == "held")
             ).first():
