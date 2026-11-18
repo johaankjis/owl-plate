@@ -43,6 +43,7 @@ function loadHostHelpers() {
   runInNewContext(hostHelpersCompiled, {
     exports,
     require: () => ({}),
+    URL,
   });
   return exports;
 }
@@ -86,6 +87,34 @@ test("getVisionSourceLabel maps openrouter to 'Live Gemini via OpenRouter', gemi
   assert.equal(helpers.isLiveVisionSource("openrouter"), true);
   assert.equal(helpers.isLiveVisionSource("gemini"), true);
   assert.equal(helpers.isLiveVisionSource("fixture"), false);
+});
+
+test("buildPickupCompanionUrl binds one UUID to its own It page without credentials", () => {
+  const helpers = loadHostHelpers();
+  const dropId = "123e4567-e89b-42d3-a456-426614174000";
+  assert.equal(
+    helpers.buildPickupCompanionUrl(
+      dropId,
+      "https://paired-mac.example.test/old/path?token=remove-me",
+    ),
+    `https://paired-mac.example.test/p/owl-whats-left-${dropId}`,
+  );
+  assert.equal(
+    helpers.buildPickupCompanionUrl(dropId, "http://127.0.0.1:43120"),
+    `http://127.0.0.1:43120/p/owl-whats-left-${dropId}`,
+  );
+  assert.equal(
+    helpers.buildPickupCompanionUrl("not-a-uuid", "https://it.test"),
+    null,
+  );
+  assert.equal(
+    helpers.buildPickupCompanionUrl(dropId, "javascript:alert(1)"),
+    null,
+  );
+  assert.equal(
+    helpers.buildPickupCompanionUrl(dropId, "https://user:secret@it.test"),
+    null,
+  );
 });
 
 test("resolveHostStep maps null/expired to upload, draft to review, and live/claimed_out to counts", () => {

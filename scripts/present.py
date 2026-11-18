@@ -155,7 +155,11 @@ def push_banner(mode: str) -> str:
 def build_fingerprint(env: dict[str, str]) -> str:
     """Rebuild only when web sources or public build values change."""
     digest = hashlib.sha256(DEMO_ENV["NEXT_PUBLIC_API_URL"].encode())
-    for name in ("NEXT_PUBLIC_FIREBASE_CONFIG", "NEXT_PUBLIC_FIREBASE_VAPID_KEY"):
+    for name in (
+        "NEXT_PUBLIC_FIREBASE_CONFIG",
+        "NEXT_PUBLIC_FIREBASE_VAPID_KEY",
+        "NEXT_PUBLIC_IT_COMPANION_BASE_URL",
+    ):
         digest.update(f"{name}={env.get(name, '')}".encode())
     for folder in ("app", "components", "lib", "public"):
         for path in sorted((WEB / folder).rglob("*")):

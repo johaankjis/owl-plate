@@ -24,6 +24,7 @@ import {
   type DataSourceMode,
 } from "../../lib/api-client";
 import {
+  buildPickupCompanionUrl,
   formatHostCounts,
   getVisionSourceLabel,
   HOST_POLL_INTERVAL_MS,
@@ -162,6 +163,7 @@ export default function HostPage() {
     RELIGIOUS_DIETS.includes(d),
   );
   const requiresReligiousConfirmation = selectedReligiousDiets.length > 0;
+  const pickupCompanionUrl = drop ? buildPickupCompanionUrl(drop.id) : null;
 
   const firstThreeSafetyChecked =
     safetyReview.covered_and_temperature_safe &&
@@ -904,6 +906,35 @@ export default function HostPage() {
                   Total
                 </div>
               </div>
+            </div>
+
+            <div className="rounded-xl border border-owl-gold/30 bg-owl-black/60 p-4">
+              {pickupCompanionUrl ? (
+                <a
+                  data-testid="open-pickup-companion"
+                  href={pickupCompanionUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex min-h-[48px] w-full items-center justify-center rounded-xl bg-owl-gold px-5 py-3 text-center text-sm font-extrabold text-owl-black transition hover:bg-amber-300"
+                >
+                  Open pickup companion
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  data-testid="open-pickup-companion"
+                  disabled
+                  className="min-h-[48px] w-full cursor-not-allowed rounded-xl border border-zinc-700 bg-zinc-900 px-5 py-3 text-sm font-bold text-zinc-500"
+                >
+                  Open pickup companion
+                </button>
+              )}
+              <p className="mt-2 text-xs text-zinc-400">
+                Opens the paired It host screen for this drop. It receives the
+                drop ID and aggregate counts only.
+                {!pickupCompanionUrl &&
+                  " Pair It on the presentation Mac and configure its site URL first."}
+              </p>
             </div>
 
             {/* Summary of shared food & allergen notice */}

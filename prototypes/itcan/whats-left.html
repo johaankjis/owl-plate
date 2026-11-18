@@ -1,0 +1,72 @@
+<!doctype html>
+<!-- Owl Plate host companion for It. Aggregate pickup counts only. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Owl Plate – What's left?</title>
+    <style>
+      :root { color-scheme: dark; --paper: #121214; --card: #1e1f24; --line: #303036; --gold: #fdbb30; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; font: 16px/1.4 system-ui, sans-serif; background: var(--paper); color: #f4f4f5; }
+      header { padding: 20px 20px 0; }
+      .brand { color: var(--gold); font-weight: 800; font-size: 22px; }
+      .label { display: inline-block; margin-top: 8px; padding: 4px 10px; border-radius: 999px; border: 1px solid #fdbb3066; color: var(--gold); font-size: 12px; font-weight: 700; }
+      main { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+      .answer { font-size: 28px; font-weight: 800; min-height: 78px; }
+      .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+      .tile { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 8px; text-align: center; }
+      .num { font-size: 34px; font-weight: 800; }
+      .cap { font-size: 11px; color: #a1a1aa; text-transform: uppercase; letter-spacing: .04em; }
+      .muted { margin: 0; color: #a1a1aa; font-size: 13px; overflow-wrap: anywhere; }
+      footer { padding: 16px 20px 28px; }
+      button { width: 100%; min-height: 56px; border: 0; border-radius: 999px; background: var(--gold); color: #121214; font-size: 18px; font-weight: 800; }
+      button[disabled] { opacity: .55; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">Owl Plate · Host</div>
+      <span class="label">Fixture vision · simulated notifications</span>
+    </header>
+    <main>
+      <div class="answer" data-it-bind="answer">Loading this drop…</div>
+      <div class="grid" aria-label="Aggregate pickup counts">
+        <div class="tile"><div class="num" data-it-bind="available">–</div><div class="cap">Available</div></div>
+        <div class="tile"><div class="num" data-it-bind="held">–</div><div class="cap">Held</div></div>
+        <div class="tile"><div class="num" data-it-bind="picked_up">–</div><div class="cap">Picked up</div></div>
+      </div>
+      <p class="muted">Aggregate counts only. No student identities or credentials are sent to this screen.</p>
+      <p class="muted">Drop <span data-it-bind="drop_id">binding…</span></p>
+      <p class="muted">Checked at <span data-it-bind="checked_at">—</span>.</p>
+      <p class="muted" id="status" role="status"></p>
+    </main>
+    <footer><button id="ask" type="button" disabled>What's left?</button></footer>
+    <script>
+      const ask = document.getElementById("ask");
+      const status = document.getElementById("status");
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      let binding = null;
+      It.onState((state) => {
+        const dropId = typeof state.drop_id === "string" ? state.drop_id : "";
+        const pageId = typeof state.page_id === "string" ? state.page_id : "";
+        binding = uuid.test(dropId) && pageId === `owl-whats-left-${dropId}` ? { drop_id: dropId, page_id: pageId } : null;
+        ask.disabled = !binding;
+        if (!binding) status.textContent = "This companion is not bound to a valid Owl Plate drop.";
+      });
+      ask.addEventListener("click", async () => {
+        if (!binding) return;
+        ask.disabled = true;
+        status.textContent = "Asking Claude for current Owl Plate counts…";
+        try {
+          await It.action("whats_left", binding);
+          status.textContent = "Sent. Claude will update this screen.";
+        } catch (err) {
+          status.textContent = "The action was not accepted. Check that this screen is paired.";
+        } finally {
+          ask.disabled = !binding;
+        }
+      });
+    </script>
+  </body>
+</html>

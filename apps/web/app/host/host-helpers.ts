@@ -4,6 +4,32 @@ export type HostViewStep = "upload" | "review" | "counts";
 
 export const HOST_POLL_INTERVAL_MS = 2000;
 
+const DROP_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * Builds the paired It page URL for one published drop. Only the drop UUID is
+ * carried; the companion receives no host credential or student data.
+ */
+export function buildPickupCompanionUrl(
+  dropId: string,
+  siteBaseUrl = process.env.NEXT_PUBLIC_IT_COMPANION_BASE_URL ?? "",
+): string | null {
+  const base = siteBaseUrl.trim();
+  if (!base || !DROP_ID_PATTERN.test(dropId)) return null;
+  try {
+    const url = new URL(base);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    if (url.username || url.password) return null;
+    url.pathname = `/p/owl-whats-left-${dropId.toLowerCase()}`;
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Maps DropResponse.vision_source ("openrouter" | "gemini" | "fixture") to the exact Contract v2.2 UI badge label.
  */
