@@ -23,6 +23,15 @@ import {
   INITIAL_DATA_SOURCE,
   type DataSourceMode,
 } from "../../lib/api-client";
+import {
+  formatHostCounts,
+  getVisionSourceLabel,
+  HOST_POLL_INTERVAL_MS,
+  resolveHostStep,
+  restoreHostDropState,
+  shouldPollHostCounts,
+  type HostViewStep,
+} from "./host-helpers";
 
 const HOST_CREDENTIAL = "demo-host" as const;
 
@@ -30,6 +39,7 @@ export default function HostPage() {
   const [sourceMode, setSourceMode] =
     useState<DataSourceMode>(INITIAL_DATA_SOURCE);
   const [drop, setDrop] = useState<DropResponse | null>(null);
+  const [viewStep, setViewStep] = useState<HostViewStep>("upload");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [hostNote, setHostNote] = useState<string>("");
 
@@ -54,6 +64,9 @@ export default function HostPage() {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [visionErrorMessage, setVisionErrorMessage] = useState<string | null>(
+    null,
+  );
 
   const syncFormFromDrop = useCallback((d: DropResponse) => {
     setServingsFinal(d.servings_final);
@@ -74,21 +87,21 @@ export default function HostPage() {
     }
   }, []);
 
+  // Restore active drop on mount via GET /demo/active-drop then GET /drops/{id}
   useEffect(() => {
     let active = true;
-    getActiveDrop(HOST_CREDENTIAL)
-      .then((activeDrop) => {
-        if (!active) return null;
-        setSourceMode(activeDrop.source);
-        return activeDrop.data.drop_id
-          ? getDrop(activeDrop.data.drop_id, HOST_CREDENTIAL)
-          : null;
-      })
-      .then((res) => {
-        if (!active || !res) return;
-        setDrop(res.data);
-        setSourceMode(res.source);
-        syncFormFromDrop(res.data);
+    restoreHostDropState(
+      () => getActiveDrop(HOST_CREDENTIAL),
+      (dropId) => getDrop(dropId, HOST_CREDENTIAL),
+    )
+      .then((restored) => {
+        if (!active) return;
+        setSourceMode(restored.source);
+        setDrop(restored.drop);
+        setViewStep(restored.step);
+        if (restored.drop) {
+          syncFormFromDrop(restored.drop);
+        }
       })
       .catch((err) => {
         if (active)
@@ -100,6 +113,42 @@ export default function HostPage() {
       active = false;
     };
   }, [syncFormFromDrop]);
+
+  // Poll GET /drops/{id} (demo-host) every 2 s while the counts panel is open
+  const activeDropId = drop?.id ?? null;
+  const activeDropStatus = drop?.status ?? null;
+
+  useEffect(() => {
+    if (
+      !activeDropId ||
+      viewStep !== "counts" ||
+      (activeDropStatus !== "live" && activeDropStatus !== "claimed_out")
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await getDrop(activeDropId, HOST_CREDENTIAL);
+        if (cancelled) return;
+        setSourceMode(res.source);
+        setDrop(res.data);
+        setViewStep(resolveHostStep(res.data));
+      } catch {
+        // Keep current counts displayed on transient poll failure
+      }
+    };
+
+    const intervalId = setInterval(() => {
+      void poll();
+    }, HOST_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [activeDropId, activeDropStatus, viewStep]);
 
   const removedEstimatedAllergens = drop
     ? drop.vision.allergens_likely.filter(
@@ -137,32 +186,45 @@ export default function HostPage() {
     );
   };
 
-  const handleUploadPhoto = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitPhotoUpload = async () => {
     setBusyAction("upload");
     setErrorMessage(null);
+    setVisionErrorMessage(null);
     setStatusMessage(null);
     try {
       if (!selectedFile)
         throw new Error("Select a JPEG or PNG food photo first.");
       const res = await createDrop(selectedFile, hostNote, HOST_CREDENTIAL);
       setDrop(res.data);
+      setViewStep(resolveHostStep(res.data));
       setSourceMode(res.source);
       syncFormFromDrop(res.data);
       setStatusMessage(
-        `Photo processed (${
-          res.data.vision_source === "fixture"
-            ? "Cached fixture estimate (simulated)"
-            : "Live Gemini Vision"
-        }). Review servings, allergens, and safety checklist below.`,
+        `Photo processed (${getVisionSourceLabel(res.data.vision_source)}). Review servings, allergens, and safety checklist below.`,
       );
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to create drop",
-      );
+      // Never show or fabricate an estimate when POST /drops fails
+      setDrop(null);
+      setViewStep("upload");
+      const msg = err instanceof Error ? err.message : "Failed to create drop";
+      setVisionErrorMessage(msg);
+      setErrorMessage(msg);
     } finally {
       setBusyAction(null);
     }
+  };
+
+  const handleUploadPhoto = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitPhotoUpload();
+  };
+
+  const handleShareAnotherDrop = () => {
+    setDrop(null);
+    setViewStep("upload");
+    setStatusMessage(null);
+    setErrorMessage(null);
+    setVisionErrorMessage(null);
   };
 
   const buildDropEditPayload = (): DropEdit => ({
@@ -187,6 +249,7 @@ export default function HostPage() {
         HOST_CREDENTIAL,
       );
       setDrop(res.data);
+      setViewStep(resolveHostStep(res.data));
       setSourceMode(res.source);
       setStatusMessage("Host review saved.");
     } catch (err) {
@@ -211,6 +274,7 @@ export default function HostPage() {
       );
       const published = await publishDrop(patched.data.id, HOST_CREDENTIAL);
       setDrop(published.data);
+      setViewStep(resolveHostStep(published.data));
       setSourceMode(published.source);
       setStatusMessage(
         `Got it. About ${published.data.servings_final} servings. We'll send it to the right people.`,
@@ -224,7 +288,9 @@ export default function HostPage() {
     }
   };
 
-  const currentStep = !drop ? 1 : drop.status === "draft" ? 2 : 3;
+  const currentStep = viewStep === "upload" ? 1 : viewStep === "review" ? 2 : 3;
+  const formattedCounts = drop ? formatHostCounts(drop.counts) : null;
+  const isPollingCounts = shouldPollHostCounts(drop, viewStep);
 
   return (
     <div className="min-h-screen bg-owl-black text-zinc-100">
@@ -237,14 +303,26 @@ export default function HostPage() {
       <main className="mx-auto max-w-4xl space-y-6 px-4 py-6">
         {/* Header & 3-Step Indicator */}
         <section className="space-y-4 rounded-xl border border-zinc-800 bg-owl-slate p-5">
-          <div>
-            <h1 className="text-2xl font-bold text-white">
-              Share Leftover Event Food
-            </h1>
-            <p className="mt-1 text-sm text-zinc-300">
-              Three quick steps: upload a food photo, review the AI estimate,
-              confirm food safety and publish. Hosts see serving counts only.
-            </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-bold text-white">
+                Share Leftover Event Food
+              </h1>
+              <p className="mt-1 text-sm text-zinc-300">
+                Three quick steps: upload a food photo, review the AI estimate,
+                confirm food safety and publish. Hosts see serving counts only.
+              </p>
+            </div>
+            {viewStep !== "upload" && (
+              <button
+                type="button"
+                data-testid="share-another-drop-button"
+                onClick={handleShareAnotherDrop}
+                className="rounded-lg border border-zinc-700 bg-owl-black px-3.5 py-2 text-xs font-semibold text-owl-gold transition hover:border-owl-gold hover:bg-zinc-900"
+              >
+                Share another drop
+              </button>
+            )}
           </div>
 
           <ol
@@ -276,7 +354,7 @@ export default function HostPage() {
                   : "border-zinc-800 bg-owl-black/60 text-zinc-300"
               }`}
             >
-              3. Publish
+              3. Your drop
             </li>
           </ol>
         </section>
@@ -290,7 +368,26 @@ export default function HostPage() {
           </div>
         )}
 
-        {errorMessage && (
+        {visionErrorMessage && (
+          <div
+            data-testid="vision-error"
+            role="alert"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rose-500/50 bg-rose-950/40 px-4 py-3 text-sm text-rose-100"
+          >
+            <span>{visionErrorMessage}</span>
+            <button
+              type="button"
+              data-testid="vision-retry-button"
+              disabled={busyAction !== null || !selectedFile}
+              onClick={() => void submitPhotoUpload()}
+              className="rounded-md border border-rose-400/60 bg-rose-900/60 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-rose-800 disabled:opacity-50"
+            >
+              {busyAction === "upload" ? "Retrying..." : "Retry"}
+            </button>
+          </div>
+        )}
+
+        {errorMessage && !visionErrorMessage && (
           <div
             data-testid="host-error-message"
             className="rounded-lg border border-rose-500/40 bg-rose-950/30 px-4 py-3 text-sm text-rose-200"
@@ -300,108 +397,104 @@ export default function HostPage() {
         )}
 
         {/* Step 1: Upload Photo */}
-        <section className="rounded-xl border border-zinc-800 bg-owl-slate p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold text-owl-gold">
-              Step 1: Upload Food Photo
-            </h2>
-            <span className="text-xs text-zinc-400">
-              Photos must show food only. Processed without permanent storage.
-            </span>
-          </div>
-
-          <form
-            onSubmit={handleUploadPhoto}
-            className="mt-4 grid gap-4 sm:grid-cols-3"
-          >
-            <div className="sm:col-span-1">
-              <label
-                htmlFor="food-photo-input"
-                className="block text-xs font-medium text-zinc-300"
-              >
-                Food Photo (JPEG/PNG, max 10 MiB)
-              </label>
-              <input
-                id="food-photo-input"
-                data-testid="food-photo-input"
-                type="file"
-                required
-                accept="image/jpeg,image/png"
-                onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
-                className="mt-1.5 block w-full rounded-lg border border-zinc-700 bg-owl-black px-3 py-2 text-xs text-zinc-200 file:mr-3 file:rounded file:border-0 file:bg-owl-gold file:px-2.5 file:py-1 file:text-xs file:font-semibold file:text-owl-black"
-              />
+        {viewStep === "upload" && (
+          <section className="rounded-xl border border-zinc-800 bg-owl-slate p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-lg font-semibold text-owl-gold">
+                Step 1: Upload Food Photo
+              </h2>
+              <span className="text-xs text-zinc-400">
+                Photos must show food only. Processed without permanent storage.
+              </span>
             </div>
 
-            <div className="sm:col-span-1">
-              <label
-                htmlFor="host-note-input"
-                className="block text-xs font-medium text-zinc-300"
-              >
-                Optional Host Note
-              </label>
-              <input
-                id="host-note-input"
-                data-testid="host-note-input"
-                type="text"
-                value={hostNote}
-                onChange={(e) => setHostNote(e.target.value)}
-                placeholder='e.g. "one tray is vegetarian"'
-                className="mt-1.5 w-full rounded-lg border border-zinc-700 bg-owl-black px-3 py-2 text-sm text-zinc-100 focus:border-owl-gold focus:outline-none"
-              />
-            </div>
+            <form
+              onSubmit={handleUploadPhoto}
+              className="mt-4 grid gap-4 sm:grid-cols-3"
+            >
+              <div className="sm:col-span-1">
+                <label
+                  htmlFor="food-photo-input"
+                  className="block text-xs font-medium text-zinc-300"
+                >
+                  Food Photo (JPEG/PNG, max 10 MiB)
+                </label>
+                <input
+                  id="food-photo-input"
+                  data-testid="food-photo-input"
+                  type="file"
+                  required
+                  accept="image/jpeg,image/png"
+                  onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+                  className="mt-1.5 block w-full rounded-lg border border-zinc-700 bg-owl-black px-3 py-2 text-xs text-zinc-200 file:mr-3 file:rounded file:border-0 file:bg-owl-gold file:px-2.5 file:py-1 file:text-xs file:font-semibold file:text-owl-black"
+                />
+              </div>
 
-            <div className="flex items-end sm:col-span-1">
-              <button
-                type="submit"
-                data-testid="analyze-photo-button"
-                disabled={busyAction !== null}
-                className="w-full rounded-lg bg-owl-gold px-4 py-2.5 text-sm font-bold text-owl-black transition hover:bg-owl-goldDark disabled:opacity-50"
-              >
-                {busyAction === "upload"
-                  ? "Estimating with Vision..."
-                  : "Upload & Estimate Food"}
-              </button>
-            </div>
-          </form>
-        </section>
+              <div className="sm:col-span-1">
+                <label
+                  htmlFor="host-note-input"
+                  className="block text-xs font-medium text-zinc-300"
+                >
+                  Optional Host Note
+                </label>
+                <input
+                  id="host-note-input"
+                  data-testid="host-note-input"
+                  type="text"
+                  value={hostNote}
+                  onChange={(e) => setHostNote(e.target.value)}
+                  placeholder='e.g. "one tray is vegetarian"'
+                  className="mt-1.5 w-full rounded-lg border border-zinc-700 bg-owl-black px-3 py-2 text-sm text-zinc-100 focus:border-owl-gold focus:outline-none"
+                />
+              </div>
 
-        {/* Step 2 & Step 3: Review Vision Estimate and Publish */}
-        {drop && (
+              <div className="flex items-end sm:col-span-1">
+                <button
+                  type="submit"
+                  data-testid="analyze-photo-button"
+                  disabled={busyAction !== null}
+                  className="w-full rounded-lg bg-owl-gold px-4 py-2.5 text-sm font-bold text-owl-black transition hover:bg-owl-goldDark disabled:opacity-50"
+                >
+                  {busyAction === "upload"
+                    ? "Estimating with Vision..."
+                    : "Upload & Estimate Food"}
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
+
+        {/* Step 2: Review Vision Estimate and Publish (Draft Drop) */}
+        {drop && viewStep === "review" && formattedCounts && (
           <div className="space-y-6">
-            {/* Step 2: Review AI Estimate & Details */}
             <section className="space-y-5 rounded-xl border border-zinc-800 bg-owl-slate p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-lg font-semibold text-owl-gold">
                   Step 2: Review AI Estimate
                 </h2>
                 <div className="flex flex-wrap items-center gap-2">
-                  {drop.vision_source === "fixture" ? (
-                    <span
-                      data-testid="fixture-label"
-                      className="rounded-md border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 text-xs font-bold text-amber-300"
-                    >
-                      Cached fixture estimate (simulated)
-                    </span>
-                  ) : (
-                    <span
-                      data-testid="drop-vision-source-pill"
-                      className="rounded-md border border-emerald-400/40 bg-emerald-500/15 px-2.5 py-1 text-xs font-bold text-emerald-300"
-                    >
-                      Live Gemini Vision
-                    </span>
-                  )}
+                  <span
+                    data-testid="vision-source-label"
+                    className={`rounded-md border px-2.5 py-1 text-xs font-bold ${
+                      drop.vision_source === "gemini"
+                        ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-300"
+                        : "border-amber-400/40 bg-amber-500/15 text-amber-300"
+                    }`}
+                  >
+                    {getVisionSourceLabel(drop.vision_source)}
+                  </span>
                   <span
                     data-testid="host-drop-status"
                     className="rounded bg-owl-black px-2.5 py-1 text-xs font-bold uppercase text-owl-gold"
                   >
-                    Status: {drop.status}
+                    {drop.status}
                   </span>
                 </div>
               </div>
 
               {/* Detected items & confidence */}
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-lg border border-zinc-800 bg-owl-black/60 p-3.5 text-xs space-y-2">
+                <div className="space-y-2 rounded-lg border border-zinc-800 bg-owl-black/60 p-3.5 text-xs">
                   <div className="flex justify-between">
                     <span className="text-zinc-400">Detected Food:</span>
                     <span className="font-semibold text-zinc-200">
@@ -433,15 +526,18 @@ export default function HostPage() {
                   )}
                 </div>
 
-                {/* Anonymous serving counts */}
+                {/* Anonymous serving counts preview */}
                 <div className="rounded-lg border border-zinc-800 bg-owl-black/60 p-3.5">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
                     Serving Counts (Anonymous)
                   </h3>
                   <div className="mt-3 grid grid-cols-4 gap-2 text-center">
                     <div className="rounded bg-zinc-900 p-2">
-                      <div className="text-lg font-bold text-white">
-                        {drop.counts.total}
+                      <div
+                        data-testid="host-count-total"
+                        className="text-lg font-bold text-white"
+                      >
+                        {formattedCounts.total}
                       </div>
                       <div className="text-[11px] text-zinc-400">Total</div>
                     </div>
@@ -450,7 +546,7 @@ export default function HostPage() {
                         data-testid="host-count-available"
                         className="text-lg font-bold text-emerald-400"
                       >
-                        {drop.counts.available}
+                        {formattedCounts.available}
                       </div>
                       <div className="text-[11px] text-zinc-400">Available</div>
                     </div>
@@ -459,13 +555,16 @@ export default function HostPage() {
                         data-testid="host-count-held"
                         className="text-lg font-bold text-amber-400"
                       >
-                        {drop.counts.held}
+                        {formattedCounts.held}
                       </div>
                       <div className="text-[11px] text-zinc-400">Held</div>
                     </div>
                     <div className="rounded bg-zinc-900 p-2">
-                      <div className="text-lg font-bold text-sky-400">
-                        {drop.counts.picked_up}
+                      <div
+                        data-testid="host-count-picked-up"
+                        className="text-lg font-bold text-sky-400"
+                      >
+                        {formattedCounts.pickedUp}
                       </div>
                       <div className="text-[11px] text-zinc-400">Picked Up</div>
                     </div>
@@ -811,6 +910,166 @@ export default function HostPage() {
               )}
             </section>
           </div>
+        )}
+
+        {/* Step 3: "Your drop" Live Counts Panel (After Publish) */}
+        {drop && viewStep === "counts" && formattedCounts && (
+          <section
+            data-testid="host-drop-panel"
+            className="space-y-6 rounded-xl border border-zinc-800 bg-owl-slate p-6"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold text-owl-gold">Your drop</h2>
+                <p className="mt-0.5 text-xs text-zinc-400">
+                  Location:{" "}
+                  <strong className="text-zinc-200">
+                    {drop.building_code} — Room {drop.room}
+                  </strong>
+                  {isPollingCounts && (
+                    <span className="ml-2 text-emerald-400">
+                      • Auto-refreshing every 2 s
+                    </span>
+                  )}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  data-testid="vision-source-label"
+                  className={`rounded-md border px-2.5 py-1 text-xs font-bold ${
+                    drop.vision_source === "gemini"
+                      ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-300"
+                      : "border-amber-400/40 bg-amber-500/15 text-amber-300"
+                  }`}
+                >
+                  {getVisionSourceLabel(drop.vision_source)}
+                </span>
+                <span
+                  data-testid="host-drop-status"
+                  className={`rounded px-2.5 py-1 text-xs font-bold uppercase ${
+                    drop.status === "claimed_out"
+                      ? "bg-sky-500/20 text-sky-300"
+                      : "bg-emerald-500/20 text-emerald-300"
+                  }`}
+                >
+                  {drop.status}
+                </span>
+              </div>
+            </div>
+
+            {/* Large Serving Counts (Available, Held, Picked up, Total) */}
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div className="rounded-xl border border-emerald-500/30 bg-owl-black/80 p-4 text-center">
+                <div
+                  data-testid="host-count-available"
+                  className="text-4xl font-extrabold text-emerald-400"
+                >
+                  {formattedCounts.available}
+                </div>
+                <div className="mt-1 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                  Available
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-amber-500/30 bg-owl-black/80 p-4 text-center">
+                <div
+                  data-testid="host-count-held"
+                  className="text-4xl font-extrabold text-amber-400"
+                >
+                  {formattedCounts.held}
+                </div>
+                <div className="mt-1 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                  Held
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-sky-500/30 bg-owl-black/80 p-4 text-center">
+                <div
+                  data-testid="host-count-picked-up"
+                  className="text-4xl font-extrabold text-sky-400"
+                >
+                  {formattedCounts.pickedUp}
+                </div>
+                <div className="mt-1 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                  Picked up
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-zinc-700 bg-owl-black/80 p-4 text-center">
+                <div
+                  data-testid="host-count-total"
+                  className="text-4xl font-extrabold text-white"
+                >
+                  {formattedCounts.total}
+                </div>
+                <div className="mt-1 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                  Total
+                </div>
+              </div>
+            </div>
+
+            {/* Food items & location details */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2.5 rounded-lg border border-zinc-800 bg-owl-black/60 p-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                  Food Items Shared
+                </h3>
+                <ul className="space-y-1.5 text-sm">
+                  {drop.vision.items.map((item, idx) => (
+                    <li
+                      key={`${item.name}-${idx}`}
+                      className="flex items-center justify-between rounded bg-owl-black/70 px-3 py-2"
+                    >
+                      <span className="font-medium text-zinc-100">
+                        {item.name}
+                      </span>
+                      <span className="text-xs text-zinc-400">
+                        ~{item.count_estimate} {item.portion_unit}(s)
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {drop.diet_tags_final.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {drop.diet_tags_final.map((diet) => (
+                      <span
+                        key={diet}
+                        className="rounded border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-200"
+                      >
+                        {diet.replace("_", " ")}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3 rounded-lg border border-zinc-800 bg-owl-black/60 p-4">
+                <AllergenListDisplay
+                  allergens={drop.allergens_final}
+                  notice={drop.allergen_notice}
+                  title="Published Allergens"
+                />
+                <p className="text-xs text-zinc-400">
+                  Hosts see aggregate serving counts only. Student names,
+                  nicknames, and individual claim statuses are never shown.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800 pt-4">
+              <span className="text-xs text-zinc-400">
+                Building {drop.building_code}, Room {drop.room}
+              </span>
+              <button
+                type="button"
+                onClick={handleShareAnotherDrop}
+                className="rounded-lg bg-owl-gold px-4 py-2 text-xs font-bold text-owl-black transition hover:bg-owl-goldDark"
+              >
+                Share another drop
+              </button>
+            </div>
+          </section>
         )}
       </main>
     </div>
