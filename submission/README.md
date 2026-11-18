@@ -14,7 +14,10 @@ Eastern / 17:00 UTC. Johaan approves deployment/distribution and submits.
 | `REHEARSAL.html` | Offline five-minute slide/video companion, speaker cues and local timing export |
 | `SUBMISSION_STATUS.md` | Candidate version, actual evidence and submission-cutoff rule |
 | `LIVE_RUN_CHECKLIST.md` | Single live checklist and empty actual phone/vision registers |
-| `SURVEY.md` | Questions, proposed audience/owner and unsent copy; n=0 |
+| `SURVEY.md` | Standalone form, direct in-person sharing plan and unsent copy; n=0 |
+| `SURVEY_APPROVAL.html` | Read-only final question/consent review, collection off |
+| `DEPLOYMENT_APPROVAL.md` | Vercel/API configuration, actual mobile evidence and approval scope |
+| `qr-local-review/` | Decoded local HTTPS QR samples; not public/shareable links |
 | `RECORDING_PLAN.md` | Thursday physical-device capture plan |
 | `LIVE_DEMO_NOTE.md` | Honest draft for final review |
 | `evidence/technical-playback.json` | Actual five-minute technical timing, not spoken team delivery |
@@ -101,3 +104,21 @@ node scripts/verify_rehearsal.cjs
 This runs the five-minute clock in real time, opens only the local rehearsal
 file, and closes its browser. Evidence defaults to gitignored test-results/playback.
 No application server, live push, survey distribution or deployment is involved.
+
+
+## HTTPS/demo and survey candidate
+
+Web target is Vercel; API hosting is still to be selected. The existing app's
+host/student/projector flows are retained, and the new independent `/survey`
+page collects only after approval. No Discord distribution. `deploy/README.md`
+and `DEPLOYMENT_APPROVAL.md` specify the reviewable configuration. Public HTTPS
+URLs and final phone-share QR codes cannot be assigned until the project/API
+origins exist and deployment is approved. Local-review QR codes deliberately say
+not to share them; they encode only `https://localhost:3443` for local TLS checks.
+
+Both Pixel 7 and iPhone 13 layouts passed Chromium emulation over local HTTPS;
+Safari/WebKit and real phones remain unverified. Matching, claim code, host/student
+pages and the checked PowerPoint/PDF/fallback MP4 are unchanged. The API additions
+are isolated survey schemas/service/routes plus composition, and Next gains
+same-origin API routing. See mobile evidence screenshots and results in
+`evidence/mobile-https/`. Actual survey n=0; preview checks saved nothing.

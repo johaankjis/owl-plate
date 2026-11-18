@@ -16,3 +16,7 @@ uploads/
 test-results/
 playwright-report/
 *.tsbuildinfo
+
+# Local packaging and hosting bindings
+build/
+.vercel/

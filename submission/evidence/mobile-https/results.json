@@ -1,0 +1,31 @@
+{
+  "origin": "https://localhost:3443",
+  "tls": "Local self-signed test certificate explicitly trusted by test browser, not publicly deployed",
+  "runs": [
+    {
+      "engine": "chromium",
+      "phone_emulation": "Pixel 7",
+      "status": "PASS",
+      "secure_context": true,
+      "flow": "host upload/review/checklist/publish; A+C invites; B skipped; A holds; explicit +60s demo clock; D wave2; survey preview/skip/consent; reset",
+      "page_errors": [],
+      "physical_push": "unverified"
+    },
+    {
+      "engine": "chromium-iphone-layout",
+      "phone_emulation": "iPhone 13",
+      "status": "PASS",
+      "secure_context": true,
+      "flow": "host upload/review/checklist/publish; A+C invites; B skipped; A holds; explicit +60s demo clock; D wave2; survey preview/skip/consent; reset",
+      "page_errors": [],
+      "physical_push": "unverified"
+    }
+  ],
+  "evidence": "Synthetic image, fixture vision, simulated notifications; browser emulation, not physical devices",
+  "limitations": [
+    "Chromium emulation of Pixel 7 and iPhone 13 layouts only; Safari/physical phones unverified.",
+    "WebKit loaded but page creation stalled on this host.",
+    "Local test certificate explicitly trusted; no public deployment/domain."
+  ],
+  "actual_survey_submissions": 0
+}

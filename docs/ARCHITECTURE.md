@@ -152,3 +152,21 @@ ENTRA_ALLOWED_TENANT_ID=
 DEMO_MODE=true
 # Fixed v1 invite timeout: 90s production / 60s demo; not an environment setting.
 ```
+
+## HTTPS demo and standalone survey candidate
+
+Vercel is the selected web target; API hosting is still unassigned. The existing
+web host/student/projector pages remain the hackathon experience. Next's
+`/backend/:path*` rewrite targets server-configured `OWL_API_ORIGIN` and phone
+builds use `NEXT_PUBLIC_API_URL=/backend`, removing browser-localhost/mixed-content
+routing. `deploy/` contains configuration and an API Dockerfile for review;
+no deployment/account/domain has been created.
+
+`/survey` is an independent, responsive form in the same web application, without
+demo persona UI or login. Routes/schemas/service are separate from dispatch.
+SQLModel survey rows store only anonymous UUID, UTC time and bounded voluntary
+answers; they survive demo reset and have no public read/export route. The
+collection gate defaults off, so preview checks do not alter actual n=0. The
+planned deployment needs a durable PostgreSQL URL; Vercel filesystem storage is
+not used. Demo and survey get separate QR destinations once an actual HTTPS
+origin is assigned. Local TLS/QR previews are clearly labeled unpublished.

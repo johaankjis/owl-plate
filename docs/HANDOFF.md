@@ -2,14 +2,14 @@
 
 ## Questions for Johaan — return queue (survey first)
 
-**1. Approve survey copy, audience and named distribution owner.** Proposed
-audience: KSU student members of AI Club Discord and team-accessible class/club
-channels, with each channel owner's permission. Proposed owner: **Johaan**, or
-one teammate he explicitly names. Create/approve the form link, copy and channels
-before sending. Exact Discord/class-channel links and the form link are still
-pending; channel names/permissions have not been verified. Nothing has been distributed; **survey n=0**. Full questionnaire:
-`submission/SURVEY.md`. Approval is useful on Wednesday so collection can close
-Thursday evening; safe interim is unsent copy and no results on the deck.
+**1. Approve the standalone survey and direct-sharing plan.** The final form is
+implemented at `/survey` in the existing web app, with no login or demo-persona
+controls. Proposed audience: KSU students invited directly in person by Johaan
+or a teammate he names, using a dedicated link/QR after approval. **Discord and
+group-channel distribution are removed.** Collection remains off in preview;
+actual n=0. Final questions and exact invitation: `submission/SURVEY.md`.
+Public survey/demo origins are not yet assigned; web target is Vercel, API host
+is still to be selected. Local HTTPS/QR samples are not public phone-share links.
 
 Copy ready for approval (not sent):
 
@@ -17,19 +17,86 @@ Copy ready for approval (not sent):
 
 | Priority | Decision / action | What it blocks | Safe interim | Latest useful decision |
 |---|---|---|---|---|
-| 2 | Name an authorized Android owner and Home Screen iPhone owner, approve recording, and arrange a reachable trusted HTTPS origin. Proposed synthetic mapping: Android A, iPhone C; D receipt can use a separately labeled authorized run. | Physical push receipts and phone recording | Browser/log demo only; no real sends or endpoint deployment | Wednesday evening, before Thursday rehearsal |
-| 3 | Supply Gemini exact model/private access and Firebase config via private secret cards/existing environment; approve only nominated synthetic UUID recipients. No secrets in chat. | Live vision and FCM | Explicit fixture vision and log notifications | Wednesday evening / Thursday early afternoon latest |
-| 4 | Provide tray JPEG/PNG photos, hand-counted serving units and ingredient/menu allergen evidence with human label provenance. | Real-photo vision evaluation | No measured accuracy; known-answer fixtures only | Thursday afternoon |
-| 5 | Confirm campus food policy/contact and sourced building coordinates. | Campus policy claims and geographic realism | Arbitrary labeled H3 origin, no partnership/approval claims | Before physical rehearsal and pitch |
-| 6 | Confirm speaker roles/team contributions and native PowerPoint/venue playback; review final deck/video/note. | Human pitch rehearsal and final package approval | Prepared cue sheet and rendered PDF fallback | Thursday evening |
-| 7 | Clarify exact Claude model intended by “Uber’s Wi-Fi” if future work needs it. | Optional routing only | Claude remains idle; backend already implemented | Before reassignment |
+| 2 | Approve Vercel project binding/publication; select the API service/account/HTTPS origin and durable PostgreSQL endpoint, with any provisioning cost approved first. | Public demo/survey URLs and final shareable QR codes | Built local HTTPS candidate; collection off; no invented public domain | Before phone rehearsal / direct survey sharing |
+| 3 | Name an authorized Android owner and Home Screen iPhone owner, approve recording, and arrange a reachable trusted HTTPS origin. Proposed synthetic mapping: Android A, iPhone C; D receipt can use a separately labeled authorized run. | Physical push receipts and phone recording | Browser/log demo only; no real sends or endpoint deployment | Wednesday evening, before Thursday rehearsal |
+| 4 | Supply Gemini exact model/private access and Firebase config via private secret cards/existing environment; approve only nominated synthetic UUID recipients. No secrets in chat. | Live vision and FCM | Explicit fixture vision and log notifications | Wednesday evening / Thursday early afternoon latest |
+| 5 | Provide tray JPEG/PNG photos, hand-counted serving units and ingredient/menu allergen evidence with human label provenance. | Real-photo vision evaluation | No measured accuracy; known-answer fixtures only | Thursday afternoon |
+| 6 | Confirm campus food policy/contact and sourced building coordinates. | Campus policy claims and geographic realism | Arbitrary labeled H3 origin, no partnership/approval claims | Before physical rehearsal and pitch |
+| 7 | Confirm speaker roles/team contributions and native PowerPoint/venue playback; review final deck/video/note. | Human pitch rehearsal and final package approval | Prepared cue sheet and rendered PDF fallback | Thursday evening |
+| 8 | Clarify exact Claude model intended by “Uber’s Wi-Fi” if future work needs it. | Optional routing only | Claude remains idle; backend already implemented | Before reassignment |
 
 Deployment, survey distribution and submission remain Johaan's approval/action.
 No paid services provisioned, notifications sent to real phones, or secrets
 requested in chat. The live checklist has empty receipt/eval fields ready for
 actual evidence once access exists.
 
-## Latest checkpoint: coordinated live session and full-clock team companion prepared
+## Latest checkpoint: Vercel HTTPS candidate and standalone direct-share survey
+
+Continued from canonical `demo/owl-plate-ready` at
+`ec518ee8dda225e831bf27ebe3e88e4a1d6f97b2`, clean. Johaan selected **Vercel web + API
+hosting to be selected**. No Vercel binding/account, hosting credentials or assigned
+origin exists here. No deployment, public tunnel, paid provisioning, survey
+collection/distribution or submission occurred. Public URLs/final phone-share QR
+codes remain pending target assignment and approval; no invented domain is used.
+
+Existing application remains the demo: host/student/projector pages and dispatch,
+claims, fixtures and API response behavior are unchanged. Isolated survey modules
+and composition are additive. Next `/backend` rewrite plus
+`NEXT_PUBLIC_API_URL=/backend` enables same-origin HTTPS phone builds with a
+server-configured API origin. `deploy/` provides Vercel settings, an API Dockerfile
+and private-env template, preserving the Vercel/FastAPI/Postgres target. Docker
+runtime/live Postgres unavailable; API wheel includes modules and PostgreSQL DDL
+compiles. No live container/database execution is claimed.
+
+Standalone `/survey` has the exact eight questions in `submission/SURVEY.md`,
+voluntary consent, optional/clearable answers and <=500-char feedback. Preview
+is `SURVEY_ENABLED=false`: no storage/count. Approved submissions are SQLModel
+rows containing only anonymous UUID, UTC time and answers, deduplicated across
+retries and retained through demo reset. No student identity, IP/UA or public
+results/count/export endpoint. Local operator `scripts/survey_results.py` counts
+actual rows and restricts raw export paths to ignored `data/survey/`. **Actual n=0**.
+Discord and group-channel distribution are removed from all active plans. Proposed
+sharing is direct in-person invitation by Johaan or a named teammate, via its own
+standalone survey link/QR, after reviewing/approving the final form and plan.
+
+Checks: **73 API tests**, **116 eval tests**, **5 client tests**, Ruff/format,
+web ESLint/Prettier/types and Next 15.5.29 production build passed. Generated
+OpenAPI/types include the survey. Route smoke passed original demo loop.
+Survey regressions cover preview n=0 (including a stale preview after collection opens), consent/extra-field/length validation,
+all-skipped answers, duplicate/concurrent UUID retry, reset isolation and sanitized
+DB errors. One known TestClient warning remains. Existing dependency advisories
+remain a deployment-readiness limit; no forced dependency migration.
+
+Mobile HTTPS proof: Pixel 7 and iPhone 13 **Chromium device emulation** passed
+existing host upload/review/checklist/publish, A/C invites, B exclusion, A hold,
+explicit +60s clock, D ring 4, survey preview/skip/consent, no horizontal overflow,
+reset and zero page errors. All browser API requests stayed on HTTPS same-origin.
+`submission/evidence/mobile-https/` contains screenshots/results. Local self-signed
+certificate was explicitly trusted by tests; this is not public TLS or physical
+push receipt. WebKit runtime loaded but stalled creating a page; Safari and
+physical-device checks remain unverified. Shared preview failed due to missing
+host libraries; isolated packages extracted under /tmp, no system installation.
+All owned API/web/TLS/browser processes stopped; DeckScout was untouched.
+
+QR artifacts: `submission/qr-local-review/demo.png` and `survey.png`, independently
+decoded to `https://localhost:3443/` and `/survey`. These are **LOCAL REVIEW ONLY**,
+not phone-share/public links. `scripts/build_qr.py` produces the final separate PNGs
+only after receiving the actual assigned HTTPS origin. The read-only final form
+is `submission/SURVEY_APPROVAL.html`; the actual implemented mobile form screenshot
+is `submission/evidence/mobile-https/chromium-iphone-layout-survey.png`. Manager
+also displayed the approval form inline. Collection/distribution remains off.
+
+Review/approval bundle: `submission/DEPLOYMENT_APPROVAL.md`; exact settings in
+`deploy/README.md`. Decisions: approve Vercel project binding/publication; select
+API account/origin/Postgres (approve cost before provisioning); approve final
+standalone form and direct-sharing owner; then approve collection/distribution
+following actual public HTTPS/QR checks. Keep the 96.6s labeled fallback ready.
+PowerPoint/PDF/MP4 unchanged; actual phone receipts/live vision accuracy/team
+spoken timing still pending. Friday Nov 20 noon Eastern (17:00 UTC) remains the
+submission cutoff; Johaan submits. Fresh exact-SHA review status will be recorded
+in the manager thread after committing the candidate.
+
+## Previous checkpoint: coordinated live session and full-clock team companion prepared
 
 Resumed canonical `demo/owl-plate-ready` from
 `01b0bfaee76bdfd8e27a9a94123bd17af848e063`, clean. Reviewed application directories

@@ -47,7 +47,7 @@ We must be able to say how accurate the AI is.
 
 ## 5. Survey (impact data for the rubric)
 
-Campus impact is 25 points and must be backed by real data. Launch a Google Form on Wednesday in the AI Club Discord, class group chats and club channels. Close it Thursday evening.
+Campus impact is 25 points and must be backed by real data. Use the standalone Owl Plate `/survey` web form, with its own HTTPS link and QR code, for direct in-person sharing with KSU students after Johaan approves the final form and sharing plan. No Discord or group-channel distribution. Proposed close: Thursday evening. Preview collection stays off and actual n=0 until real responses arrive.
 
 Questions (keep it under 2 minutes):
 1. Campus you're usually on (Kennesaw, Marietta, both)

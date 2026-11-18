@@ -1855,6 +1855,66 @@
         }
       }
     },
+    "/survey/status": {
+      "get": {
+        "tags": ["survey"],
+        "summary": "Status",
+        "description": "Show the collection gate without publishing actual response counts.",
+        "operationId": "status_survey_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SurveyStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/survey/responses": {
+      "post": {
+        "tags": ["survey"],
+        "summary": "Submit",
+        "description": "Pass validated voluntary answers to the isolated research service.",
+        "operationId": "submit_survey_responses_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SurveyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SurveyReceipt"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
@@ -2594,6 +2654,171 @@
           "untouched"
         ],
         "title": "SafetyReview"
+      },
+      "SurveyAnswers": {
+        "properties": {
+          "campus": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": ["Kennesaw", "Marietta", "Both", "Prefer not to say"]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Campus"
+          },
+          "skipped_meals": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Never",
+                  "Once or twice",
+                  "Weekly",
+                  "More than weekly",
+                  "Prefer not to say"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skipped Meals"
+          },
+          "seen_waste": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": ["Yes", "No", "Unsure"]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seen Waste"
+          },
+          "heard_too_late": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": ["Yes", "No", "Unsure"]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heard Too Late"
+          },
+          "heard_care": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": ["Yes", "No", "Unsure"]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heard Care"
+          },
+          "wants_alerts": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": ["Yes", "Maybe", "No"]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wants Alerts"
+          },
+          "host_leftovers": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Taken home",
+                  "Thrown away",
+                  "Posted in a group",
+                  "Other",
+                  "I do not host"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host Leftovers"
+          },
+          "feedback": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Feedback",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SurveyAnswers",
+        "description": "Bound voluntary answers without collecting accounts or device information."
+      },
+      "SurveyReceipt": {
+        "properties": {
+          "accepted": {
+            "type": "boolean",
+            "title": "Accepted"
+          },
+          "preview": {
+            "type": "boolean",
+            "title": "Preview"
+          }
+        },
+        "type": "object",
+        "required": ["accepted", "preview"],
+        "title": "SurveyReceipt",
+        "description": "Acknowledge completion without revealing answers or aggregate response counts."
+      },
+      "SurveyRequest": {
+        "properties": {
+          "submission_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Submission Id"
+          },
+          "consent": {
+            "type": "boolean",
+            "const": true,
+            "title": "Consent"
+          },
+          "preview": {
+            "type": "boolean",
+            "title": "Preview",
+            "default": false
+          },
+          "answers": {
+            "$ref": "#/components/schemas/SurveyAnswers"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["submission_id", "consent", "answers"],
+        "title": "SurveyRequest",
+        "description": "Make retries safe without tying a response to a real student identity."
+      },
+      "SurveyStatus": {
+        "properties": {
+          "accepting": {
+            "type": "boolean",
+            "title": "Accepting"
+          }
+        },
+        "type": "object",
+        "required": ["accepting"],
+        "title": "SurveyStatus",
+        "description": "Tell a standalone form whether collection has actually been opened."
       },
       "ValidationError": {
         "properties": {

@@ -2,10 +2,12 @@
 
 **Prepared for Johaan's review; not approved for submission and not submitted.**
 Deadline: Friday November 20, 2026, noon America/New_York / 17:00 UTC.
-Continue from `demo/owl-plate-ready` at `01b0bfaee76bdfd8e27a9a94123bd17af848e063`.
-Application code remains identical to independently reviewed
-`f025edd224fe06d2dadd94ae699dd393e8adf8da`. Final package commit is recorded in the
-manager thread and handoff history; use `git rev-parse HEAD` for the current checkout.
+HTTPS/survey candidate continues from `ec518ee8dda225e831bf27ebe3e88e4a1d6f97b2`.
+Matching/claim code and host/student pages remain the reviewed baseline; isolated
+survey collection and same-origin API wiring are additive. Web target: Vercel;
+API hosting unassigned; no deployment/public URL exists. Current candidate needs
+Johaan's deployment and final survey/direct-sharing approval. Final Git SHA is
+recorded in the manager thread after checkpoint commit.
 
 ## Files ready for final human review
 

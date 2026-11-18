@@ -308,6 +308,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/survey/status": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Status
+     * @description Show the collection gate without publishing actual response counts.
+     */
+    get: operations["status_survey_status_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/survey/responses": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Submit
+     * @description Pass validated voluntary answers to the isolated research service.
+     */
+    post: operations["submit_survey_responses_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/health": {
     parameters: {
       query?: never;
@@ -671,6 +711,87 @@ export interface components {
        * @default false
        */
       religious_diets_confirmed: boolean;
+    };
+    /**
+     * SurveyAnswers
+     * @description Bound voluntary answers without collecting accounts or device information.
+     */
+    SurveyAnswers: {
+      /** Campus */
+      campus?: ("Kennesaw" | "Marietta" | "Both" | "Prefer not to say") | null;
+      /** Skipped Meals */
+      skipped_meals?:
+        | (
+            | "Never"
+            | "Once or twice"
+            | "Weekly"
+            | "More than weekly"
+            | "Prefer not to say"
+          )
+        | null;
+      /** Seen Waste */
+      seen_waste?: ("Yes" | "No" | "Unsure") | null;
+      /** Heard Too Late */
+      heard_too_late?: ("Yes" | "No" | "Unsure") | null;
+      /** Heard Care */
+      heard_care?: ("Yes" | "No" | "Unsure") | null;
+      /** Wants Alerts */
+      wants_alerts?: ("Yes" | "Maybe" | "No") | null;
+      /** Host Leftovers */
+      host_leftovers?:
+        | (
+            | "Taken home"
+            | "Thrown away"
+            | "Posted in a group"
+            | "Other"
+            | "I do not host"
+          )
+        | null;
+      /**
+       * Feedback
+       * @default
+       */
+      feedback: string;
+    };
+    /**
+     * SurveyReceipt
+     * @description Acknowledge completion without revealing answers or aggregate response counts.
+     */
+    SurveyReceipt: {
+      /** Accepted */
+      accepted: boolean;
+      /** Preview */
+      preview: boolean;
+    };
+    /**
+     * SurveyRequest
+     * @description Make retries safe without tying a response to a real student identity.
+     */
+    SurveyRequest: {
+      /**
+       * Submission Id
+       * Format: uuid
+       */
+      submission_id: string;
+      /**
+       * Consent
+       * @constant
+       */
+      consent: true;
+      /**
+       * Preview
+       * @default false
+       */
+      preview: boolean;
+      answers: components["schemas"]["SurveyAnswers"];
+    };
+    /**
+     * SurveyStatus
+     * @description Tell a standalone form whether collection has actually been opened.
+     */
+    SurveyStatus: {
+      /** Accepting */
+      accepting: boolean;
     };
     /** ValidationError */
     ValidationError: {
@@ -2133,6 +2254,59 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  status_survey_status_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SurveyStatus"];
+        };
+      };
+    };
+  };
+  submit_survey_responses_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SurveyRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SurveyReceipt"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };

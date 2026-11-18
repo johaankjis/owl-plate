@@ -44,3 +44,28 @@ VisionEstimate is frozen for eval and adapters. Vision cannot assert halal/koshe
 ## Ownership
 
 Manager: schemas, data/seed, docs, root configuration, main.py, routes composition, providers/, vision/, live checks and submission materials. Backend worker: dispatch/, db/, business service modules, routes implementation, tests/ excluding provider/vision tests. Web: apps/web/ only. Eval: data/eval/ only. Integrator: composition and repo wiring plus accepted integration fixes. Contract changes require manager coordination.
+
+## Standalone survey addition (deployment approval preview)
+
+The form is `/survey` in the existing web app, independent of synthetic demo
+credentials. Browser requests use same-origin `/backend/survey/...`, rewritten
+to the configured API origin; mobile production builds use
+`NEXT_PUBLIC_API_URL=/backend` for existing host/student routes too.
+
+- `GET /survey/status` → `{accepting: bool}`. No public response count.
+- `POST /survey/responses` → `{accepted: bool, preview: bool}`. Input is
+  `{submission_id: UUID, consent: true, preview?: bool, answers: SurveyAnswers}`. The shared
+  schema is `services/api/schemas/survey.py`; extra fields are rejected, all
+  questions are skippable, free text is capped at 500 characters. No account,
+  contact, IP, user-agent or synthetic-persona association is saved.
+- `SURVEY_ENABLED=false` (default): preview receipt, no row stored or counted.
+  Collection is enabled only after Johaan approves the final form/sharing plan.
+  A request marked `preview=true` never persists even if collection opens after
+  the visitor loaded the preview page.
+- `SURVEY_ENABLED=true`: persist once per anonymous submission UUID; repeat
+  requests do not inflate count. Response totals mean submissions, not verified
+  unique students. No claim of KSU membership verification is made.
+- Survey rows survive `/demo/reset`; demo student/hold changes never change them.
+  There is no public listing/count/export route. Raw responses, including free
+  text, remain private; only aggregate actual counts may reach slides.
+- Validation errors are 422. Network/database failure is not a saved response.

@@ -18,6 +18,8 @@ from services.api.application import Backend
 from services.api.db.session import create_database
 from services.api.providers.notifications import SimulatedNotifications
 from services.api.routes.api import build_router
+from services.api.routes.survey import build_survey_router
+from services.api.survey.service import SurveyService
 from services.api.vision.service import build_vision_provider, validate_photo
 
 logger = logging.getLogger(__name__)
@@ -117,6 +119,9 @@ def create_app(database_url: str | None = None) -> FastAPI:
         allow_headers=["Authorization", "Content-Type"],
     )
     app.include_router(build_router(backend, register_push_token=register_push_token))
+    app.include_router(
+        build_survey_router(SurveyService(engine, os.getenv("SURVEY_ENABLED", "false") == "true"))
+    )
 
     @app.get("/health")
     def health() -> dict[str, str | bool]:
