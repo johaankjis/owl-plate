@@ -124,8 +124,8 @@ export function DemoHeader({
               className="rounded border border-purple-500/40 bg-purple-500/10 px-2 py-0.5 font-medium text-purple-300"
             >
               {visionSource === "fixture"
-                ? "Cached fixture estimate (simulated)"
-                : "Live Gemini vision"}
+                ? "Saved demo estimate"
+                : "Live Gemini"}
             </span>
           )}
         </div>

@@ -247,8 +247,8 @@ function createDefaultVision(note?: string): VisionEstimate {
     diet_tags: isVegNote ? ["vegetarian"] : [],
     confidence,
     notes: note
-      ? `Offline cached fixture estimate (Host note: "${note}")`
-      : "Offline cached fixture estimate: two trays from club meeting.",
+      ? `Offline saved demo estimate (Host note: "${note}")`
+      : "Offline saved demo estimate: two trays from club meeting.",
   };
 }
 
@@ -494,7 +494,16 @@ function planWaveForDrop(
 
 export function getActiveFixtureDropId(): string {
   const store = loadStore();
-  return store.activeDropId;
+  if (store.activeDropId) {
+    const active = store.drops[store.activeDropId];
+    if (active && active.status !== "expired") {
+      return active.id;
+    }
+  }
+  const activeCandidates = Object.values(store.drops)
+    .filter((d) => d.status !== "expired")
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  return activeCandidates[0]?.id ?? "";
 }
 
 export function fixtureGetDemoAreas(): DemoAreasResponse {
