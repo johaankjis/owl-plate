@@ -19,6 +19,11 @@ STAMP = WEB / ".next" / "owl-present-stamp"
 # Confirmed 2026-11-18 on ai.google.dev/gemini-api/docs/models: stable, multimodal
 # (Text, Image, Audio, Video, PDF) generateContent model.
 DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
+# Confirmed 2026-11-18 on openrouter.ai/api/v1/models: Gemini 3.8 Flash listing reports
+# architecture.input_modalities ["text", "image", "video", "file", "audio"] and
+# supported_parameters including "structured_outputs" and "response_format"; the same
+# model as our direct-Gemini mode, reached through OpenRouter at a low prompt price.
+DEFAULT_OPENROUTER_MODEL = "google/gemini-3.8-flash"
 DEMO_ENV = {
     "AUTH_MODE": "demo",
     "DEMO_MODE": "true",
@@ -45,12 +50,43 @@ def resolve_gemini_credentials() -> tuple[str, str]:
     return api_key, model
 
 
+def resolve_openrouter_credentials() -> tuple[str, str]:
+    """Read OpenRouter credentials from the shell or the gitignored .env, never printing them."""
+    load_dotenv(ROOT / ".env")
+    api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
+    if not api_key:
+        sys.exit(
+            "OPENROUTER_API_KEY is required for --vision openrouter.\n"
+            f"Put OPENROUTER_API_KEY=... in {ROOT / '.env'} (that file is gitignored),\n"
+            "or run: export OPENROUTER_API_KEY=... in this shell.\n"
+            "Create a key at https://openrouter.ai/settings/keys and never commit or share it."
+        )
+    model = os.getenv("OPENROUTER_VISION_MODEL", "").strip() or DEFAULT_OPENROUTER_MODEL
+    return api_key, model
+
+
 def vision_environment(mode: str) -> dict[str, str]:
     """Turn the selected vision mode into API-process environment overrides."""
     if mode == "fixture":
         return {"VISION_PROVIDER": "fixture"}
+    if mode == "openrouter":
+        api_key, model = resolve_openrouter_credentials()
+        return {
+            "VISION_PROVIDER": "openrouter",
+            "OPENROUTER_API_KEY": api_key,
+            "OPENROUTER_VISION_MODEL": model,
+        }
     api_key, model = resolve_gemini_credentials()
     return {"VISION_PROVIDER": "gemini", "GEMINI_API_KEY": api_key, "GEMINI_MODEL": model}
+
+
+def vision_banner(mode: str, vision_env: dict[str, str]) -> str:
+    """Name the exact estimate source so operators never present the wrong mode."""
+    if mode == "gemini":
+        return "LIVE GEMINI VISION (analyzes the uploaded photo)"
+    if mode == "openrouter":
+        return f"LIVE GEMINI VIA OPENROUTER (model {vision_env['OPENROUTER_VISION_MODEL']})"
+    return "SAVED DEMO ESTIMATE (fixture)"
 
 
 def build_fingerprint() -> str:
@@ -152,11 +188,7 @@ def run(args: argparse.Namespace) -> None:
         wait_healthy(f"http://127.0.0.1:{args.port}/backend/health")
         reset(args.api_port)
         base = f"http://localhost:{args.port}"
-        mode_line = (
-            "LIVE GEMINI VISION (analyzes the uploaded photo)"
-            if args.vision == "gemini"
-            else "SAVED DEMO ESTIMATE (fixture)"
-        )
+        mode_line = vision_banner(args.vision, vision_env)
         print(
             "\n"
             "  Owl Plate demo ready (clean state, live-visitor scenario)\n"
@@ -189,7 +221,10 @@ def main() -> None:
     parser.add_argument("--reset-only", action="store_true", help="reset a running demo")
     parser.add_argument("--scenario", choices=["visitors", "seeded"], default="visitors")
     parser.add_argument(
-        "--vision", choices=["fixture", "gemini"], default="fixture", help="vision provider"
+        "--vision",
+        choices=["fixture", "gemini", "openrouter"],
+        default="fixture",
+        help="vision provider",
     )
     parser.add_argument("--rebuild", action="store_true", help="force a fresh web build")
     parser.add_argument("--host", default=os.getenv("PRESENT_HOST", "127.0.0.1"))

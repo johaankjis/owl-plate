@@ -67,3 +67,30 @@ def test_gemini_mode_builds_safe_gemini_provider(monkeypatch: pytest.MonkeyPatch
     provider = build_vision_provider()
     assert isinstance(provider, SafeVision)
     assert isinstance(provider.provider, GeminiVision)
+
+
+def test_openrouter_mode_requires_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("VISION_PROVIDER", "openrouter")
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.setenv("OPENROUTER_VISION_MODEL", "google/gemini-3.8-flash")
+    with pytest.raises(ValueError):
+        build_vision_provider()
+
+
+def test_openrouter_mode_requires_explicit_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("VISION_PROVIDER", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.delenv("OPENROUTER_VISION_MODEL", raising=False)
+    with pytest.raises(ValueError):
+        build_vision_provider()
+
+
+def test_openrouter_mode_builds_safe_openrouter_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    from services.api.providers.openrouter import OpenRouterVision
+
+    monkeypatch.setenv("VISION_PROVIDER", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.setenv("OPENROUTER_VISION_MODEL", "google/gemini-3.8-flash")
+    provider = build_vision_provider()
+    assert isinstance(provider, SafeVision)
+    assert isinstance(provider.provider, OpenRouterVision)

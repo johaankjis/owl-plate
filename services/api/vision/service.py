@@ -7,6 +7,7 @@ from typing import Protocol
 from PIL import Image, UnidentifiedImageError
 
 from services.api.providers.gemini import GeminiVision
+from services.api.providers.openrouter import OpenRouterVision
 from services.api.schemas.api import VisionEstimate
 
 ALLERGENS = ["dairy", "egg", "gluten", "peanut", "tree_nut", "soy", "fish", "shellfish", "sesame"]
@@ -86,4 +87,13 @@ def build_vision_provider() -> VisionProvider:
                 "gitignored .env at the repo root or in the launching shell"
             )
         return SafeVision(GeminiVision(api_key, model))
+    if mode == "openrouter":
+        api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
+        model = os.getenv("OPENROUTER_VISION_MODEL", "").strip()
+        if not api_key or not model:
+            raise ValueError(
+                "OpenRouter vision requires OPENROUTER_API_KEY and OPENROUTER_VISION_MODEL; "
+                "set them in the gitignored .env at the repo root or in the launching shell"
+            )
+        return SafeVision(OpenRouterVision(api_key, model))
     raise ValueError("Unsupported VISION_PROVIDER")

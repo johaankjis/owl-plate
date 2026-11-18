@@ -61,10 +61,13 @@ from services.api.sessions import (
     visitor_count,
     visitor_decisions,
 )
+from services.api.vision.errors import VisionUnavailable
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
-VisionCallable = Callable[[bytes, str], tuple[VisionEstimate, Literal["fixture", "gemini"]]]
+VisionCallable = Callable[
+    [bytes, str], tuple[VisionEstimate, Literal["fixture", "gemini", "openrouter"]]
+]
 ALLERGENS = ["dairy", "egg", "gluten", "peanut", "tree_nut", "soy", "fish", "shellfish", "sesame"]
 RELIGIOUS_DIETS = {"halal", "kosher", "pork_free"}
 SEED_PATH = Path(__file__).resolve().parents[2] / "data/seed/demo.json"
@@ -380,13 +383,18 @@ class Backend:
         try:
             estimate, source = self.analyze(photo, host_note)
             estimate = VisionEstimate.model_validate(estimate).model_copy(deep=True)
-            if source not in {"fixture", "gemini"} or (source == "fixture" and not self.demo_mode):
+            if source not in {"fixture", "gemini", "openrouter"} or (
+                source == "fixture" and not self.demo_mode
+            ):
                 raise ValueError("Invalid source")
+        except VisionUnavailable as exc:
+            # The provider names itself for the host without keys, URLs or bodies; never fall back.
+            raise DomainError("vision_unavailable", str(exc), 503) from exc
         except Exception as exc:
             # Live vision never falls back to the fixture: fail the request without a drop.
             raise DomainError(
                 "vision_unavailable",
-                "Live Gemini could not analyze this photo. No estimate was made; try again, or check the server's Gemini key and model.",
+                "Live vision could not analyze this photo. No estimate was made.",
                 503,
             ) from exc
         estimate.diet_tags = [d for d in estimate.diet_tags if d not in RELIGIOUS_DIETS]
