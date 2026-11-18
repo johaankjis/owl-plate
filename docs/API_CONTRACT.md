@@ -168,3 +168,45 @@ clock_offset_seconds}`.
   `apps/web/app/join/**`, `apps/web/components/**` except `DispatchMap.tsx` and `presenter/**`,
   `apps/web/lib/api-client.ts`, `apps/web/lib/fixtures/**`, `apps/web/lib/types/**`,
   `apps/web/lib/time.ts`, new `apps/web/lib/session.ts`, `apps/web/tests/**`.
+
+# Contract v2.1: host live counts and honest vision source (frozen 2026-11-18)
+
+No new routes or response models. Manager owns this section.
+
+## Host counts (web worker)
+
+- After publish, the host page shows the current drop with `counts.available`, `counts.held`,
+  `counts.picked_up` (and `counts.total`) from the existing `DropResponse.counts`.
+- Refresh: poll `GET /drops/{id}` (owning host) every 2 s while the page is open.
+- Restore on reload: `GET /demo/active-drop` (demo-host allowed) → `GET /drops/{id}`. A `draft`
+  restores the review step; `live` / `claimed_out` restores the counts panel. `drop_id: null`
+  starts at upload. Hosts never see student names, nicknames or per-student status.
+- `total = available + held + picked_up`. Claim moves one serving available → held; student
+  "Confirm picked up (demo)" (`POST /claims/{id}/pickup`) moves held → picked_up.
+
+## Vision source (backend worker)
+
+- `DropResponse.vision_source` stays `"fixture" | "gemini"` and must be the provider that
+  actually produced that drop's estimate. UI labels: `gemini` → **Live Gemini**,
+  `fixture` → **Saved demo estimate**.
+- `GET /health` adds `vision: "fixture" | "gemini"` = the configured mode (public, no secrets).
+- Live mode (`VISION_PROVIDER=gemini`) never falls back to the fixture. Any Gemini failure,
+  timeout, invalid output or missing credential → `POST /drops` returns **503**
+  `{"detail": {"code": "vision_unavailable", "message": <human-readable, no key/URL/body>}}`
+  and no drop is created. The host UI shows that message and offers retry; it never shows a
+  fixture estimate in live mode.
+- The uploaded image bytes (after `validate_photo` re-encode) are what Gemini receives.
+  The host note is optional and untrusted data.
+- `GEMINI_API_KEY` and `GEMINI_MODEL` are server-side only (gitignored `.env` at repo root or
+  the launching shell). Never `NEXT_PUBLIC_*`, never logged, never returned.
+
+## Ownership for this change
+
+- Manager: `services/api/main.py`, `services/api/schemas/`, `services/api/routes/`, this doc,
+  `apps/web/lib/api.generated.ts`, `apps/web/openapi.json`, integration and browser checks.
+- Backend worker (GLM 5.3): `services/api/providers/gemini.py`, `services/api/vision/**`,
+  `create_drop` error mapping in `services/api/application.py`, `scripts/present.py`,
+  `Makefile`, `services/api/tests/**`.
+- Web worker (Argon): `apps/web/app/host/**`, `apps/web/lib/api-client.ts`,
+  `apps/web/lib/fixtures/**`, `apps/web/lib/types/**`, `apps/web/tests/**`,
+  `apps/web/components/**` except `DispatchMap.tsx` and `presenter/**`.

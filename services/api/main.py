@@ -130,6 +130,9 @@ def create_app(database_url: str | None = None) -> FastAPI:
             "status": "ok",
             "is_demo": demo,
             "notifications": "simulated" if notification_mode == "log" else "fcm",
+            "vision": "gemini"
+            if os.getenv("VISION_PROVIDER", "fixture") == "gemini"
+            else "fixture",
         }
 
     return app
