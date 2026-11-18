@@ -47,6 +47,8 @@ Manifest PNG icons are 192x192 and 512x512; apple-touch-icon is 180x180, matchin
 
 ## Live checks and backups
 
+The optional browser proof script `scripts/browser_smoke.cjs` uses independent host, projector and mobile student contexts against the real local routes. It resets demo state and checks the full two-wave loop, a deck.gl canvas, no cross-student invites and no uncaught browser errors. Install Playwright Core/Chromium outside the repo or in your own developer tooling, set `OWL_PLAYWRIGHT_MODULE` to its package path, optionally set `OWL_BROWSER_EXECUTABLE`, then run `node scripts/browser_smoke.cjs` while Owl is running. It uses API 8017/web 3017 by default; override `OWL_API_URL` and `OWL_WEB_URL` together with server configuration. The tested projector viewport is 1920×1080 and the mobile viewport is 390×844. Output screenshots go to gitignored `test-results/browser/` unless `OWL_BROWSER_ARTIFACTS` is set. This script is for synthetic demo mode only and resets the database.
+
 Gemini: set VISION_PROVIDER=gemini and a configured GEMINI_MODEL/key privately; keep demo auth while using synthetic students. A provider failure returns an error, never an unlabeled fixture. Record source photo, ingredient truth, model ID, timestamp and response for eval without saving private images in Git.
 
 Physical push requires HTTPS, Firebase project configuration, authorized Android and Home Screen iPhone, and observed device receipts. Default `NOTIFICATION_PROVIDER=log` remains simulated and push-token registration returns an explicit 503. Entra and email-code auth are pending; composition requires both `AUTH_MODE=demo` and `DEMO_MODE=true`.

@@ -48,7 +48,7 @@ async function waitText(page, testId, expected) {
       viewport: { width: 1280, height: 900 },
     });
     const projectorCtx = await browser.newContext({
-      viewport: { width: 1440, height: 1000 },
+      viewport: { width: 1920, height: 1080 },
     });
     const studentCtx = await browser.newContext({
       viewport: { width: 390, height: 844 },
@@ -133,8 +133,8 @@ async function waitText(page, testId, expected) {
     );
     const eBox = await projector.getByTestId("persona-row-E").boundingBox();
     assert.ok(
-      eBox && eBox.y + eBox.height <= 1000,
-      "All five persona explanations must fit on projector viewport",
+      eBox && eBox.y + eBox.height <= 1080,
+      "All five persona explanations must fit on a Full HD projector",
     );
     const body = await projector.locator("body").innerText();
     assert.doesNotMatch(body, /CARE|priority tier|priority_tier/);
