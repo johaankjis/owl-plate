@@ -150,5 +150,5 @@ AUTH_MODE=demo
 ENTRA_CLIENT_ID=
 ENTRA_ALLOWED_TENANT_ID=
 DEMO_MODE=true
-INVITE_TIMEOUT_SECONDS=90
+# Fixed v1 invite timeout: 90s production / 60s demo; not an environment setting.
 ```

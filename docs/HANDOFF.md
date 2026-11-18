@@ -1,6 +1,40 @@
 # Owl Plate checkpoint
 
-## Latest checkpoint: GLM findings fixed, exact-SHA recheck next (November 18)
+## Latest checkpoint: local demo milestone independently passed (November 18)
+
+**Reviewed application/checkpoint SHA: `f025edd224fe06d2dadd94ae699dd393e8adf8da`.**
+Fresh OpenCode `openrouter/z-ai/glm-5.3` verified that exact SHA in clean isolated
+worktree `/home/node/.t3/worktrees/owl-plate/t3-c25c3d0f`, branch
+`t3/review-provider-recheck`. Verdict: **PASS for the local demo milestone**;
+all three prior findings resolved, no objections. Review record:
+<t3-thread://v2/214ef463-8ab8-4ced-aae2-db0dbf63011f/thread:delegated-task:command%3Amcp%3Abc385daf-2cbb-4ebd-8d99-5c263e1bcab1%3Adelegate-task%3Aowl-review-f025edd>.
+
+Reviewer reran 65 API tests, Ruff check/format, route smoke and diff check;
+all passed with the one known TestClient deprecation warning. Independent probes
+also passed last-serving conflicts with unchanged inventory, restored preferences,
+picked-up retry idempotence, vegan mismatch and compatible vegetarian claiming.
+Prior unchanged web/browser/eval evidence remains below; it was not rerun.
+
+This checkpoint changes documentation only: records the verdict and removes two
+stale timeout-variable references from ARCHITECTURE/DISPATCH, resolving the new
+low documentation finding. Application code is identical to the reviewed SHA.
+The exact final documentation commit is recorded in the manager thread. Canonical
+branch remains `demo/owl-plate-ready`, original `main` unchanged, all worktrees
+preserved. No pushes, merges into main, deployments, distribution or submission.
+
+Next milestone needs Johaan's decision queue below: authorized Android and Home
+Screen iPhone recipients, private Firebase/Gemini access, labeled food photos,
+survey distribution owner, campus policy/coordinates, then optional Claude model
+clarification. Interim providers remain explicit fixtures/logs/demo auth. Survey
+n=0; no physical push receipt, measured vision accuracy or live service proof.
+Access and phone availability threaten Thursday evening evidence/rehearsal;
+Friday November 20 noon Eastern (17:00 UTC) submission remains Johaan's action.
+Local commands: `make demo`, `make dev` (API 8017/web 3017), `make smoke`;
+use the Make binary workaround below if GNU Make is absent. Submission package is
+in `submission/`; PowerPoint visual review and physical-device capture remain
+pending. No new independent review is claimed for this documentation-only commit.
+
+## Previous checkpoint: GLM findings fixed, exact-SHA recheck next (November 18)
 
 Canonical branch: `demo/owl-plate-ready`. Product/docs fix commit:
 `f0cceb9178ad06adaafd2081a523860130d15811`, based on reviewed
