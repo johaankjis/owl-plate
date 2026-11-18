@@ -21,9 +21,13 @@ on `demo/owl-plate-ready`; no application code changed in this checkpoint.
   API/web/TLS ports 8017/3017/3443; keep running during review. Supervisor PID
   `/tmp/owl-https-review/preview.pid`; SIGTERM that process for clean owned shutdown.
   DeckScout port 8000 untouched. No public URL or final phone-sharing QR yet.
-- Existing exact-SHA GLM review of `98e5074` is still awaiting its completion
-  report at this checkpoint; no polling/relaunch. Flag preview-affecting findings
-  when completion arrives. Earlier safety reviews remain recorded below.
+- Exact-SHA OpenCode GLM 5.3 review of `98e5074` completed: PASS for the local
+  approval candidate, no blocking app-preview finding. Conditional medium:
+  public survey collection requires a tested abuse limit; collection stays off.
+  Survey HTTPS requirement, 503 format nit and operator DB/CWD caveat recorded
+  in the approval bundle. Reviewed source unchanged; docs-only integration
+  includes the prior review checkpoint `2d13168` and subsequent deployment docs.
+  No duplicate review launched. Full accepted report/link remains below.
 - Physical Android/iPhone push receipts and real-photo vision n remain zero.
   Mobile local emulation evidence and 96.6-second captioned fallback preserved.
 

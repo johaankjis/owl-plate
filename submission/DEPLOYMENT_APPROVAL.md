@@ -8,7 +8,8 @@ this update changes documentation only. Main/default branch stays untouched.
 ## Proposed target and cost
 
 Keep the existing Next.js app on **Vercel**. Recommend **Render paid Web Service
-(Starter / 512 MB) + managed PostgreSQL (Basic-256mb), 1 GB initial storage**, in
+(`0.5c-512mb`, legacy Starter) + managed PostgreSQL
+(`0.1c-256mb`, legacy Basic-256mb), 1 GB initial storage**, in
 the same region/account. This is a proposed hackathon hosting exception to the
 original AWS deployment plan, requiring Johaan's approval.
 
@@ -116,8 +117,16 @@ Prior Chromium Pixel 7/iPhone layout checks passed the host/student flow, labele
 fixture/log, without mixed content/overflow. Physical Safari/Android, public TLS,
 container startup and live PostgreSQL remain pending. Automated checks at the
 candidate: 73 API, 116 eval-calculation and 5 client tests; lint/types/build passed.
-The new exact-SHA GLM review has not returned as of this update; preview-affecting
-findings will be flagged when it does. No second reviewer or duplicate task started.
+OpenCode GLM 5.3 completed the exact-SHA review: **PASS, local approval candidate
+only**, with 73 API tests, 116 eval tests, Ruff and all 49 package hashes passing.
+No blocking app-preview findings. Conditional medium: anonymous survey writes
+need a tested gateway rate limit covering direct API access or a row ceiling
+before any future public collection; keep collection off. Low findings: survey
+503 error envelope inconsistency and `crypto.randomUUID` requiring HTTPS/localhost.
+Operator count tool must run from repo root against the intended DATABASE_URL.
+These do not change the reviewed app baseline; public TLS, container, live DB,
+Safari and physical devices remain unverified. Require HTTP-to-HTTPS redirect.
+No second reviewer or duplicate task started.
 
 This is a supervised synthetic demo using visible demo credentials/shared reset,
 not production access control. Dependency advisories remain a readiness item.
