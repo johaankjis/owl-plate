@@ -10,3 +10,12 @@ This note is a draft and has not been submitted. Replace the status below with v
 - Survey: not distributed, n = 0.
 
 Deadline: Friday November 20, 2026, noon Eastern (17:00 UTC). Johaan submits PowerPoint plus video or the live-demo note. Keep Thursday evening for capture and the backup run.
+
+
+Current local candidate: `local-review-2026-11-18-r2`. The checked PowerPoint,
+fixed-layout PDF and captioned fallback remain prepared together. Live evidence
+has not arrived: survey n=0, physical Android/iPhone receipt unverified, real
+vision samples evaluated n=0. If still pending at the submission cutoff, retain
+these exact limitations; Johaan makes the final submission decision. The offline
+five-minute companion is `REHEARSAL.html`; technical playback is separate from
+actual spoken team timing.

@@ -11,10 +11,14 @@ Eastern / 17:00 UTC. Johaan approves deployment/distribution and submits.
 | `Owl_Plate_Fallback.mp4` | 96.6s, Full HD, 25fps, silent captioned browser recording; fixture vision/simulated notifications |
 | `SLIDE_REVIEW.md` | Slide findings, exact edits, timing assessment |
 | `PITCH_SCRIPT.md` | Five-minute cues and pending human rehearsal log |
+| `REHEARSAL.html` | Offline five-minute slide/video companion, speaker cues and local timing export |
+| `SUBMISSION_STATUS.md` | Candidate version, actual evidence and submission-cutoff rule |
 | `LIVE_RUN_CHECKLIST.md` | Single live checklist and empty actual phone/vision registers |
 | `SURVEY.md` | Questions, proposed audience/owner and unsent copy; n=0 |
 | `RECORDING_PLAN.md` | Thursday physical-device capture plan |
 | `LIVE_DEMO_NOTE.md` | Honest draft for final review |
+| `evidence/technical-playback.json` | Actual five-minute technical timing, not spoken team delivery |
+| `evidence/live-preflight.json` | Missing configuration/device/label inputs; no secret values |
 | `evidence/rehearsal-timing.json` | Selected 97.027s clean-reset natural-expiry browser run |
 | `evidence/first-rehearsal-timing.json` | Earlier passing 109.823s rehearsal; no usable video |
 | `evidence/demo/` | Eight screenshots through final reset |
@@ -27,7 +31,8 @@ accuracy and survey responses remain pending. No deployment or submission.
 
 ## Replay
 
-Play the MP4 locally; it is silent, with burned-in action captions. Narrate with
+Open `REHEARSAL.html` locally for the timed companion, or play the MP4 directly.
+It is silent, with burned-in action captions. Narrate with
 the cue sheet. The wait for C is real elapsed time, not a clock jump. The PDF
 embeds DejaVu Sans substituted for Aptos; native PowerPoint/venue playback still
 needs the live check. Save copies on both laptops before rehearsal.
@@ -78,3 +83,21 @@ copy/audience/distribution owner first. The single live checklist records
 approved Android/Home Screen iPhone receipts and human-labeled photo evaluation.
 Keep credentials in private secret cards/environment, never chat or recordings.
 Reset clears push registrations; re-register after every reset.
+
+## Full-clock rehearsal companion verification
+
+`REHEARSAL.html` passed an actual 300.001-second offline technical run: the MP4
+played 120.066–216.666s; slides transitioned at 240.001s and 275.001s. Captions and
+stage visibility were visually reviewed. No page errors or external requests.
+The log explicitly says no human speakers were present; actual spoken timing
+still requires the team. To reproduce with the same Playwright/browser environment:
+
+```bash
+OWL_PLAYWRIGHT_MODULE=/path/to/playwright-core \
+OWL_BROWSER_EXECUTABLE=/path/to/chromium \
+node scripts/verify_rehearsal.cjs
+```
+
+This runs the five-minute clock in real time, opens only the local rehearsal
+file, and closes its browser. Evidence defaults to gitignored test-results/playback.
+No application server, live push, survey distribution or deployment is involved.

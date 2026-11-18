@@ -6,7 +6,8 @@
 audience: KSU student members of AI Club Discord and team-accessible class/club
 channels, with each channel owner's permission. Proposed owner: **Johaan**, or
 one teammate he explicitly names. Create/approve the form link, copy and channels
-before sending. Nothing has been distributed; **survey n=0**. Full questionnaire:
+before sending. Exact Discord/class-channel links and the form link are still
+pending; channel names/permissions have not been verified. Nothing has been distributed; **survey n=0**. Full questionnaire:
 `submission/SURVEY.md`. Approval is useful on Wednesday so collection can close
 Thursday evening; safe interim is unsent copy and no results on the deck.
 
@@ -28,7 +29,77 @@ No paid services provisioned, notifications sent to real phones, or secrets
 requested in chat. The live checklist has empty receipt/eval fields ready for
 actual evidence once access exists.
 
-## Latest checkpoint: slides reviewed, timed rehearsal and labeled fallback complete
+## Latest checkpoint: coordinated live session and full-clock team companion prepared
+
+Resumed canonical `demo/owl-plate-ready` from
+`01b0bfaee76bdfd8e27a9a94123bd17af848e063`, clean. Reviewed application directories
+`apps/`, `services/`, `data/` are unchanged. Current materials version:
+**local-review-2026-11-18-r2**, pending Johaan's final approval; exact final Git SHA
+is recorded in the manager thread after this checkpoint commit. No workers were
+launched, default branch changed, services deployed, surveys distributed or
+submission performed.
+
+Survey decision was shown first in the manager conversation: exact unsent
+invitation, proposed KSU student audience/channels, Johaan or his named teammate
+as distribution owner. No approval, form/channel link or responses received;
+**actual known survey n=0**. Full questionnaire stays in `submission/SURVEY.md`.
+The prioritized queue above remains the one consolidated set of requests.
+
+Independent live preflight, without printing private values, found Gemini and
+Firebase environment/configuration absent, no root .env, no local survey export
+and no labeled real-photo set. No authorized device/tester records were provided.
+See `submission/evidence/live-preflight.json`. No live network calls or phone
+notifications were attempted. **16 mocked provider/vision/composition tests passed**
+and **116 synthetic eval calculation tests passed**; one known TestClient warning.
+These verify local boundaries/calculations, not live Gemini accuracy or push receipt.
+
+`submission/LIVE_RUN_CHECKLIST.md` now contains one proposed coordinated 75-minute
+session: authorization/private setup → reset and own-token registration → actual
+Android A/Home Screen iPhone C receipts → claim/natural expiry/D widening → optional
+separately labeled D receipt → independent photo eval → three human five-minute
+runs → final human review. Required inputs are exact tester/device availability,
+private Gemini model/key and Firebase config, reachable trusted HTTPS origin,
+counted/ingredient-labeled food photos and speaker roles. No session appointment
+or deployment approval is inferred. Reset clears registrations; register afterward.
+Actual receipt/eval fields remain pending; real photos evaluated n=0.
+
+`submission/REHEARSAL.html` is an offline companion built from the checked slide
+PNGs and unchanged 96.6-second captioned MP4. Four role cues align with 0/60/120/240s,
+slide 7 follows at 275s and the run ends at 300s. Slides 4–5 are operator thumbnails
+during the video; its 23.4-second remaining buffer belongs to transition recovery
+and handoff. `submission/PITCH_SCRIPT.md` now matches actual video scene times.
+The console defaults to technical playback mode, exports local JSON, and keeps
+wall/active/paused time. Only an actual team-present run may be labeled human;
+**human speaker names and actual spoken rehearsal times remain pending**.
+
+Final full-clock technical playback **PASS: 300.001 seconds**. Actual video start
+120.066s, end 216.666s (96.6s playback); architecture transition 240.001s, next steps
+275.001s. Zero external requests, no page errors, no blocked playback. All six
+phase screenshots were inspected; video captions and fixture labels readable.
+Result: `submission/evidence/technical-playback.json`; screenshots:
+`submission/evidence/playback/`. This is **not a spoken team rehearsal**. `scripts/verify_rehearsal.cjs` checks local playback,
+phase visibility, actual video start/end, zero external requests and page errors.
+A first visual check caught a slide/video overlap in the new companion; fixed
+with explicit hidden-state CSS and visibility assertions. This changed rehearsal
+tooling only, not the checked deck, PDF, video or app. Pause/wall-time accounting
+and JSON download passed a separate short control check; that short run is not
+reported as a full or spoken rehearsal. Shared preview again failed twice due to
+missing host libraries; isolated Playwright fallback used without installing
+system packages or binding an app server.
+
+Final review paths: `submission/Owl_Plate_Pitch.pptx`,
+`submission/evidence/slides/Owl_Plate_Pitch.pdf`,
+`submission/Owl_Plate_Fallback.mp4`, `submission/LIVE_DEMO_NOTE.md`.
+Candidate status/cutoff rule: `submission/SUBMISSION_STATUS.md`. Integrity manifest:
+`submission/SHA256SUMS`; rehearse with `submission/REHEARSAL.html` and the cue sheet.
+If live evidence arrives, update only supported claims, preserve fixture labels on
+the prerecorded clip, regenerate/export affected deck slides and visually recheck.
+At Friday November 20 noon Eastern / 17:00 UTC, missing physical receipts/live
+vision accuracy remain **unverified** and the deck keeps simulation labels and
+actual survey n. Johaan chooses/approves/submits the candidate. No automatic
+submission/deployment/distribution task has been scheduled.
+
+## Previous checkpoint: slides reviewed, timed rehearsal and labeled fallback complete
 
 Continued from canonical `demo/owl-plate-ready` at
 `684e20b8a6d145be27fe5eadcc0be5b6fadbb761`. **Reviewed application code is unchanged**
