@@ -146,13 +146,13 @@ export default function DispatchProjectorPage() {
         allowedRoles={["projector", "host"]}
       />
 
-      <main className="mx-auto max-w-7xl space-y-6 px-4 py-6">
+      <main className="mx-auto max-w-7xl space-y-4 px-4 py-4">
         {/* Projector Header & Demo Controls */}
-        <section className="flex flex-col justify-between gap-4 rounded-xl border border-zinc-800 bg-owl-slate p-5 lg:flex-row lg:items-center">
+        <section className="flex flex-col justify-between gap-4 rounded-xl border border-zinc-800 bg-owl-slate p-4 lg:flex-row lg:items-center">
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-bold text-white">
-                Dispatch Projector — H3 Wave Ring &amp; Synthetic Personas
+                Owl Plate dispatch
               </h1>
               <span className="rounded bg-owl-gold/20 px-2.5 py-0.5 text-xs font-bold text-owl-gold">
                 Polling every 2s
