@@ -136,6 +136,7 @@ class Backend:
         self.analyze = analyze
         self.validate_photo = validate_photo
         self.notify = notify
+        self.forget_push: Callable[[str], None] | None = None
         self.demo_mode = demo_mode
         self.auth_mode = auth_mode
         self.clock = clock or (lambda: datetime.now(UTC))
@@ -220,14 +221,27 @@ class Backend:
         return self._session_run(operation)
 
     def leave(self, actor: Actor) -> SessionLeftResponse:
-        """Revoke the visitor token, release holds, and decline pending invites."""
+        """Revoke the visitor token, release holds, decline pending invites, forget the device."""
 
         def operation(session: Session, now: datetime) -> SessionLeftResponse:
             for drop in end_session(session, actor.id):
                 self._refresh(session, drop)
             return SessionLeftResponse()
 
-        return self._session_run(operation)
+        result = self._session_run(operation)
+        if self.forget_push is not None:
+            self.forget_push(actor.id)
+        return result
+
+    def is_visitor(self, student_id: str) -> bool:
+        """Tell the push policy whether this ID is a current joined visitor."""
+        with Session(self.engine) as session:
+            return (
+                session.exec(
+                    select(VisitorSession.student_id).where(VisitorSession.student_id == student_id)
+                ).first()
+                is not None
+            )
 
     def demo_status(self, actor: Actor) -> DemoStatusResponse:
         """Give presenter controls a projector-safe overview."""

@@ -20,3 +20,4 @@ playwright-report/
 # Local packaging and hosting bindings
 build/
 .vercel/
+.secrets/

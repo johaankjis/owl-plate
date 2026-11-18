@@ -142,6 +142,11 @@ def build_router(
         if register_push_token is not None:
             try:
                 register_push_token(actor.id, token.token)
+            except PermissionError:
+                raise HTTPException(
+                    403,
+                    detail={"code": "forbidden", "message": "Join the demo first."},
+                ) from None
             except (RuntimeError, ValueError, SQLAlchemyError):
                 raise HTTPException(
                     503,

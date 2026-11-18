@@ -27,6 +27,8 @@ import {
   parseSeededPersonaParam,
 } from "../../lib/session";
 import { formatEasternTime, formatRemainingTime } from "../../lib/time";
+import { usePushOptIn } from "../../lib/push";
+import { PushOptIn } from "../../components/PushOptIn";
 import {
   DEMO_AREA_LABELS,
   formatDropLocation,
@@ -39,6 +41,7 @@ function StudentContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const personaParam = searchParams.get("persona");
+  const linkedInviteId = searchParams.get("invite");
   const seededPersona = parseSeededPersonaParam(personaParam);
 
   const [authToken, setAuthToken] = useState<string | null>(null);
@@ -53,6 +56,7 @@ function StudentContent() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [nowTick, setNowTick] = useState<number>(() => Date.now());
+  const push = usePushOptIn(authToken, seededPersona !== null);
 
   const onApiError = useCallback(
     (err: unknown, fallbackMessage: string) => {
@@ -293,6 +297,25 @@ function StudentContent() {
           )}
         </section>
 
+        {!seededPersona && (
+          <PushOptIn state={push.state} onEnable={() => void push.enable()} />
+        )}
+
+        {linkedInviteId &&
+          invites.length > 0 &&
+          !invites.some(
+            (inv) =>
+              inv.id === linkedInviteId &&
+              (inv.status === "sent" || inv.status === "claimed"),
+          ) && (
+            <p
+              data-testid="invite-link-ended"
+              className="rounded-xl border border-zinc-700 px-4 py-3 text-sm text-zinc-300"
+            >
+              That invite has ended. New ones will appear here.
+            </p>
+          )}
+
         {errorMessage && (
           <div
             role="alert"
@@ -311,10 +334,14 @@ function StudentContent() {
           >
             <div className="flex justify-center">
               <span
-                data-testid="simulated-notification-label"
+                data-testid={
+                  push.realPush
+                    ? "push-notification-label"
+                    : "simulated-notification-label"
+                }
                 className="rounded-full border border-owl-gold/35 bg-owl-gold/10 px-3 py-1 text-xs font-semibold text-owl-gold"
               >
-                Simulated notifications
+                {push.realPush ? "Real push on" : "Simulated notifications"}
               </span>
             </div>
             <h2 className="text-xl font-extrabold text-white">
@@ -342,10 +369,16 @@ function StudentContent() {
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span
-                data-testid="simulated-notification-label"
+                data-testid={
+                  push.realPush
+                    ? "push-notification-label"
+                    : "simulated-notification-label"
+                }
                 className="rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-xs font-bold text-amber-300"
               >
-                Simulated notification
+                {push.realPush
+                  ? "Real push (Firebase)"
+                  : "Simulated notification"}
               </span>
               <span
                 data-testid={`invite-countdown-${cardState.activeInvite.id}`}
@@ -449,10 +482,16 @@ function StudentContent() {
                 Your spot is held
               </span>
               <span
-                data-testid="simulated-notification-label"
+                data-testid={
+                  push.realPush
+                    ? "push-notification-label"
+                    : "simulated-notification-label"
+                }
                 className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-300"
               >
-                Simulated notification
+                {push.realPush
+                  ? "Real push (Firebase)"
+                  : "Simulated notification"}
               </span>
             </div>
 
@@ -555,10 +594,16 @@ function StudentContent() {
                 Picked up
               </span>
               <span
-                data-testid="simulated-notification-label"
+                data-testid={
+                  push.realPush
+                    ? "push-notification-label"
+                    : "simulated-notification-label"
+                }
                 className="rounded-full border border-owl-gold/30 bg-owl-gold/10 px-3 py-1 text-xs font-semibold text-owl-gold"
               >
-                Simulated notification
+                {push.realPush
+                  ? "Real push (Firebase)"
+                  : "Simulated notification"}
               </span>
             </div>
 

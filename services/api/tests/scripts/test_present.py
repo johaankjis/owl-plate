@@ -101,3 +101,53 @@ def test_vision_banner_names_each_mode_exactly() -> None:
         present.vision_banner("openrouter", {"OPENROUTER_VISION_MODEL": "google/gemini-3.8-flash"})
         == "LIVE GEMINI VIA OPENROUTER (model google/gemini-3.8-flash)"
     )
+
+
+@pytest.fixture
+def push_env(tmp_path, monkeypatch):
+    """Isolate Firebase values; SERVICE_ACCOUNT_FILE follows the temporary root."""
+    monkeypatch.setattr(present, "ROOT", tmp_path)
+    monkeypatch.setattr(
+        present, "SERVICE_ACCOUNT_FILE", tmp_path / ".secrets" / "firebase-service-account.json"
+    )
+    for name in (
+        "FIREBASE_SERVICE_ACCOUNT_JSON",
+        "FIREBASE_SERVICE_ACCOUNT_FILE",
+        "FIREBASE_PROJECT_ID",
+        "NEXT_PUBLIC_FIREBASE_CONFIG",
+        "NEXT_PUBLIC_FIREBASE_VAPID_KEY",
+        "PUSH_TOKEN_ENCRYPTION_KEY",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    return tmp_path
+
+
+def test_simulated_push_needs_nothing(push_env) -> None:
+    assert present.push_environment("simulated") == {"NOTIFICATION_PROVIDER": "log"}
+
+
+def test_real_push_lists_missing_values_and_starts_nothing(push_env) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        present.push_environment("fcm")
+    message = str(exc_info.value)
+    assert "service-account" in message and "NEXT_PUBLIC_FIREBASE_VAPID_KEY" in message
+    assert "Nothing was started" in message
+
+
+def test_real_push_reads_private_files_and_generates_token_key(push_env, monkeypatch) -> None:
+    import json
+
+    secrets = push_env / ".secrets"
+    secrets.mkdir()
+    (secrets / "firebase-service-account.json").write_text(
+        json.dumps({"project_id": "owl-demo", "client_email": "x@y", "private_key": "k"})
+    )
+    config = {"apiKey": "a", "projectId": "owl-demo", "messagingSenderId": "1", "appId": "app"}
+    (push_env / ".env").write_text(
+        f"NEXT_PUBLIC_FIREBASE_CONFIG='{json.dumps(config)}'\nNEXT_PUBLIC_FIREBASE_VAPID_KEY=v\n"
+    )
+    env = present.push_environment("fcm")
+    assert env["NOTIFICATION_PROVIDER"] == "fcm"
+    assert env["FIREBASE_PROJECT_ID"] == "owl-demo"
+    assert env["PUSH_TOKEN_ENCRYPTION_KEY"]
+    assert "PUSH_TOKEN_ENCRYPTION_KEY" in (push_env / ".env").read_text()

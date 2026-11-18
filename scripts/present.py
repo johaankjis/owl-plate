@@ -2,6 +2,7 @@
 
 import argparse
 import hashlib
+import json
 import os
 import signal
 import socket
@@ -11,7 +12,8 @@ import time
 from pathlib import Path
 
 import httpx
-from dotenv import load_dotenv
+from cryptography.fernet import Fernet
+from dotenv import load_dotenv, set_key
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "apps" / "web"
@@ -80,6 +82,60 @@ def vision_environment(mode: str) -> dict[str, str]:
     return {"VISION_PROVIDER": "gemini", "GEMINI_API_KEY": api_key, "GEMINI_MODEL": model}
 
 
+SERVICE_ACCOUNT_FILE = ROOT / ".secrets" / "firebase-service-account.json"
+
+
+def push_environment(mode: str) -> dict[str, str]:
+    """Turn --notifications into env overrides; real push needs private Firebase values."""
+    if mode == "simulated":
+        return {"NOTIFICATION_PROVIDER": "log"}
+    load_dotenv(ROOT / ".env")
+    missing = []
+    raw_account = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON", "").strip()
+    account_path = Path(os.getenv("FIREBASE_SERVICE_ACCOUNT_FILE", "") or SERVICE_ACCOUNT_FILE)
+    if not raw_account and account_path.is_file():
+        raw_account = account_path.read_text()
+    try:
+        account = json.loads(raw_account) if raw_account else {}
+    except ValueError:
+        account = {}
+    if not all(account.get(k) for k in ("project_id", "client_email", "private_key")):
+        missing.append(f"Firebase service-account JSON file at {SERVICE_ACCOUNT_FILE}")
+    web_config_raw = os.getenv("NEXT_PUBLIC_FIREBASE_CONFIG", "").strip()
+    try:
+        web_config = json.loads(web_config_raw) if web_config_raw else {}
+    except ValueError:
+        web_config = {}
+    if not all(web_config.get(k) for k in ("apiKey", "projectId", "messagingSenderId", "appId")):
+        missing.append("NEXT_PUBLIC_FIREBASE_CONFIG={...web app config JSON...} in .env")
+    vapid = os.getenv("NEXT_PUBLIC_FIREBASE_VAPID_KEY", "").strip()
+    if not vapid:
+        missing.append("NEXT_PUBLIC_FIREBASE_VAPID_KEY=... (Web Push certificate key) in .env")
+    if missing:
+        sys.exit(
+            "Real push (--notifications fcm) needs private Firebase values:\n  - "
+            + "\n  - ".join(missing)
+            + f"\n.env and .secrets/ are gitignored ({ROOT}). Nothing was started."
+        )
+    project = os.getenv("FIREBASE_PROJECT_ID", "").strip() or account["project_id"]
+    if web_config["projectId"] != project:
+        sys.exit("Firebase web config and service account belong to different projects.")
+    encryption_key = os.getenv("PUSH_TOKEN_ENCRYPTION_KEY", "").strip()
+    if not encryption_key:
+        encryption_key = Fernet.generate_key().decode()
+        set_key(str(ROOT / ".env"), "PUSH_TOKEN_ENCRYPTION_KEY", encryption_key)
+        (ROOT / ".env").chmod(0o600)
+    return {
+        "NOTIFICATION_PROVIDER": "fcm",
+        "FIREBASE_PROJECT_ID": project,
+        "FIREBASE_SERVICE_ACCOUNT_JSON": json.dumps(account),
+        "PUSH_TOKEN_ENCRYPTION_KEY": encryption_key,
+        "FCM_ALLOWED_STUDENT_IDS": os.getenv("FCM_ALLOWED_STUDENT_IDS", ""),
+        "NEXT_PUBLIC_FIREBASE_CONFIG": json.dumps(web_config, separators=(",", ":")),
+        "NEXT_PUBLIC_FIREBASE_VAPID_KEY": vapid,
+    }
+
+
 def vision_banner(mode: str, vision_env: dict[str, str]) -> str:
     """Name the exact estimate source so operators never present the wrong mode."""
     if mode == "gemini":
@@ -89,9 +145,18 @@ def vision_banner(mode: str, vision_env: dict[str, str]) -> str:
     return "SAVED DEMO ESTIMATE (fixture)"
 
 
-def build_fingerprint() -> str:
-    """Rebuild only when web sources change, so a laptop restart takes seconds, not minutes."""
+def push_banner(mode: str) -> str:
+    """State plainly whether phones can really buzz."""
+    if mode == "fcm":
+        return "REAL PUSH (Firebase) for students who tap Enable notifications; others simulated"
+    return "SIMULATED NOTIFICATIONS (no real push)"
+
+
+def build_fingerprint(env: dict[str, str]) -> str:
+    """Rebuild only when web sources or public build values change."""
     digest = hashlib.sha256(DEMO_ENV["NEXT_PUBLIC_API_URL"].encode())
+    for name in ("NEXT_PUBLIC_FIREBASE_CONFIG", "NEXT_PUBLIC_FIREBASE_VAPID_KEY"):
+        digest.update(f"{name}={env.get(name, '')}".encode())
     for folder in ("app", "components", "lib", "public"):
         for path in sorted((WEB / folder).rglob("*")):
             if path.is_file():
@@ -105,7 +170,7 @@ def build_fingerprint() -> str:
 
 def ensure_build(env: dict[str, str], force: bool) -> None:
     """A production build avoids dev-server compile pauses in front of judges."""
-    fingerprint = build_fingerprint()
+    fingerprint = build_fingerprint(env)
     if not force and STAMP.exists() and STAMP.read_text() == fingerprint:
         return
     print("Building the web app once (about a minute)...", flush=True)
@@ -153,10 +218,12 @@ def stop(signum: int, frame: object) -> None:
 
 def run(args: argparse.Namespace) -> None:
     """Supervise API and web together so Ctrl+C always leaves the laptop clean."""
+    load_dotenv(ROOT / ".env")  # One web build then serves both push and rehearsal modes.
     vision_env = vision_environment(args.vision)
+    push_env = push_environment(args.notifications)
     database = ROOT / "build" / "present.db"
     database.parent.mkdir(exist_ok=True)
-    env = {**os.environ, **DEMO_ENV, **vision_env}
+    env = {**os.environ, **DEMO_ENV, **vision_env, **push_env}
     env["DATABASE_URL"] = f"sqlite:///{database}"
     env["OWL_API_ORIGIN"] = f"http://127.0.0.1:{args.api_port}"
     env["CORS_ORIGINS"] = f"http://localhost:{args.port}"
@@ -192,7 +259,7 @@ def run(args: argparse.Namespace) -> None:
         print(
             "\n"
             "  Owl Plate demo ready (clean state, live-visitor scenario)\n"
-            f"  Mode: {mode_line} + SIMULATED NOTIFICATIONS (no real push)\n\n"
+            f"  Mode: {mode_line} + {push_banner(args.notifications)}\n\n"
             f"  Home       {base}/\n"
             f"  Host       {base}/host\n"
             f"  Join       {base}/join\n"
@@ -225,6 +292,12 @@ def main() -> None:
         choices=["fixture", "gemini", "openrouter"],
         default="fixture",
         help="vision provider",
+    )
+    parser.add_argument(
+        "--notifications",
+        choices=["simulated", "fcm"],
+        default="simulated",
+        help="simulated log (rehearsal) or real Firebase push",
     )
     parser.add_argument("--rebuild", action="store_true", help="force a fresh web build")
     parser.add_argument("--host", default=os.getenv("PRESENT_HOST", "127.0.0.1"))

@@ -1,9 +1,9 @@
 /**
- * Owl Plate Service Worker for Firebase Cloud Messaging web push.
+ * Owl Plate service worker for Firebase Cloud Messaging web push.
  *
- * Privacy rule (docs/ARCHITECTURE.md & docs/PRIVACY_SAFETY.md):
- * Notification payload contains the drop ID only; lock screens show minimal info,
- * and the app fetches details after opening.
+ * Privacy (docs/PRIVACY_SAFETY.md): the push carries generic text plus the
+ * invite ID only. Lock screens never show food, place or student details;
+ * the app loads the student's own invite after the tap.
  */
 
 self.addEventListener("install", () => {
@@ -14,49 +14,53 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-self.addEventListener("push", (event) => {
-  let dropId = null;
-  if (event.data) {
-    try {
-      const payload = event.data.json();
-      dropId = payload?.data?.drop_id || payload?.drop_id || null;
-    } catch {
-      // minimal fallback
-    }
+function readPush(event) {
+  try {
+    const payload = event.data ? event.data.json() : {};
+    return payload.data || payload || {};
+  } catch {
+    return {};
   }
+}
 
-  const title = "Owl Plate: Free food nearby";
-  const options = {
-    body: "A nearby food spot is available. Tap to view details in Owl Plate.",
-    icon: "/icon.svg",
-    badge: "/icon.svg",
-    data: {
-      url: dropId
-        ? `/student?drop_id=${encodeURIComponent(dropId)}`
-        : "/student",
-    },
-  };
-
-  event.waitUntil(self.registration.showNotification(title, options));
+self.addEventListener("push", (event) => {
+  const data = readPush(event);
+  const inviteId = data.invite_id || null;
+  const url = inviteId
+    ? `/student?invite=${encodeURIComponent(inviteId)}`
+    : "/student";
+  event.waitUntil(
+    self.registration.showNotification(data.title || "Owl Plate: Food nearby", {
+      body: data.body || "You have a new invite. Tap to view it.",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      tag: inviteId ? `owl-${inviteId}` : "owl-invite",
+      data: { url },
+    }),
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const targetUrl = event.notification?.data?.url || "/student";
+  const target = new URL(
+    event.notification?.data?.url || "/student",
+    self.location.origin,
+  ).href;
   event.waitUntil(
-    self.clients
-      .matchAll({ type: "window", includeUncontrolled: true })
-      .then((windowClients) => {
-        for (const client of windowClients) {
-          if ("focus" in client) {
-            client.navigate(targetUrl);
-            return client.focus();
-          }
+    (async () => {
+      const windows = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      for (const client of windows) {
+        try {
+          const navigated = await client.navigate(target);
+          return (navigated || client).focus();
+        } catch {
+          // Uncontrolled windows cannot be navigated; open a fresh one instead.
         }
-        if (self.clients.openWindow) {
-          return self.clients.openWindow(targetUrl);
-        }
-        return undefined;
-      }),
+      }
+      return self.clients.openWindow(target);
+    })(),
   );
 });

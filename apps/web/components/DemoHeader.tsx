@@ -5,7 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type DemoCredential } from "../lib/types/api";
 import type { DataSourceMode } from "../lib/api-client";
-import { useVisionMode, visionModeLabel } from "../lib/vision-mode";
+import {
+  useNotificationMode,
+  useVisionMode,
+  visionModeLabel,
+} from "../lib/vision-mode";
 
 interface DemoHeaderProps {
   credential?: DemoCredential;
@@ -20,6 +24,10 @@ interface DemoHeaderProps {
 export function DemoHeader({ isDemo = true, subtitle }: DemoHeaderProps) {
   const pathname = usePathname();
   const visionMode = useVisionMode();
+  const notifyLabel =
+    useNotificationMode() === "fcm"
+      ? "Real push for opted-in students"
+      : "Simulated notifications";
   const isStudentScreen =
     pathname?.startsWith("/student") || pathname?.startsWith("/join");
 
@@ -57,8 +65,8 @@ export function DemoHeader({ isDemo = true, subtitle }: DemoHeaderProps) {
               className="rounded-full border border-owl-gold/30 bg-owl-gold/10 px-2.5 py-1 text-[11px] font-semibold text-owl-gold"
             >
               {isStudentScreen
-                ? "Simulated notifications"
-                : `Simulated notifications • ${visionModeLabel(visionMode)}`}
+                ? notifyLabel
+                : `${notifyLabel} • ${visionModeLabel(visionMode)}`}
             </span>
           )}
         </div>

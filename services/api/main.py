@@ -50,14 +50,12 @@ def create_app(database_url: str | None = None) -> FastAPI:
                 for value in os.getenv("FCM_ALLOWED_STUDENT_IDS", "").split(",")
                 if value.strip()
             )
-            if not allowed_ids:
-                raise ValueError("Missing approved demo recipients")
             account = json.loads(os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON", ""))
             if not isinstance(account, dict):
                 raise TypeError("Invalid service account")
         except (ValueError, TypeError):
             raise ValueError(
-                "FCM requires private configuration and approved synthetic IDs"
+                "FCM requires FIREBASE_SERVICE_ACCOUNT_JSON and valid optional recipient IDs"
             ) from None
 
     engine = create_database(database_url or os.getenv("DATABASE_URL", "sqlite:///./owl_plate.db"))
@@ -73,17 +71,29 @@ def create_app(database_url: str | None = None) -> FastAPI:
         synthetic_ids = {row["id"] for row in backend.seed["students"] if row["is_simulated"]}
         if not allowed_ids <= synthetic_ids:
             raise ValueError("FCM recipients must be synthetic demo students")
+
+        def push_allowed(student_id: str) -> bool:
+            """Real push goes to joined visitors who opted in, or approved synthetic IDs."""
+            return student_id in allowed_ids or backend.is_visitor(student_id)
+
         try:
             vault = TokenVault(engine, os.getenv("PUSH_TOKEN_ENCRYPTION_KEY", ""))
             notifications = FcmNotifications(
                 vault,
                 os.getenv("FIREBASE_PROJECT_ID", ""),
-                allowed_ids,
+                push_allowed,
                 service_account_access_token(account),
             )
         except (ValueError, TypeError, KeyError):
             raise ValueError("Invalid private FCM configuration") from None
-        register_push_token = vault.register
+
+        def register_push_token(student_id: str, token: str) -> None:
+            """Bind a device token to the caller's own session only."""
+            if not push_allowed(student_id):
+                raise PermissionError("Join the demo before enabling notifications")
+            vault.register(student_id, token)
+
+        backend.forget_push = vault.forget
     else:
         notifications = SimulatedNotifications()
     backend.notify = notifications.notify

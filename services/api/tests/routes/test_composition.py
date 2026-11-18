@@ -115,9 +115,9 @@ def test_composition_requires_both_demo_gates(
         main.create_app(f"sqlite:///{tmp_path}/forbidden.db")
 
 
-def test_fcm_missing_allowlist_fails_closed(demo_environment, monkeypatch, tmp_path):
+def test_fcm_missing_service_account_fails_closed(demo_environment, monkeypatch, tmp_path):
     monkeypatch.setenv("NOTIFICATION_PROVIDER", "fcm")
-    with pytest.raises(ValueError, match="approved synthetic IDs"):
+    with pytest.raises(ValueError, match="FIREBASE_SERVICE_ACCOUNT_JSON"):
         main.create_app(f"sqlite:///{tmp_path}/missing.db")
 
 
