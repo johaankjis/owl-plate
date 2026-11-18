@@ -518,6 +518,14 @@ export default function HostPage() {
                       </li>
                     ))}
                   </ul>
+                  {drop.vision.notes && (
+                    <p
+                      data-testid="vision-notes"
+                      className="text-xs italic text-zinc-400"
+                    >
+                      {drop.vision.notes}
+                    </p>
+                  )}
                   {drop.vision.confidence < 0.6 && (
                     <p className="rounded bg-amber-500/20 p-2 text-amber-200">
                       Low vision confidence (&lt;60%): all 9 common allergens
@@ -924,7 +932,8 @@ export default function HostPage() {
                 <p className="mt-0.5 text-xs text-zinc-400">
                   Location:{" "}
                   <strong className="text-zinc-200">
-                    {drop.building_code} — Room {drop.room}
+                    {drop.building_code}
+                    {drop.room ? ` — Room ${drop.room}` : ""}
                   </strong>
                   {isPollingCounts && (
                     <span className="ml-2 text-emerald-400">
@@ -1059,7 +1068,8 @@ export default function HostPage() {
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800 pt-4">
               <span className="text-xs text-zinc-400">
-                Building {drop.building_code}, Room {drop.room}
+                Building {drop.building_code}
+                {drop.room ? `, Room ${drop.room}` : ""}
               </span>
               <button
                 type="button"

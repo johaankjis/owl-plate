@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { DEMO_CREDENTIALS, type DemoCredential } from "../lib/types/api";
 import type { DataSourceMode } from "../lib/api-client";
+import { useVisionMode, visionModeLabel } from "../lib/vision-mode";
 
 interface DemoHeaderProps {
   credential?: DemoCredential;
@@ -28,6 +29,7 @@ export function DemoHeader({
   subtitle,
 }: DemoHeaderProps) {
   const pathname = usePathname();
+  const visionMode = useVisionMode();
   const filteredCredentials = allowedRoles
     ? DEMO_CREDENTIALS.filter((c) => allowedRoles.includes(c.role))
     : DEMO_CREDENTIALS;
@@ -101,7 +103,7 @@ export function DemoHeader({
               data-testid="demo-mode-badge"
               className="rounded border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 font-medium text-amber-300"
             >
-              Demo mode: fixture vision, simulated notifications
+              Demo mode: {visionModeLabel(visionMode)}, simulated notifications
             </span>
           )}
           <span

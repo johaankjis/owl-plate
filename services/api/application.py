@@ -374,7 +374,7 @@ class Backend:
         if self.analyze is None:
             raise DomainError(
                 "vision_unavailable",
-                "Food photo analysis is not configured. Ask the organizer to check the vision setup.",
+                "Live Gemini is not configured on the server. No estimate was made.",
                 503,
             )
         try:
@@ -386,7 +386,7 @@ class Backend:
             # Live vision never falls back to the fixture: fail the request without a drop.
             raise DomainError(
                 "vision_unavailable",
-                "Food photo analysis is unavailable right now. Wait a moment and try again.",
+                "Live Gemini could not analyze this photo. No estimate was made; try again, or check the server's Gemini key and model.",
                 503,
             ) from exc
         estimate.diet_tags = [d for d in estimate.diet_tags if d not in RELIGIOUS_DIETS]

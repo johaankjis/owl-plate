@@ -3,10 +3,12 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { hasSessionToken } from "../lib/session";
+import { useVisionMode, visionModeLabel } from "../lib/vision-mode";
 import { ALLERGEN_WARNING_TEXT } from "../lib/types/api";
 
 export default function HomePage() {
   const [hasActiveSession, setHasActiveSession] = useState(false);
+  const visionMode = useVisionMode();
 
   useEffect(() => {
     setHasActiveSession(hasSessionToken());
@@ -23,7 +25,7 @@ export default function HomePage() {
               data-testid="fixture-label"
               className="inline-flex items-center gap-2 rounded-full border border-owl-gold/40 bg-owl-gold/10 px-3 py-1 text-xs font-semibold text-owl-gold"
             >
-              Demo mode: fixture vision, simulated notifications
+              Demo mode: {visionModeLabel(visionMode)}, simulated notifications
             </span>
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">

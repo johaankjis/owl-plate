@@ -19,6 +19,7 @@ import {
   type DispatchResponse,
   type DropResponse,
 } from "../../lib/presenter-api";
+import { useVisionMode, visionModeLabel } from "../../lib/vision-mode";
 
 const ALLERGEN_NOTICE = "may contain, confirm with host";
 
@@ -65,6 +66,7 @@ export default function DispatchProjectorPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const visionMode = useVisionMode();
   const [receivedAt, setReceivedAt] = useState<number | null>(null);
 
   const poll = useCallback(async () => {
@@ -186,7 +188,7 @@ export default function DispatchProjectorPage() {
             data-testid="label-fixture-vision"
             className="rounded-full border border-purple-400/50 bg-purple-500/15 px-3 py-1 text-purple-200"
           >
-            Fixture vision (simulated estimate)
+            {visionModeLabel(visionMode)}
           </span>
           <span
             data-testid="label-simulated-notifications"
@@ -295,11 +297,14 @@ export default function DispatchProjectorPage() {
                     <span className="text-zinc-400">
                       {drop.servings_final} servings · {drop.building_code}
                     </span>
-                    {drop.vision_source === "fixture" && (
-                      <span className="rounded bg-purple-500/20 px-2 py-0.5 text-sm font-semibold text-purple-200">
-                        Cached fixture estimate (simulated)
-                      </span>
-                    )}
+                    <span
+                      data-testid="dispatch-vision-source"
+                      className="rounded bg-purple-500/20 px-2 py-0.5 text-sm font-semibold text-purple-200"
+                    >
+                      {drop.vision_source === "gemini"
+                        ? "Live Gemini"
+                        : "Saved demo estimate"}
+                    </span>
                     {drop.allergens_final.length > 0 && (
                       <span className="text-amber-200">
                         Allergens: {drop.allergens_final.join(", ")} —{" "}
