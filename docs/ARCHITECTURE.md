@@ -1,5 +1,13 @@
 # ARCHITECTURE.md
 
+## Milestone v1 implementation contract
+
+`docs/API_CONTRACT.md` is the frozen implementation reference for the current milestone and resolves the scheduling ambiguities below. In particular: invites do not reserve servings; declining an invite changes its opportunity, not inventory. A tick widens only after the current wave has no outstanding sent invitations. At max ring, remaining food is not marked consumed. Holds and pickups drive inventory counts transactionally.
+
+Initial local composition is deliberately demo-only: synthetic auth, SQLModel SQLite, in-memory photo processing (no retained uploads), cached fixture or explicitly configured Gemini, and simulated notifications by default. Optional FCM composition encrypts device registrations with Fernet and permits sends only to an explicit synthetic UUID allowlist. It imports provider metadata before database creation and clears registrations atomically on demo reset. Both demo auth gates remain mandatory. Real Entra/email-code auth, production push composition, Vercel/AWS/Postgres deployment and S3 lifecycle are pending access/integration. Credentials and approved recipient configuration are absent; no real sends or physical-device receipts were verified. No live readiness claim is implied by these target architecture sections.
+
+H3 fixture origin is an arbitrary coordinate labeled unverified, not a campus building. Only synthetic persona decisions may appear on the projector; production host responses contain counts. The full attached project brief was unavailable; accepted user instructions and repository docs supplied this milestone.
+
 How Owl Plate fits together. Update this file when the shape of the system changes.
 
 ## System overview
@@ -49,7 +57,7 @@ How Owl Plate fits together. Update this file when the shape of the system chang
 ```
 
 Allergen enum: dairy, egg, gluten, peanut, tree_nut, soy, fish, shellfish, sesame.
-Diet enum: vegetarian, vegan, halal_unknown, pork_free_unknown. Religious diet compliance cannot be judged from a photo, so those tags only come from the host, never from vision.
+Diet enum: vegetarian, vegan, halal, kosher, pork_free. Religious diet compliance cannot be judged from a photo, so those tags only come from the host, never from vision.
 
 ### Dispatch (`services/api/dispatch/`)
 Pure engine. Spec in `DISPATCH.md`.
@@ -142,5 +150,23 @@ AUTH_MODE=demo
 ENTRA_CLIENT_ID=
 ENTRA_ALLOWED_TENANT_ID=
 DEMO_MODE=true
-INVITE_TIMEOUT_SECONDS=90
+# Fixed v1 invite timeout: 90s production / 60s demo; not an environment setting.
 ```
+
+## HTTPS demo and standalone survey candidate
+
+Vercel is the selected web target; API hosting is still unassigned. The existing
+web host/student/projector pages remain the hackathon experience. Next's
+`/backend/:path*` rewrite targets server-configured `OWL_API_ORIGIN` and phone
+builds use `NEXT_PUBLIC_API_URL=/backend`, removing browser-localhost/mixed-content
+routing. `deploy/` contains configuration and an API Dockerfile for review;
+no deployment/account/domain has been created.
+
+`/survey` is an independent, responsive form in the same web application, without
+demo persona UI or login. Routes/schemas/service are separate from dispatch.
+SQLModel survey rows store only anonymous UUID, UTC time and bounded voluntary
+answers; they survive demo reset and have no public read/export route. The
+collection gate defaults off, so preview checks do not alter actual n=0. The
+planned deployment needs a durable PostgreSQL URL; Vercel filesystem storage is
+not used. Demo and survey get separate QR destinations once an actual HTTPS
+origin is assigned. Local TLS/QR previews are clearly labeled unpublished.

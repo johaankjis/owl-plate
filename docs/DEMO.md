@@ -1,62 +1,90 @@
-# DEMO.md
+# Demo and pitch
 
-Everything a judge sees. Built around the official 5 minute structure and the AI Club rubric.
+The current rehearsal package is in `submission/`. Use
+`submission/PITCH_SCRIPT.md` for the five-minute cue sheet and
+`submission/LIVE_RUN_CHECKLIST.md` as the **single live-run checklist and evidence
+register**. The latest checkpoint and Johaan's decisions are in `docs/HANDOFF.md`.
+Those records supersede early aspirational demo notes.
 
-## Rubric map
+## Run the local demo
 
-| Criterion (points) | Where we earn it |
-|---|---|
-| Campus impact, real data (25) | Survey results (n = ?), CARE pantry demand, food thrown away at events |
-| Use of AI as the core (25) | Vision estimate of food, servings and allergens with measured accuracy; dispatch decisions with reasons |
-| Feasibility for KSU (20) | CARE Services as owner, KSU sign in, costs, rollout plan |
-| Creativity (15) | Not a broadcast: just enough, need first, safe, one photo |
-| Pitch (15) | One story, one live moment, every teammate speaks |
+`make present` builds the web app when its sources change, starts API and web
+together on one browser port (3017; the API stays on loopback behind `/backend`)
+and resets to the live-visitor scenario. Fixture vision and simulated
+notifications are always on and labeled; the survey is off. On a ZimaOS
+container use `make present-zima` and tunnel port 3017 over SSH.
 
-## Live demo setup
+- Live vision: `make present-live` sends the uploaded photo to Gemini. It needs
+  `GEMINI_API_KEY=...` in the gitignored repo-root `.env` (or exported in the
+  shell); `GEMINI_MODEL` defaults to `gemini-3.8-flash`. Live failures show an
+  error and never fall back to the saved estimate. Results are labeled
+  **Live Gemini** or **Saved demo estimate**.
+- Live vision via OpenRouter: `make present-openrouter` (ZimaOS:
+  `PRESENT_HOST=0.0.0.0 .venv/bin/python -m scripts.present --vision openrouter`).
+  Needs `OPENROUTER_API_KEY=...` in the gitignored repo-root `.env`;
+  `OPENROUTER_VISION_MODEL` defaults to `google/gemini-3.8-flash`. Results are
+  labeled **Live Gemini via OpenRouter**; failures show an error, never the saved estimate.
+- Real push (Firebase): add `--notifications fcm`. Needs the service-account JSON
+  at `.secrets/firebase-service-account.json` and `NEXT_PUBLIC_FIREBASE_CONFIG`,
+  `NEXT_PUBLIC_FIREBASE_VAPID_KEY` in `.env` (all gitignored); the launcher creates
+  `PUSH_TOKEN_ENCRYPTION_KEY`. A joined student taps **Enable notifications** (on
+  iPhone only from the installed Home Screen app); each new invite for that
+  student sends one push that opens `/student?invite=<id>`. Students who did not
+  opt in, and the default launch, stay **simulated**.
+- Visitors open `/join` (or Home → Find food), pick a nickname, a simulated demo
+  area and optional restrictions, then see only their own invites on `/student`.
+- The host uses Home → Share food: upload → review (safety checks) → publish.
+- `/dispatch` is the projector view. Presenter controls at the bottom reset for
+  live visitors, load the seeded A–E rehearsal (with `/student?persona=X` links),
+  and advance the clock.
+- `node scripts/verify_join_flow.cjs` re-checks the four-visitor flow with
+  natural expiry (see the script header). `scripts/rehearse_demo.cjs` and
+  `scripts/browser_smoke.cjs` target the pre-revamp screens.
 
-* Laptop on the projector showing `/dispatch` (map, waves, reasons).
-* Host phone with the `/host` page open.
-* 5 persona phones (A to E, see `DATA.md`) installed as PWA, alerts on, sound on, laid out on the table facing judges, each with a sticky note label ("Nearby", "Dairy allergy", "Next building", "Far away", "Vegetarian").
-* A real tray of snacks or pizza.
-* `make demo` run 10 minutes before.
+## What can be shown now
 
-## The 5 minutes
+The reviewed application runs through photo upload → fixture estimate → host
+review/safety checklist → publish → A/C invitations → A holds → C expires → D
+gets wave two → clean reset. All students are synthetic. The origin is arbitrary,
+not verified campus geography. Current notifications are simulated logs.
+Allergen estimates say **may contain, confirm with host**.
 
-**0:00 to 1:00, Problem.** A club meeting ends, food goes in the trash, and across the building someone skipped lunch. KSU CARE runs two pantries and demand keeps growing. Show our survey numbers. Then: "Other schools fixed this with free food alerts. They broadcast to everyone, so the food goes to whoever is fastest."
+`submission/Owl_Plate_Fallback.mp4` is a silent captioned browser recording with
+fixture vision and simulated notifications visibly labeled throughout. It records
+real application routes and natural expiry, not physical phones or live AI.
+`submission/evidence/rehearsal-timing.json` records measured events. Replay the
+video locally if a live service fails; declare the mode explicitly.
 
-**1:00 to 2:00, Solution.** Owl Plate: one photo from the host, AI sees the food, and it goes to just enough nearby students who can safely eat it, with students who need it most quietly first.
+## Five-minute pitch
 
-**2:00 to 4:00, Demo.**
-1. Photograph the tray. The screen shows the AI estimate: items, about 8 servings, dairy and gluten likely. Host taps publish.
-2. The map lights up. Wave 1 invites appear with reasons. Phone A and Phone C buzz. Phone B stays silent; the screen shows "skipped: allergen." Phone D stays silent; "outside wave 1."
-3. A teammate taps "I'm coming" on Phone A. The counter drops.
-4. Nobody answers on one invite. After 60 seconds the ring widens and Phone D buzzes. "Like a driver search widening, the food finds someone."
+- 0:00–1:00: problem as a design hypothesis, survey pending n=0.
+- 1:00–2:00: photo, host correction, hard filters, deterministic dispatch, atomic claims.
+- 2:00–4:00: two-serving scripted demo; A/C invited, B excluded, A holds, C expires, D ring 4.
+- 4:00–5:00: architecture and evidence still needed before a policy-approved pilot.
 
-**4:00 to 5:00, How and next.** Architecture in one slide (Gemini sees the food, H3 rings, FCM delivers, Entra checks KSU accounts, runs on AWS). Our measured vision accuracy from the eval set. Next: CARE Services pilot on the Marietta campus, meal swipe matching on the same engine, native app via Capacitor. Each teammate says what they built.
+A human pitch and teammate contributions remain unverified until rehearsal.
+Do not claim survey results, pantry demand trends, campus-wide prevalence,
+CARE partnership, approved redistribution rules, measured vision accuracy,
+physical push delivery, live Entra or completed deployment without evidence.
+Verified KSU facts come only from `docs/DOMAIN.md`.
 
-## Submission (due Fri 12:00 PM)
+## Physical rehearsal and fallback
 
-* PowerPoint deck following the 5 minute structure.
-* Demo video (2 to 3 minutes) recorded Thursday night showing the full flow with phones visible.
-* Note that we will also demo live.
+Thursday evening is reserved for the integrated phone rehearsal, recording and
+backup run. Approve devices and private access first. Reset before push
+registration; reset clears registrations. Browser invite cards and FCM send
+responses do not prove receipt. Observe actual Android and Home Screen iPhone
+notifications, then record them in the single checklist. Keep venue Wi-Fi and an
+authorized hotspot available. Two laptops should hold the local PDF/MP4 copies.
 
-## Backups
+Fixture vision is an explicitly chosen provider, not a hidden retry after live
+Gemini fails. Never use synthetic evaluation metrics as measured model accuracy.
+Keep source photos free of people and identifying material; uploaded photos are
+currently processed in memory, not retained.
 
-* If push is slow: the dispatch screen still shows every decision. Point at it and continue.
-* If vision fails: a cached estimate for the demo photo loads automatically in demo mode.
-* If Wi Fi fails: phone hotspot, and the recorded video.
-* Second laptop with the same build.
+## Submission
 
-## Likely judge questions
-
-* **"UT and other schools already have this."** Theirs broadcast to everyone, so the fastest person wins and hosts must type details. Ours sees the food from one photo and sends it to just enough students who can safely eat it.
-* **"How accurate is the serving estimate?"** Give the eval numbers. The host can correct before publishing, and we log corrections to improve.
-* **"How do you know who needs it?"** We don't guess. CARE Services, who already works with these students, sets the priority. Students never see it, and nobody else can tell.
-* **"Food safety?"** Hosts confirm a checklist under KSU rules, drops expire, allergens are labeled as estimates.
-* **"Would KSU actually use this?"** CARE Services is the natural owner. It runs on KSU sign in, costs a few dollars a month in hosting and AI calls at this scale (TODO(team): compute from real usage), and can pilot on one campus.
-* **"What if nobody responds?"** Waves widen automatically until the food is claimed or expires.
-* **"Why not just text everyone?"** Thirty people for eight slices wastes everyone's time and burns trust in alerts.
-
-## Rehearsal
-
-Run the full 5 minutes three times on Thursday with the real phones. Time each section. Cut anything over.
+Due Friday November 20, 2026, noon Eastern / 17:00 UTC: editable PowerPoint plus
+video or live-demo note. The local fallback is available; physical-device capture
+and Johaan's final review remain pending. Johaan handles submission. Deployment,
+survey distribution and submission require Johaan's approval or action.

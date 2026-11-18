@@ -1,0 +1,38 @@
+{
+  "checked_at": "2026-11-18T15:59:49.817387+00:00",
+  "source_baseline": "01b0bfaee76bdfd8e27a9a94123bd17af848e063",
+  "private_values_printed": false,
+  "configuration": {
+    "gemini": {
+      "configured": false,
+      "missing_names": [
+        "GEMINI_API_KEY",
+        "GEMINI_MODEL"
+      ]
+    },
+    "firebase_server": {
+      "configured": false,
+      "missing_names": [
+        "FIREBASE_PROJECT_ID",
+        "FIREBASE_SERVICE_ACCOUNT_JSON",
+        "PUSH_TOKEN_ENCRYPTION_KEY",
+        "FCM_ALLOWED_STUDENT_IDS"
+      ]
+    },
+    "firebase_web": {
+      "configured": false,
+      "missing_names": [
+        "NEXT_PUBLIC_FIREBASE_CONFIG",
+        "NEXT_PUBLIC_FIREBASE_VAPID_KEY"
+      ]
+    }
+  },
+  "root_env_present": false,
+  "survey_export_present": false,
+  "real_photo_gold_present": false,
+  "authorized_device_owners": "pending",
+  "physical_push_receipts": 0,
+  "live_vision_samples_evaluated": 0,
+  "survey_responses": 0,
+  "live_calls_made": false
+}

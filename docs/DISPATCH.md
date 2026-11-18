@@ -76,7 +76,7 @@ invite_count = ceil(servings_remaining / r), capped at eligible count
 ```
 wave 1: ring_k = 2   (roughly same building and neighbors)
 wave n: ring_k grows by 2 each wave, max ring_k = 12
-timeout: INVITE_TIMEOUT_SECONDS (90 in production, 60 in demo)
+timeout: fixed v1 value (90 seconds in production, 60 seconds in demo)
 ```
 
 Every scheduler tick (10 s):

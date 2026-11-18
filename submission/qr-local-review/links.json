@@ -1,0 +1,7 @@
+{
+  "state": "local_review_only",
+  "targets": {
+    "demo": "https://localhost:3443/",
+    "survey": "https://localhost:3443/survey"
+  }
+}

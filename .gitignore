@@ -1,0 +1,23 @@
+.env
+.env.*
+!.env.example
+.venv/
+*.egg-info/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+*.db
+*.db-*
+node_modules/
+.next/
+data/survey/
+uploads/
+test-results/
+playwright-report/
+*.tsbuildinfo
+
+# Local packaging and hosting bindings
+build/
+.vercel/
+.secrets/

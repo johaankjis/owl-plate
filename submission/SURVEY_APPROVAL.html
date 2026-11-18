@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Owl Plate survey approval preview</title>
+    <style>
+      body {
+        font-family: var(--font-sans, system-ui);
+        color: var(--foreground);
+        margin: 0;
+      }
+      main {
+        max-width: 620px;
+        margin: auto;
+      }
+      h1 {
+        font-size: 26px;
+      }
+      p {
+        line-height: 1.5;
+      }
+      .note,
+      fieldset {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius, 12px);
+        padding: 16px;
+        margin: 16px 0;
+      }
+      legend {
+        font-weight: 600;
+        padding: 0 5px;
+      }
+      label {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        min-height: 44px;
+      }
+      textarea {
+        width: 95%;
+        background: var(--secondary);
+        color: var(--foreground);
+        border: 1px solid var(--border);
+        padding: 10px;
+        border-radius: 8px;
+      }
+      button {
+        padding: 12px;
+        font: inherit;
+        background: var(--secondary);
+        color: var(--muted-foreground);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+      input {
+        accent-color: var(--primary);
+      }
+      small {
+        color: var(--muted-foreground);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Food after campus events</h1>
+      <p>
+        A voluntary two-minute survey for KSU students. Skip any question. We do
+        not ask for names, emails, student IDs, phone numbers or precise
+        locations. We report aggregate results with the sample size.
+      </p>
+      <p>
+        This is a student prototype, not an official KSU service or a promise of
+        food. Please do not include identifying information.
+      </p>
+      <p class="note">
+        Approval preview: no answers submitted or counted. The standalone web
+        form is built at /survey; the public HTTPS link awaits deployment
+        approval. Actual n=0.
+      </p>
+      <fieldset>
+        <legend>1. Which campus are you usually on?</legend>
+        <label
+          ><input type="radio" name="campus" value="Kennesaw" />Kennesaw</label
+        ><label
+          ><input type="radio" name="campus" value="Marietta" />Marietta</label
+        ><label><input type="radio" name="campus" value="Both" />Both</label
+        ><label
+          ><input type="radio" name="campus" value="Prefer not to say" />Prefer
+          not to say</label
+        >
+      </fieldset>
+      <fieldset>
+        <legend>
+          2. In the past month, how often did money or time lead you to skip a
+          meal?
+        </legend>
+        <label
+          ><input type="radio" name="skipped_meals" value="Never" />Never</label
+        ><label
+          ><input type="radio" name="skipped_meals" value="Once or twice" />Once
+          or twice</label
+        ><label
+          ><input
+            type="radio"
+            name="skipped_meals"
+            value="Weekly"
+          />Weekly</label
+        ><label
+          ><input
+            type="radio"
+            name="skipped_meals"
+            value="More than weekly"
+          />More than weekly</label
+        ><label
+          ><input
+            type="radio"
+            name="skipped_meals"
+            value="Prefer not to say"
+          />Prefer not to say</label
+        >
+      </fieldset>
+      <fieldset>
+        <legend>
+          3. Have you seen leftover food from a campus event get thrown away?
+        </legend>
+        <label><input type="radio" name="seen_waste" value="Yes" />Yes</label
+        ><label><input type="radio" name="seen_waste" value="No" />No</label
+        ><label
+          ><input type="radio" name="seen_waste" value="Unsure" />Unsure</label
+        >
+      </fieldset>
+      <fieldset>
+        <legend>
+          4. Have you heard about free leftover food too late to get any?
+        </legend>
+        <label
+          ><input type="radio" name="heard_too_late" value="Yes" />Yes</label
+        ><label><input type="radio" name="heard_too_late" value="No" />No</label
+        ><label
+          ><input
+            type="radio"
+            name="heard_too_late"
+            value="Unsure"
+          />Unsure</label
+        >
+      </fieldset>
+      <fieldset>
+        <legend>
+          5. Before this survey, had you heard of KSU CARE Services pantries?
+        </legend>
+        <label><input type="radio" name="heard_care" value="Yes" />Yes</label
+        ><label><input type="radio" name="heard_care" value="No" />No</label
+        ><label
+          ><input type="radio" name="heard_care" value="Unsure" />Unsure</label
+        >
+      </fieldset>
+      <fieldset>
+        <legend>
+          6. Would you choose to receive alerts when free food is available
+          nearby?
+        </legend>
+        <label><input type="radio" name="wants_alerts" value="Yes" />Yes</label
+        ><label
+          ><input type="radio" name="wants_alerts" value="Maybe" />Maybe</label
+        ><label><input type="radio" name="wants_alerts" value="No" />No</label>
+      </fieldset>
+      <fieldset>
+        <legend>
+          7. If you host events, what usually happens to leftovers?
+        </legend>
+        <label
+          ><input type="radio" name="host_leftovers" value="Taken home" />Taken
+          home</label
+        ><label
+          ><input
+            type="radio"
+            name="host_leftovers"
+            value="Thrown away"
+          />Thrown away</label
+        ><label
+          ><input
+            type="radio"
+            name="host_leftovers"
+            value="Posted in a group"
+          />Posted in a group</label
+        ><label
+          ><input
+            type="radio"
+            name="host_leftovers"
+            value="Other"
+          />Other</label
+        ><label
+          ><input type="radio" name="host_leftovers" value="I do not host" />I
+          do not host</label
+        >
+      </fieldset>
+      <fieldset>
+        <legend>
+          8. Optional: What would make a leftover-food alert useful? Please do
+          not include identifying information.
+        </legend>
+        <textarea
+          maxlength="500"
+          rows="4"
+          aria-label="Optional feedback"
+        ></textarea
+        ><small>Up to 500 characters. Leave blank to skip.</small>
+      </fieldset>
+      <label
+        ><input type="checkbox" />I choose to take part in this voluntary
+        survey. I understand that I can skip any question.</label
+      >
+      <p><button disabled>Submission disabled in this approval view</button></p>
+      <p>
+        <small
+          >The deployed form stores no IP address or browser information with
+          answers. Hosting providers may process standard technical logs. Raw
+          responses are private; no public results page.</small
+        >
+      </p>
+    </main>
+  </body>
+</html>
