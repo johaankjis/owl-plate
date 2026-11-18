@@ -5,12 +5,21 @@ import DeckGL from "@deck.gl/react";
 import { H3HexagonLayer } from "@deck.gl/geo-layers";
 import { ScatterplotLayer, TextLayer } from "@deck.gl/layers";
 import { cellToLatLng, gridDisk } from "h3-js";
-import type { PersonaDecision } from "../lib/types/api";
+import { TONE_RGBA, describeStatus, type Tone } from "./presenter/labels";
+
+/** One marker: a seeded simulated persona or a joined demo visitor. */
+export interface MapParticipant {
+  label: string;
+  simulated: boolean;
+  status: string;
+  reasonCodes: string[];
+  h3Cell: string | null;
+}
 
 interface DispatchMapProps {
   originCell: string;
   ringK: number;
-  personas: PersonaDecision[];
+  participants: MapParticipant[];
 }
 
 interface HexCellDatum {
@@ -18,32 +27,25 @@ interface HexCellDatum {
   isOrigin: boolean;
 }
 
-interface PersonaMapPoint {
+interface ParticipantPoint {
   label: string;
-  isSimulated: true;
-  status: string;
-  reasonCodes: string[];
-  ringDistance: number | null;
+  tone: Tone;
   position: [number, number]; // [lng, lat]
 }
 
-function statusToRgba(status: string): [number, number, number, number] {
-  switch (status) {
-    case "claimed":
-    case "picked_up":
-      return [16, 185, 129, 240]; // emerald
-    case "sent":
-      return [253, 187, 48, 245]; // owl gold
-    case "excluded":
-    case "declined":
-    case "expired":
-      return [244, 63, 94, 220]; // rose
-    default:
-      return [148, 163, 184, 210]; // slate
-  }
-}
+const LEGEND: Array<[string, string]> = [
+  ["bg-owl-gold", "Invited"],
+  ["bg-emerald-500", "Claimed"],
+  ["bg-rose-500", "Skipped"],
+  ["bg-zinc-500", "Expired / declined"],
+  ["bg-slate-400", "Not invited yet"],
+];
 
-export function DispatchMap({ originCell, ringK, personas }: DispatchMapProps) {
+export function DispatchMap({
+  originCell,
+  ringK,
+  participants,
+}: DispatchMapProps) {
   const [webglError, setWebglError] = useState<string | null>(null);
 
   const originLatLng = useMemo<[number, number]>(() => {
@@ -51,15 +53,14 @@ export function DispatchMap({ originCell, ringK, personas }: DispatchMapProps) {
       const [lat, lng] = cellToLatLng(originCell);
       return [lat, lng];
     } catch {
-      return [0.0, 0.0];
+      return [0, 0];
     }
   }, [originCell]);
 
   const hexData = useMemo<HexCellDatum[]>(() => {
     try {
       const k = Math.min(12, Math.max(1, ringK));
-      const cells = gridDisk(originCell, k);
-      return cells.map((hex) => ({
+      return gridDisk(originCell, k).map((hex) => ({
         hex,
         isOrigin: hex === originCell,
       }));
@@ -68,35 +69,31 @@ export function DispatchMap({ originCell, ringK, personas }: DispatchMapProps) {
     }
   }, [originCell, ringK]);
 
-  const personaPoints = useMemo<PersonaMapPoint[]>(() => {
-    return personas.map((p, idx) => {
-      let lat = originLatLng[0];
-      let lng = originLatLng[1];
-      if (p.h3_cell) {
-        try {
-          const coords = cellToLatLng(p.h3_cell);
-          lat = coords[0];
-          lng = coords[1];
-        } catch {
-          // fallback offset
+  const points = useMemo<ParticipantPoint[]>(
+    () =>
+      participants.map((p, idx) => {
+        let [lat, lng] = originLatLng;
+        if (p.h3Cell) {
+          try {
+            [lat, lng] = cellToLatLng(p.h3Cell);
+          } catch {
+            // Keep the origin position for an unreadable cell.
+          }
         }
-      }
-      // Small deterministic visual jitter when two simulated personas share a cell
-      const angle = (idx * 2 * Math.PI) / Math.max(1, personas.length);
-      const offset = 0.00012 * (idx + 1);
-      return {
-        label: `${p.label} [SIM]`,
-        isSimulated: true,
-        status: p.status,
-        reasonCodes: p.reason_codes,
-        ringDistance: p.ring_distance,
-        position: [
-          lng + Math.cos(angle) * offset,
-          lat + Math.sin(angle) * offset,
-        ],
-      };
-    });
-  }, [personas, originLatLng]);
+        // Deterministic jitter keeps participants who share a cell readable.
+        const angle = (idx * 2 * Math.PI) / Math.max(1, participants.length);
+        const offset = 0.00012 * ((idx % 6) + 1);
+        return {
+          label: p.simulated ? `${p.label} [SIM]` : p.label,
+          tone: describeStatus(p.status, p.reasonCodes).tone,
+          position: [
+            lng + Math.cos(angle) * offset,
+            lat + Math.sin(angle) * offset,
+          ],
+        };
+      }),
+    [participants, originLatLng],
+  );
 
   const initialViewState = useMemo(
     () => ({
@@ -109,93 +106,77 @@ export function DispatchMap({ originCell, ringK, personas }: DispatchMapProps) {
     [originLatLng],
   );
 
-  const layers = useMemo(() => {
-    const h3Layer = new H3HexagonLayer<HexCellDatum>({
-      id: "h3-wave-ring-layer",
-      data: hexData,
-      pickable: true,
-      wireframe: true,
-      filled: true,
-      extruded: false,
-      getHexagon: (d) => d.hex,
-      getFillColor: (d) =>
-        d.isOrigin ? [253, 187, 48, 120] : [56, 189, 248, 45],
-      getLineColor: (d) =>
-        d.isOrigin ? [253, 187, 48, 255] : [148, 163, 184, 150],
-      lineWidthMinPixels: 1.5,
-    });
-
-    const scatterLayer = new ScatterplotLayer<PersonaMapPoint>({
-      id: "simulated-personas-scatter",
-      data: personaPoints,
-      pickable: true,
-      stroked: true,
-      filled: true,
-      radiusMinPixels: 11,
-      radiusMaxPixels: 18,
-      lineWidthMinPixels: 2,
-      getPosition: (d) => d.position,
-      getFillColor: (d) => statusToRgba(d.status),
-      getLineColor: [255, 255, 255, 230],
-    });
-
-    const labelLayer = new TextLayer<PersonaMapPoint>({
-      id: "simulated-personas-labels",
-      data: personaPoints,
-      pickable: false,
-      getPosition: (d) => d.position,
-      getText: (d) => d.label,
-      getSize: 12,
-      getColor: [255, 255, 255, 255],
-      getPixelOffset: [0, -20],
-      background: true,
-      getBackgroundColor: [18, 18, 20, 210],
-      backgroundPadding: [4, 2],
-    });
-
-    return [h3Layer, scatterLayer, labelLayer];
-  }, [hexData, personaPoints]);
+  const layers = useMemo(
+    () => [
+      new H3HexagonLayer<HexCellDatum>({
+        id: "h3-wave-ring-layer",
+        data: hexData,
+        pickable: false,
+        wireframe: true,
+        filled: true,
+        extruded: false,
+        getHexagon: (d) => d.hex,
+        getFillColor: (d) =>
+          d.isOrigin ? [253, 187, 48, 120] : [56, 189, 248, 45],
+        getLineColor: (d) =>
+          d.isOrigin ? [253, 187, 48, 255] : [148, 163, 184, 150],
+        lineWidthMinPixels: 1.5,
+      }),
+      new ScatterplotLayer<ParticipantPoint>({
+        id: "participants-scatter",
+        data: points,
+        stroked: true,
+        filled: true,
+        radiusMinPixels: 12,
+        radiusMaxPixels: 20,
+        lineWidthMinPixels: 2,
+        getPosition: (d) => d.position,
+        getFillColor: (d) => TONE_RGBA[d.tone],
+        getLineColor: [255, 255, 255, 230],
+      }),
+      new TextLayer<ParticipantPoint>({
+        id: "participants-labels",
+        data: points,
+        getPosition: (d) => d.position,
+        getText: (d) => d.label,
+        getSize: 16,
+        getColor: [255, 255, 255, 255],
+        getPixelOffset: [0, -24],
+        background: true,
+        getBackgroundColor: [18, 18, 20, 220],
+        backgroundPadding: [5, 3],
+      }),
+    ],
+    [hexData, points],
+  );
 
   return (
     <div
       data-testid="dispatch-h3-map-container"
-      className="relative h-[420px] w-full overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950"
+      className="relative h-[560px] w-full overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950"
     >
-      {/* Top Overlay: Explicit Arbitrary Coordinates & H3 Layer Legend */}
       <div className="pointer-events-none absolute left-3 right-3 top-3 z-10 flex flex-wrap items-center justify-between gap-2">
         <div
           data-testid="arbitrary-coordinates-banner"
-          className="rounded-lg border border-amber-500/40 bg-owl-black/90 px-3 py-1.5 text-xs text-amber-200 shadow"
+          className="rounded-lg border border-amber-500/40 bg-owl-black/90 px-3 py-1.5 text-sm text-amber-200"
         >
-          <strong>Simulated Venue (Unverified Placeholder Coordinates):</strong>{" "}
-          Origin cell <code className="text-owl-gold">{originCell}</code> (lat{" "}
-          {originLatLng[0].toFixed(4)}, lng {originLatLng[1].toFixed(4)}) — H3
-          res 11 <code>grid_disk(origin, k={ringK})</code> ({hexData.length}{" "}
-          cells)
+          Simulated venue, unverified placeholder coordinates · search ring k ={" "}
+          {ringK}
         </div>
-
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-700 bg-owl-black/90 px-3 py-1.5 text-[11px] text-zinc-200">
-          <span className="inline-flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded-full bg-owl-gold" /> Sent
-            Invite
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Claimed
-            / Held
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded-full bg-rose-500" /> Excluded /
-            Expired
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded-full bg-slate-400" /> Outside
-            Ring / Standby
-          </span>
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-700 bg-owl-black/90 px-3 py-1.5 text-sm text-zinc-200">
+          {LEGEND.map(([color, label]) => (
+            <span key={label} className="inline-flex items-center gap-1.5">
+              <span className={`h-3 w-3 rounded-full ${color}`} /> {label}
+            </span>
+          ))}
         </div>
       </div>
 
-      {/* DeckGL H3HexagonLayer Canvas */}
-      {!webglError ? (
+      {webglError ? (
+        <div className="flex h-full items-center justify-center p-6 text-center text-base text-zinc-400">
+          Map unavailable in this browser ({webglError}). Ring k = {ringK}.
+        </div>
+      ) : (
         <DeckGL
           initialViewState={initialViewState}
           controller={true}
@@ -203,25 +184,15 @@ export function DispatchMap({ originCell, ringK, personas }: DispatchMapProps) {
           onError={(err: Error) => setWebglError(err.message)}
           style={{ position: "relative", width: "100%", height: "100%" }}
         />
-      ) : (
-        <div className="flex h-full items-center justify-center p-6 text-center text-xs text-zinc-400">
-          Deck.gl WebGL fallback view active ({webglError}). H3 origin{" "}
-          {originCell}, ring k={ringK} ({hexData.length} H3 cells).
-        </div>
       )}
 
-      {/* Bottom Overlay: Distinct Simulated Marker Legend */}
-      <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-800 bg-owl-black/90 px-3 py-2 text-[11px] text-zinc-300">
-        <span>
-          <strong>Deck.gl H3HexagonLayer + Simulated Persona Markers:</strong>{" "}
-          Every marker represents a synthetic persona (
-          <code>is_simulated = true</code>) labeled with{" "}
-          <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-owl-gold">
-            [SIM]
-          </span>
-          .
+      <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-10 rounded-lg border border-zinc-800 bg-owl-black/90 px-3 py-2 text-sm text-zinc-300">
+        Visitor markers show nicknames at simulated demo areas. Seeded markers
+        are simulated students labeled{" "}
+        <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-owl-gold">
+          [SIM]
         </span>
-        <span className="text-zinc-400">Simulated demo locations.</span>
+        .
       </div>
     </div>
   );

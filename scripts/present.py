@@ -71,11 +71,12 @@ def wait_healthy(url: str, timeout: float = 60) -> None:
     sys.exit(f"Timed out waiting for {url}")
 
 
-def reset(api_port: int) -> dict:
+def reset(api_port: int, scenario: str = "visitors") -> dict:
     """Use the application's own reset so UI, scheduler and database agree."""
     response = httpx.post(
         f"http://127.0.0.1:{api_port}/demo/reset",
-        headers={"Authorization": "Bearer demo-host"},
+        headers={"Authorization": "Bearer demo-projector"},
+        json={"scenario": scenario},
         timeout=10,
         trust_env=False,
     )
@@ -122,17 +123,17 @@ def run(args: argparse.Namespace) -> None:
         children.append(subprocess.Popen(commands[1], cwd=WEB, env=env, start_new_session=True))
         wait_healthy(f"http://127.0.0.1:{args.api_port}/health")
         wait_healthy(f"http://127.0.0.1:{args.port}/backend/health")
-        students = reset(args.api_port)["students"]
+        reset(args.api_port)
         base = f"http://localhost:{args.port}"
         print(
             "\n"
-            "  Owl Plate demo ready (clean state, "
-            f"{students} SIMULATED students)\n"
+            "  Owl Plate demo ready (clean state, live-visitor scenario)\n"
             "  Mode: FIXTURE VISION + SIMULATED NOTIFICATIONS (no live AI, no real push)\n\n"
+            f"  Home       {base}/\n"
             f"  Host       {base}/host\n"
-            f"  Student    {base}/student\n"
-            f"  Dispatch   {base}/dispatch\n\n"
-            "  Reset anytime: the Reset button in /host, or `make demo-reset`.\n"
+            f"  Join       {base}/join\n"
+            f"  Dispatch   {base}/dispatch   (presenter controls at the bottom)\n\n"
+            "  Reset anytime: Presenter controls on /dispatch, or `make demo-reset`.\n"
             "  Stop: Ctrl+C\n",
             flush=True,
         )
@@ -154,13 +155,15 @@ def main() -> None:
     """Separate starting the demo from resetting an already-running one."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset-only", action="store_true", help="reset a running demo")
+    parser.add_argument("--scenario", choices=["visitors", "seeded"], default="visitors")
     parser.add_argument("--rebuild", action="store_true", help="force a fresh web build")
     parser.add_argument("--host", default=os.getenv("PRESENT_HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=int(os.getenv("WEB_PORT", "3017")))
     parser.add_argument("--api-port", type=int, default=int(os.getenv("API_PORT", "8017")))
     args = parser.parse_args()
     if args.reset_only:
-        print(f"Reset complete: {reset(args.api_port)['students']} simulated students.")
+        reset(args.api_port, args.scenario)
+        print(f"Reset complete: {args.scenario} scenario.")
     else:
         run(args)
 
