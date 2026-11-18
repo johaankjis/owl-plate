@@ -1,7 +1,7 @@
 PYTHON := .venv/bin/python
 RUFF := .venv/bin/ruff
 
-.PHONY: setup seed dev test lint types eval demo smoke deck present present-zima demo-reset
+.PHONY: setup seed dev test lint types eval demo smoke deck present present-live present-zima present-live-zima demo-reset
 setup:
 	test -x $(PYTHON) || uv venv --python 3.11 .venv
 	uv pip install --python $(PYTHON) -e '.[dev,submission]'
@@ -42,8 +42,14 @@ deck:
 present:
 	$(PYTHON) -m scripts.present
 
+present-live:
+	$(PYTHON) -m scripts.present --vision gemini
+
 present-zima:
 	PRESENT_HOST=0.0.0.0 $(PYTHON) -m scripts.present
+
+present-live-zima:
+	PRESENT_HOST=0.0.0.0 $(PYTHON) -m scripts.present --vision gemini
 
 demo-reset:
 	$(PYTHON) -m scripts.present --reset-only
