@@ -62,10 +62,6 @@ export default function HostPage() {
     religious_diets_confirmed: false,
   });
 
-  // Editable items and notes display state for review
-  const [editableItemsText, setEditableItemsText] = useState<string>("");
-  const [editableNotesText, setEditableNotesText] = useState<string>("");
-
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -79,15 +75,6 @@ export default function HostPage() {
     setDietTagsFinal([...d.diet_tags_final]);
     setBuildingCode(d.building_code);
     setRoom(d.room);
-    setEditableItemsText(
-      d.vision.items
-        .map(
-          (item) =>
-            `${item.name} (~${item.count_estimate} ${item.portion_unit})`,
-        )
-        .join(", "),
-    );
-    setEditableNotesText(d.vision.notes ?? "");
     if (d.safety_review) {
       setSafetyReview({ ...d.safety_review });
     } else {
@@ -523,46 +510,34 @@ export default function HostPage() {
               </div>
             </div>
 
-            {/* Editable Items & Notes */}
+            {/* Estimated items and notes: shown as estimated; servings, allergens and diets below are what the host edits */}
             <div className="space-y-3 rounded-xl border border-zinc-800 bg-owl-black/60 p-4">
-              <div className="space-y-1">
-                <label
-                  htmlFor="review-items-input"
-                  className="block text-xs font-bold uppercase tracking-wide text-zinc-300"
-                >
-                  Detected items
-                </label>
-                <input
-                  id="review-items-input"
-                  type="text"
-                  value={editableItemsText}
-                  onChange={(e) => setEditableItemsText(e.target.value)}
-                  className="min-h-[44px] w-full rounded-xl border border-zinc-700 bg-owl-black px-3.5 py-2 text-sm text-white focus:border-owl-gold focus:outline-none"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label
-                  htmlFor="review-notes-input"
-                  className="block text-xs font-bold uppercase tracking-wide text-zinc-300"
-                >
-                  Notes
-                </label>
-                <input
-                  id="review-notes-input"
-                  type="text"
-                  value={editableNotesText}
-                  onChange={(e) => setEditableNotesText(e.target.value)}
-                  className="min-h-[44px] w-full rounded-xl border border-zinc-700 bg-owl-black px-3.5 py-2 text-sm text-zinc-200 focus:border-owl-gold focus:outline-none"
-                />
+              <div className="space-y-1.5">
+                <div className="text-xs font-bold uppercase tracking-wide text-zinc-300">
+                  Estimated items
+                </div>
+                <ul className="space-y-1 text-sm text-white">
+                  {drop.vision.items.map((item, idx) => (
+                    <li key={`${item.name}-${idx}`}>
+                      {item.name}{" "}
+                      <span className="text-zinc-400">
+                        (~{item.count_estimate} {item.portion_unit})
+                      </span>
+                    </li>
+                  ))}
+                </ul>
                 {drop.vision.notes && (
                   <p
                     data-testid="vision-notes"
                     className="text-xs italic text-zinc-400"
                   >
-                    {editableNotesText || drop.vision.notes}
+                    {drop.vision.notes}
                   </p>
                 )}
+                <p className="text-xs text-zinc-500">
+                  Adjust servings, allergens and diet tags below before
+                  publishing.
+                </p>
               </div>
 
               {drop.vision.confidence < 0.6 && (
