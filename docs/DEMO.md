@@ -24,6 +24,13 @@ container use `make present-zima` and tunnel port 3017 over SSH.
   Needs `OPENROUTER_API_KEY=...` in the gitignored repo-root `.env`;
   `OPENROUTER_VISION_MODEL` defaults to `google/gemini-3.8-flash`. Results are
   labeled **Live Gemini via OpenRouter**; failures show an error, never the saved estimate.
+- Real push (Firebase): add `--notifications fcm`. Needs the service-account JSON
+  at `.secrets/firebase-service-account.json` and `NEXT_PUBLIC_FIREBASE_CONFIG`,
+  `NEXT_PUBLIC_FIREBASE_VAPID_KEY` in `.env` (all gitignored); the launcher creates
+  `PUSH_TOKEN_ENCRYPTION_KEY`. A joined student taps **Enable notifications** (on
+  iPhone only from the installed Home Screen app); each new invite for that
+  student sends one push that opens `/student?invite=<id>`. Students who did not
+  opt in, and the default launch, stay **simulated**.
 - Visitors open `/join` (or Home → Find food), pick a nickname, a simulated demo
   area and optional restrictions, then see only their own invites on `/student`.
 - The host uses Home → Share food: upload → review (safety checks) → publish.
