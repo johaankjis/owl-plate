@@ -4,7 +4,7 @@ Use synthetic students and a demo tray. No campus policy approval, partner acces
 
 ## Install and start
 
-Python 3.11, Node 20+ and `uv` are required. From the integration checkout:
+Python 3.11, Node 20+, GNU Make and `uv` are required. From the integration checkout:
 
 ```bash
 cp .env.example .env
@@ -41,7 +41,13 @@ cd apps/web && npm run build
 
 Gemini: set VISION_PROVIDER=gemini and a configured GEMINI_MODEL/key privately; keep demo auth while using synthetic students. A provider failure returns an error, never an unlabeled fixture. Record source photo, ingredient truth, model ID, timestamp and response for eval without saving private images in Git.
 
-Physical push requires HTTPS, Firebase project configuration, private encrypted token resolution/server composition, authorized Android and Home Screen iPhone, and observed device receipts. Current log adapter is simulated. No external send is authorized beyond explicitly nominated demo phones. Entra and email-code auth are pending; production composition fails closed.
+Physical push requires HTTPS, Firebase project configuration, authorized Android and Home Screen iPhone, and observed device receipts. Default `NOTIFICATION_PROVIDER=log` remains simulated and push-token registration returns an explicit 503. Entra and email-code auth are pending; composition requires both `AUTH_MODE=demo` and `DEMO_MODE=true`.
+
+Optional FCM composition is implemented for explicitly approved synthetic demo recipients. To configure it privately, set `NOTIFICATION_PROVIDER=fcm`, `FIREBASE_PROJECT_ID`, `FIREBASE_SERVICE_ACCOUNT_JSON` (one-line JSON), `PUSH_TOKEN_ENCRYPTION_KEY` (a Fernet key), and comma-separated synthetic UUIDs in `FCM_ALLOWED_STUDENT_IDS`. Keep server credentials/key out of `NEXT_PUBLIC_*`, Git, screenshots and logs. The allowed IDs must come from the private synthetic seed; set them only after the device owners are explicitly authorized. Missing or invalid configuration fails startup. No real sends were run during integration checks; absent configuration and observed receipts remain readiness blockers.
+
+FCM mode registers the authenticated student's token through encrypted persistence and resolves plaintext only inside the transport. The public registration response is only `{"registered": true}`. The notification contains uniform text and the drop ID; host views remain serving counts. `make demo` clears encrypted token registrations in the same reset transaction, so authorized devices must register again after every reset. Health reports `fcm` as the selected transport, which does not prove delivery. No external send is authorized beyond explicitly nominated demo phones.
+
+The manager-approved `GET /demo/active-drop` returns only `{"drop_id": UUID or null}` to demo host/projector roles. It discovers the newest draft/live/claimed-out drop across devices and returns null after reset; students and production auth cannot access it. The projector frontend will use this endpoint after accepted web integration. Reset seeds students only; it never creates a drop or invitations.
 
 No deployment/provisioning is authorized. Vercel/AWS are intended targets. Before retaining uploaded photos, wire S3 24-hour lifecycle plus local cleanup. Current route processing retains no uploads. Keep a local cached estimate, phone hotspot, recorded backup and second laptop for Thursday rehearsal.
 

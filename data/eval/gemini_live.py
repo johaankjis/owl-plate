@@ -167,13 +167,12 @@ def require_live_env(
     api_key = (source.get("GEMINI_API_KEY") or "").strip()
     model = (source.get("GEMINI_MODEL") or "").strip()
     missing = [
-        name
-        for name, value in (("GEMINI_API_KEY", api_key), ("GEMINI_MODEL", model))
-        if not value
+        name for name, value in (("GEMINI_API_KEY", api_key), ("GEMINI_MODEL", model)) if not value
     ]
     if missing:
         raise LiveConfigError(
-            "live mode needs " + " and ".join(missing)
+            "live mode needs "
+            + " and ".join(missing)
             + f" (export them or put them in {REPO_ROOT / '.env'}; never commit them)"
         )
     return api_key, model
@@ -183,9 +182,7 @@ def read_photo(photo_path: Path) -> tuple[bytes, str]:
     """Read a photo within the contract's size cap and return (bytes, mime)."""
     mime = PHOTO_MIME_TYPES.get(photo_path.suffix.lower())
     if mime is None:
-        raise GeminiError(
-            f"unsupported photo type {photo_path.suffix!r} (use jpeg, png or webp)"
-        )
+        raise GeminiError(f"unsupported photo type {photo_path.suffix!r} (use jpeg, png or webp)")
     size = photo_path.stat().st_size
     if size > MAX_PHOTO_BYTES:
         raise GeminiError(f"photo is {size} bytes, over the {MAX_PHOTO_BYTES} byte cap")
@@ -255,9 +252,7 @@ def parse_generate_content_response(payload: dict[str, Any]) -> dict[str, Any]:
     first = candidates[0]
     content = first.get("content")
     parts = content.get("parts", []) if isinstance(content, dict) else []
-    text = "".join(
-        part.get("text", "") for part in parts if isinstance(part, dict)
-    ).strip()
+    text = "".join(part.get("text", "") for part in parts if isinstance(part, dict)).strip()
     if not text:
         finish = first.get("finishReason")
         raise GeminiError(f"Gemini returned no text (finishReason: {finish})")
@@ -279,10 +274,13 @@ def apply_low_confidence_safety(vision: dict[str, Any]) -> bool:
     place.
     """
     confidence = vision.get("confidence")
-    if isinstance(confidence, (int, float)) and not isinstance(confidence, bool):
-        if float(confidence) < MIN_CONFIDENCE_ALL_ALLERGENS:
-            vision["allergens_likely"] = list(estimate.ALLERGENS)
-            return True
+    if (
+        isinstance(confidence, (int, float))
+        and not isinstance(confidence, bool)
+        and float(confidence) < MIN_CONFIDENCE_ALL_ALLERGENS
+    ):
+        vision["allergens_likely"] = list(estimate.ALLERGENS)
+        return True
     return False
 
 

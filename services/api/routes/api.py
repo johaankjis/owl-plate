@@ -6,10 +6,12 @@ from typing import Annotated, ParamSpec, TypeVar
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
+from sqlalchemy.exc import SQLAlchemyError
 
 from services.api.application import Actor, Backend, DomainError
 from services.api.schemas.api import (
     ClaimResponse,
+    DemoActiveDropResponse,
     DemoResetResponse,
     DemoTick,
     DispatchResponse,
@@ -26,7 +28,9 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
-def build_router(backend: Backend) -> APIRouter:
+def build_router(
+    backend: Backend, register_push_token: Callable[[str, str], None] | None = None
+) -> APIRouter:
     """Bind manager-owned adapters without relying on global app state."""
     router = APIRouter()
 
@@ -121,8 +125,20 @@ def build_router(backend: Backend) -> APIRouter:
 
     @router.post("/students/me/push-token", response_model=dict[str, bool])
     def push_token(token: PushTokenRequest, actor: Identity) -> dict[str, bool]:
-        """Refuse plaintext storage until encrypted access is integrated."""
+        """Register only the authenticated student's device through encrypted storage."""
         invoke(backend.require, actor, "student")
+        if register_push_token is not None:
+            try:
+                register_push_token(actor.id, token.token)
+            except (RuntimeError, ValueError, SQLAlchemyError):
+                raise HTTPException(
+                    503,
+                    detail={
+                        "code": "provider_unavailable",
+                        "message": "Encrypted push registration unavailable.",
+                    },
+                ) from None
+            return {"registered": True}
         raise HTTPException(
             503,
             detail={
@@ -130,6 +146,11 @@ def build_router(backend: Backend) -> APIRouter:
                 "message": "Encrypted push registration unavailable.",
             },
         )
+
+    @router.get("/demo/active-drop", response_model=DemoActiveDropResponse)
+    def active_drop(actor: Identity) -> DemoActiveDropResponse:
+        """Allow a separate synthetic projector to discover the current host flow."""
+        return invoke(backend.active_drop, actor)
 
     @router.post("/demo/reset", response_model=DemoResetResponse)
     def reset(actor: Identity) -> DemoResetResponse:

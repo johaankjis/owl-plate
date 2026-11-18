@@ -159,7 +159,7 @@ def _validated_allergens(raw: object, where: str) -> frozenset[str]:
 def _validated_timestamp(raw: object, where: str) -> str:
     text = _non_empty_str(raw, where)
     try:
-        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(text)
     except ValueError as exc:
         raise GoldError(f"{where}: expected ISO 8601, got {text!r}") from exc
     if parsed.tzinfo is None:

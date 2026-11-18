@@ -6,16 +6,14 @@ these tests pin the validation rules and check the mirror against the schema
 file itself so the two cannot drift apart silently.
 """
 
+import ast
 import copy
-import re
 import unittest
 from pathlib import Path
 
 from estimate import ALLERGENS, DIETS, ShapeError, validate_vision_estimate
 
-SCHEMA_FILE = (
-    Path(__file__).resolve().parents[3] / "services" / "api" / "schemas" / "api.py"
-)
+SCHEMA_FILE = Path(__file__).resolve().parents[3] / "services" / "api" / "schemas" / "api.py"
 
 VALID = {
     "items": [{"name": "cheese pizza", "portion_unit": "slice", "count_estimate": 14}],
@@ -81,8 +79,12 @@ class ValidateVisionEstimateTest(unittest.TestCase):
             validate_vision_estimate(data)
 
     def test_servings_out_of_bounds_rejected(self) -> None:
-        for field, value in (("servings_estimate", 0), ("servings_estimate", 501),
-                            ("servings_low", 0), ("servings_high", 501)):
+        for field, value in (
+            ("servings_estimate", 0),
+            ("servings_estimate", 501),
+            ("servings_low", 0),
+            ("servings_high", 501),
+        ):
             with self.subTest(field=field, value=value):
                 data = valid_copy()
                 data[field] = value
@@ -143,11 +145,20 @@ class SchemaMirrorDriftTest(unittest.TestCase):
     """Fail when estimate.py drifts from the frozen schema file."""
 
     def _literal_names(self, line_prefix: str) -> tuple[str, ...]:
-        text = SCHEMA_FILE.read_text(encoding="utf-8")
-        match = re.search(rf"^{line_prefix} = Literal\[(.+)\]$", text, re.MULTILINE)
-        if not match:
-            self.fail(f"could not find `{line_prefix} = Literal[...]` in {SCHEMA_FILE}")
-        return tuple(re.findall(r'"([a-z_]+)"', match.group(1)))
+        tree = ast.parse(SCHEMA_FILE.read_text(encoding="utf-8"))
+        for node in tree.body:
+            if (
+                isinstance(node, ast.Assign)
+                and any(
+                    isinstance(target, ast.Name) and target.id == line_prefix
+                    for target in node.targets
+                )
+                and isinstance(node.value, ast.Subscript)
+                and isinstance(node.value.value, ast.Name)
+                and node.value.value.id == "Literal"
+            ):
+                return tuple(ast.literal_eval(node.value.slice))
+        self.fail(f"could not find `{line_prefix} = Literal[...]` in {SCHEMA_FILE}")
 
     def test_allergens_match_frozen_schema(self) -> None:
         self.assertEqual(self._literal_names("Allergen"), ALLERGENS)

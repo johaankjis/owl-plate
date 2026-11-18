@@ -64,6 +64,8 @@ def measured_claim_support(
     gold_sources: tuple[str, ...],
     prediction_source: str,
     evaluated: int,
+    *,
+    prediction_synthetic: bool | None = None,
 ) -> MeasuredClaim:
     """Decide whether this run's numbers may be quoted as measured accuracy.
 
@@ -74,6 +76,10 @@ def measured_claim_support(
     reasons: list[str] = []
     if evaluated == 0:
         reasons.append("no evaluated samples")
+    if prediction_synthetic:
+        reasons.append("predictions are labeled synthetic")
+    if not gold_sources:
+        reasons.append("no human gold provenance")
     non_human = sorted(set(gold_sources) - {"human"})
     if non_human:
         reasons.append("gold labels include non-human sources: " + ", ".join(non_human))

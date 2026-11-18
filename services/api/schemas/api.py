@@ -144,6 +144,12 @@ class DemoResetResponse(ContractModel):
     personas: dict[str, UUID]
 
 
+class DemoActiveDropResponse(ContractModel):
+    """Let the synthetic projector find a host's drop across devices."""
+
+    drop_id: UUID | None
+
+
 class Preferences(ContractModel):
     allergens: list[Allergen]
     diets: list[Diet]

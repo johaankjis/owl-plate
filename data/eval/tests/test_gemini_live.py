@@ -14,9 +14,9 @@ from pathlib import Path
 import estimate
 import gemini_live
 from gemini_live import (
+    RESPONSE_SCHEMA,
     GeminiError,
     LiveConfigError,
-    RESPONSE_SCHEMA,
     apply_low_confidence_safety,
     build_request_body,
     load_env_file,
@@ -60,9 +60,7 @@ class ParseResponseTest(unittest.TestCase):
 
     def test_no_candidates_reports_block_reason(self) -> None:
         with self.assertRaisesRegex(GeminiError, "blockReason: SAFETY"):
-            parse_generate_content_response(
-                {"promptFeedback": {"blockReason": "SAFETY"}}
-            )
+            parse_generate_content_response({"promptFeedback": {"blockReason": "SAFETY"}})
 
     def test_no_candidates_without_reason(self) -> None:
         with self.assertRaisesRegex(GeminiError, "no candidates"):
@@ -108,12 +106,8 @@ class RequestBuildingTest(unittest.TestCase):
 
     def test_schema_enumerations(self) -> None:
         properties = RESPONSE_SCHEMA["properties"]
-        self.assertEqual(
-            properties["allergens_likely"]["items"]["enum"], list(estimate.ALLERGENS)
-        )
-        self.assertEqual(
-            properties["diet_tags"]["items"]["enum"], ["vegetarian", "vegan"]
-        )
+        self.assertEqual(properties["allergens_likely"]["items"]["enum"], list(estimate.ALLERGENS))
+        self.assertEqual(properties["diet_tags"]["items"]["enum"], ["vegetarian", "vegan"])
 
     def test_url_keeps_key_out_of_query_string(self) -> None:
         url = gemini_live.GEMINI_URL_TEMPLATE.format(model="gemini-2.5-flash")
@@ -172,7 +166,7 @@ class CredentialsTest(unittest.TestCase):
     def test_env_file_parsed_and_not_overriding(self) -> None:
         env_file = self.dir / ".env"
         env_file.write_text(
-            "# comment\nGEMINI_MODEL=gemini-test\nGEMINI_API_KEY=\"quoted-key\"\n"
+            '# comment\nGEMINI_MODEL=gemini-test\nGEMINI_API_KEY="quoted-key"\n'
             "GEMINI_MODEL=ignored-second-line\n",
             encoding="utf-8",
         )

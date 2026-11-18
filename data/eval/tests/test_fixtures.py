@@ -29,9 +29,7 @@ def fixture_data():
     for sample in gold:
         prediction = by_id[sample.sample_id]
         serving_pairs.append((sample.servings, prediction.vision["servings_estimate"]))
-        allergen_pairs.append(
-            (sample.allergens, frozenset(prediction.vision["allergens_likely"]))
-        )
+        allergen_pairs.append((sample.allergens, frozenset(prediction.vision["allergens_likely"])))
     return gold, predictions, serving_pairs, allergen_pairs
 
 

@@ -20,11 +20,14 @@ Base URL http://localhost:8000. `Authorization: Bearer demo-host`, `demo-project
 | GET | /drops/{id}/dispatch | none | DispatchResponse / demo-projector only; synthetic personas only |
 | PUT | /students/me/preferences | Preferences | Preferences / current student |
 | POST | /students/me/presence | PresenceRequest | `{"valid_until": timestamp}` / current student, 2-hour lifetime |
-| POST | /students/me/push-token | PushTokenRequest | `{"registered": true}` / current student |
+| POST | /students/me/push-token | PushTokenRequest | `{"registered": true}` / current student, encrypted FCM mode only; explicit 503 in log mode |
 | POST | /demo/reset | none | DemoResetResponse / demo-host, atomic reset |
+| GET | /demo/active-drop | none | DemoActiveDropResponse `{"drop_id": UUID or null}` / demo-host or demo-projector only |
 | POST | /demo/tick | DemoTick | `{"server_time": timestamp}` / demo-host; injectable clock, same scheduler service |
 
 403 role/ownership mismatch (or 404 to avoid disclosing other users' IDs); 404 missing; 409 `capacity`, `invite_expired`, `invalid_state`, `active_claim`, `safety_review_required`; 503 provider failure. Publish retries must not duplicate waves/invites. Counts satisfy total = available + held + picked_up. Invites never reserve inventory. Expired/released holds restore availability; pickup consumes inventory. Held claim repeats return same claim. Expired invite cannot claim. SQLite write transaction or equivalent serializes mutations; tick and claims share transaction boundary. Persist all state with SQLModel; planner is pure Python with distance injected via geography.
+
+Manager-approved demo discovery addition: `/demo/active-drop` selects the latest `created_at` among draft/live/claimed_out drops under the same transaction boundary (expired drops excluded). Reset returns discovery to null. This lets a projector poll independently of the host's phone or browser storage. Students are denied; both demo gates are required. The response contains only the drop ID, never student data.
 
 ## Scheduler assumptions resolving doc ambiguities
 

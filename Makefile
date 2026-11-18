@@ -20,8 +20,8 @@ test:
 	$(PYTHON) -m unittest discover -s data/eval -p 'test_*.py'
 
 lint:
-	$(RUFF) check services scripts
-	$(RUFF) format --check services scripts
+	$(RUFF) check services scripts data/eval
+	$(RUFF) format --check services scripts data/eval
 	cd apps/web && npm run lint
 
 types:

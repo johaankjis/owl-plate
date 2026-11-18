@@ -5,9 +5,10 @@ from collections.abc import Callable
 
 import httpx
 from cryptography.fernet import Fernet, InvalidToken
-from services.api.db.session import transaction
 from sqlalchemy import Engine
 from sqlmodel import Field, Session, SQLModel
+
+from services.api.db.session import transaction
 
 
 class PushRegistration(SQLModel, table=True):

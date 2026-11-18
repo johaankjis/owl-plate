@@ -122,9 +122,7 @@ class GoldValidationTest(unittest.TestCase):
         self.assert_gold_error(sample(labels={"labeled_by": " "}), "non-empty string")
 
     def test_naive_labeled_at_rejected(self) -> None:
-        self.assert_gold_error(
-            sample(labels={"labeled_at": "2026-11-19T21:00:00"}), "timezone"
-        )
+        self.assert_gold_error(sample(labels={"labeled_at": "2026-11-19T21:00:00"}), "timezone")
 
     def test_unknown_label_key_rejected(self) -> None:
         self.assert_gold_error(sample(labels={"serves": 8}), "unknown key")

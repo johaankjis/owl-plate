@@ -10,8 +10,8 @@ from typing import Literal, TypeVar
 from uuid import uuid4
 
 import h3
-from sqlalchemy import Engine, delete
-from sqlmodel import Session, select
+from sqlalchemy import Engine, delete, inspect
+from sqlmodel import Session, SQLModel, select
 
 from services.api.db.models import Claim, Coordinator, Drop, Invite, Student, Wave
 from services.api.db.session import transaction
@@ -20,6 +20,7 @@ from services.api.dispatch.config import INITIAL_RING, MAX_RING, RING_STEP
 from services.api.schemas.api import (
     ClaimResponse,
     Counts,
+    DemoActiveDropResponse,
     DemoResetResponse,
     DispatchResponse,
     DropEdit,
@@ -603,10 +604,30 @@ class Backend:
                     invite.notification_sent = True
                     session.add(invite)
 
+    def active_drop(self, actor: Actor) -> DemoActiveDropResponse:
+        """Discover the latest demo drop without sharing browser state or recipient details."""
+        self.require(actor, "host" if actor.role == "host" else "projector", demo=True)
+
+        def operation(session: Session, now: datetime) -> DemoActiveDropResponse:
+            drop = session.exec(
+                select(Drop)
+                .where(Drop.status.in_(["draft", "live", "claimed_out"]))
+                .order_by(Drop.data["created_at"].as_string().desc(), Drop.id.desc())
+                .limit(1)
+            ).first()
+            return DemoActiveDropResponse(drop_id=drop.id if drop else None)
+
+        return self._run(operation)
+
     def reset(self, actor: Actor) -> DemoResetResponse:
         """Replace demo state atomically with the private thirty-student fixture."""
         self.require(actor, "host", demo=True)
         with transaction(self.engine) as session:
+            registrations = SQLModel.metadata.tables.get("pushregistration")
+            if registrations is not None and inspect(session.connection()).has_table(
+                registrations.name
+            ):
+                session.execute(delete(registrations))
             for model in (Claim, Invite, Wave, Drop, Student):
                 session.execute(delete(model))
             coordinator = session.get(Coordinator, 1)

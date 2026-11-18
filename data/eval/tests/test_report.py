@@ -13,8 +13,14 @@ from report import (
 )
 
 
-def make_row(sample_id: str = "s1", gold: int = 8, est: int = 7, gold_flags=("dairy",),
-             pred_flags=("dairy",), low_confidence_inflated: bool = False) -> SampleRow:
+def make_row(
+    sample_id: str = "s1",
+    gold: int = 8,
+    est: int = 7,
+    gold_flags=("dairy",),
+    pred_flags=("dairy",),
+    low_confidence_inflated: bool = False,
+) -> SampleRow:
     error = abs(est - gold)
     return SampleRow(
         sample_id=sample_id,
@@ -28,8 +34,9 @@ def make_row(sample_id: str = "s1", gold: int = 8, est: int = 7, gold_flags=("da
     )
 
 
-def make_bundle(rows, gold_sources=("synthetic",), source="fixture", synthetic=True,
-                missing=0, failures=()) -> EvalBundle:
+def make_bundle(
+    rows, gold_sources=("synthetic",), source="fixture", synthetic=True, missing=0, failures=()
+) -> EvalBundle:
     servings = score_servings([(row.gold_servings, row.estimated_servings) for row in rows])
     allergens = score_allergens(
         [(set(row.gold_allergens), set(row.predicted_allergens)) for row in rows]
@@ -54,6 +61,14 @@ def make_bundle(rows, gold_sources=("synthetic",), source="fixture", synthetic=T
 
 
 class MeasuredClaimSupportTest(unittest.TestCase):
+    def test_synthetic_predictions_never_support_claim(self) -> None:
+        claim = measured_claim_support(("human",), "gemini", 4, prediction_synthetic=True)
+        self.assertFalse(claim.supported)
+        self.assertIn("synthetic", claim.reason)
+
+    def test_missing_gold_provenance_never_supports_claim(self) -> None:
+        self.assertFalse(measured_claim_support((), "gemini", 4).supported)
+
     def test_synthetic_gold_never_supports_claim(self) -> None:
         claim = measured_claim_support(("synthetic",), "gemini", 4)
         self.assertFalse(claim.supported)

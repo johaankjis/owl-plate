@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """CLI entrypoint for the Owl Plate vision eval harness (standard library only).
 
 Three modes, all documented in data/eval/README.md:
@@ -18,7 +17,7 @@ import json
 import logging
 import sys
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from gemini_live import LiveConfigError, LiveRequest, live_estimates, require_live_env
@@ -239,8 +238,7 @@ def _report(
     unmatched = tuple(sorted(set(by_id) - {sample.sample_id for sample in gold}))
     if unmatched:
         print(
-            f"warning: {len(unmatched)} prediction(s) have no gold sample: "
-            f"{', '.join(unmatched)}",
+            f"warning: {len(unmatched)} prediction(s) have no gold sample: {', '.join(unmatched)}",
             file=sys.stderr,
         )
     servings = score_servings([(row.gold_servings, row.estimated_servings) for row in rows])
@@ -261,7 +259,9 @@ def _report(
         rows=tuple(rows),
         servings=servings,
         allergens=allergens,
-        measured_claim=measured_claim_support(gold_sources, source, len(rows)),
+        measured_claim=measured_claim_support(
+            gold_sources, source, len(rows), prediction_synthetic=synthetic
+        ),
     )
     if args.json:
         print(json.dumps(render_json(bundle), indent=2))
@@ -309,7 +309,7 @@ def _ordered_allergens(flags: frozenset[str]) -> tuple[str, ...]:
 
 def _utc_now() -> str:
     """Timestamp for report headers; the scores never depend on it."""
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 if __name__ == "__main__":

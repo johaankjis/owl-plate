@@ -32,9 +32,8 @@ def capture(args):
 class CliRulesTest(unittest.TestCase):
     def assert_usage_error(self, args: list[str]) -> None:
         out, err = io.StringIO(), io.StringIO()
-        with redirect_stdout(out), redirect_stderr(err):
-            with self.assertRaises(SystemExit) as ctx:
-                main(args)
+        with redirect_stdout(out), redirect_stderr(err), self.assertRaises(SystemExit) as ctx:
+            main(args)
         self.assertEqual(ctx.exception.code, 2)
 
     def test_no_mode_is_a_usage_error(self) -> None:
@@ -55,9 +54,7 @@ class CliRulesTest(unittest.TestCase):
         )
 
     def test_photos_requires_live(self) -> None:
-        self.assert_usage_error(
-            ["--predictions", "p.json", "--gold", "g.json", "--photos", "d"]
-        )
+        self.assert_usage_error(["--predictions", "p.json", "--gold", "g.json", "--photos", "d"])
 
     def test_modes_are_mutually_exclusive(self) -> None:
         self.assert_usage_error(["--fixtures", "--live"])

@@ -2,9 +2,9 @@
 
 import pytest
 from cryptography.fernet import Fernet
-from services.api.db.session import create_database
 from sqlmodel import Session
 
+from services.api.db.session import create_database
 from services.api.providers.fcm import FcmNotifications, PushRegistration, TokenVault
 
 
