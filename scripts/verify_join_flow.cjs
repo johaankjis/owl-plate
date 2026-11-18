@@ -126,7 +126,7 @@ async function call(path, token, method = "GET") {
       .setInputFiles(`${out}/photo.png`);
     await host.getByTestId("analyze-photo-button").click();
     await host.getByTestId("servings-input").waitFor();
-    await host.getByTestId("fixture-label").waitFor();
+    await host.getByTestId("vision-source-label").waitFor();
     await host.getByTestId("servings-input").fill("2");
     assert.equal(
       await host.getByTestId("publish-drop-button").isDisabled(),

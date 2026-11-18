@@ -14,6 +14,11 @@ and resets to the live-visitor scenario. Fixture vision and simulated
 notifications are always on and labeled; the survey is off. On a ZimaOS
 container use `make present-zima` and tunnel port 3017 over SSH.
 
+- Live vision: `make present-live` sends the uploaded photo to Gemini. It needs
+  `GEMINI_API_KEY=...` in the gitignored repo-root `.env` (or exported in the
+  shell); `GEMINI_MODEL` defaults to `gemini-3.8-flash`. Live failures show an
+  error and never fall back to the saved estimate. Results are labeled
+  **Live Gemini** or **Saved demo estimate**.
 - Visitors open `/join` (or Home → Find food), pick a nickname, a simulated demo
   area and optional restrictions, then see only their own invites on `/student`.
 - The host uses Home → Share food: upload → review (safety checks) → publish.
