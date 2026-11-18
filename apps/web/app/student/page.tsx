@@ -6,9 +6,7 @@ import { DemoHeader } from "../../components/DemoHeader";
 import { AllergenListDisplay } from "../../components/AllergenBadge";
 import {
   ALLERGEN_WARNING_TEXT,
-  type DemoAreaId,
   type InviteResponse,
-  type SeededPersonaLabel,
   type SessionStudent,
 } from "../../lib/types/api";
 import {
@@ -22,7 +20,6 @@ import {
   releaseClaim,
   type DataSourceMode,
 } from "../../lib/api-client";
-import { FIXTURE_DEMO_AREAS } from "../../lib/fixtures/demo-fixtures";
 import {
   clearSessionToken,
   getSessionToken,
@@ -30,22 +27,13 @@ import {
   parseSeededPersonaParam,
 } from "../../lib/session";
 import { formatEasternTime, formatRemainingTime } from "../../lib/time";
-
-const AREA_LABELS: Record<DemoAreaId, string> = FIXTURE_DEMO_AREAS.reduce(
-  (acc, area) => {
-    acc[area.id] = area.label;
-    return acc;
-  },
-  {} as Record<DemoAreaId, string>,
-);
-
-const PERSONA_AREA_LABELS: Record<SeededPersonaLabel, string> = {
-  A: "Event venue (demo)",
-  B: "Event venue (demo)",
-  C: "Next building over (demo)",
-  D: "Across the quad (demo)",
-  E: "Event venue (demo)",
-};
+import {
+  DEMO_AREA_LABELS,
+  formatDropLocation,
+  resolveStudentCardState,
+  SEEDED_PERSONA_AREA_LABELS,
+  summarizeDropFood,
+} from "./student-helpers";
 
 function StudentContent() {
   const router = useRouter();
@@ -62,8 +50,8 @@ function StudentContent() {
     useState<DataSourceMode>(INITIAL_DATA_SOURCE);
   const [invites, setInvites] = useState<InviteResponse[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [nowTick, setNowTick] = useState<number>(() => Date.now());
 
   const onApiError = useCallback(
@@ -80,7 +68,7 @@ function StudentContent() {
     [router, seededPersona],
   );
 
-  // Resolve session token or rehearsal persona token on mount
+  // Resolve session token or rehearsal persona on mount
   useEffect(() => {
     if (seededPersona) {
       setAuthToken(seededPersona.token);
@@ -99,7 +87,7 @@ function StudentContent() {
     setAuthChecked(true);
   }, [router, seededPersona]);
 
-  // Fetch visitor profile for active session
+  // Fetch visitor profile
   useEffect(() => {
     if (!authChecked || !authToken || seededPersona) return;
     let active = true;
@@ -112,7 +100,7 @@ function StudentContent() {
       })
       .catch((err) => {
         if (!active) return;
-        onApiError(err, "Failed to verify session");
+        onApiError(err, "Could not load your session");
       });
 
     return () => {
@@ -128,21 +116,21 @@ function StudentContent() {
       setSourceMode(res.source);
       setNowTick(Date.now());
     } catch (err) {
-      onApiError(err, "Failed to load invites");
+      onApiError(err, "Could not refresh nearby invites");
     }
   }, [authToken, onApiError]);
 
-  // Poll GET /students/me/invites every 2s
+  // Refresh invites every 2s
   useEffect(() => {
     if (!authChecked || !authToken) return;
     void loadInvites();
-    const pollInterval = setInterval(() => {
+    const intervalId = setInterval(() => {
       void loadInvites();
     }, 2000);
-    return () => clearInterval(pollInterval);
+    return () => clearInterval(intervalId);
   }, [authChecked, authToken, loadInvites]);
 
-  // 1s local tick to keep invite countdown responsive between 2s polls
+  // 1s tick to keep invite and hold countdowns responsive
   useEffect(() => {
     const timer = setInterval(() => {
       setNowTick(Date.now());
@@ -154,16 +142,12 @@ function StudentContent() {
     if (!authToken) return;
     setBusyId(inviteId);
     setErrorMessage(null);
-    setStatusMessage(null);
     try {
       const res = await claimInvite(inviteId, authToken);
       setSourceMode(res.source);
-      setStatusMessage(
-        `Your spot is held for 10 minutes (until ${formatEasternTime(res.data.held_until)}). No ID or proof needed at pickup.`,
-      );
       await loadInvites();
     } catch (err) {
-      onApiError(err, "Failed to claim serving");
+      onApiError(err, "Could not reserve this spot");
     } finally {
       setBusyId(null);
     }
@@ -173,16 +157,12 @@ function StudentContent() {
     if (!authToken) return;
     setBusyId(inviteId);
     setErrorMessage(null);
-    setStatusMessage(null);
     try {
       const res = await declineInvite(inviteId, authToken);
       setSourceMode(res.source);
-      setStatusMessage(
-        "Invite declined. Your spot was freed for another student.",
-      );
       await loadInvites();
     } catch (err) {
-      onApiError(err, "Failed to decline invite");
+      onApiError(err, "Could not decline this invite");
     } finally {
       setBusyId(null);
     }
@@ -192,14 +172,12 @@ function StudentContent() {
     if (!authToken) return;
     setBusyId(claimId);
     setErrorMessage(null);
-    setStatusMessage(null);
     try {
       const res = await releaseClaim(claimId, authToken);
       setSourceMode(res.source);
-      setStatusMessage("Hold released back to available pool.");
       await loadInvites();
     } catch (err) {
-      onApiError(err, "Failed to release claim");
+      onApiError(err, "Could not release your spot");
     } finally {
       setBusyId(null);
     }
@@ -209,14 +187,12 @@ function StudentContent() {
     if (!authToken) return;
     setBusyId(claimId);
     setErrorMessage(null);
-    setStatusMessage(null);
     try {
       const res = await pickupClaim(claimId, authToken);
       setSourceMode(res.source);
-      setStatusMessage("Marked as picked up (demo mode). Enjoy your meal.");
       await loadInvites();
     } catch (err) {
-      onApiError(err, "Failed to mark picked up");
+      onApiError(err, "Could not confirm pickup");
     } finally {
       setBusyId(null);
     }
@@ -225,13 +201,12 @@ function StudentContent() {
   const handleLeaveDemo = async () => {
     setBusyId("leave");
     setErrorMessage(null);
-    setStatusMessage(null);
     try {
       if (authToken && !seededPersona) {
         await leaveDemoSession(authToken);
       }
     } catch {
-      // Even if session was already cleared server-side, remove local token and redirect
+      // Clear local session even if already removed server-side
     } finally {
       clearSessionToken();
       setBusyId(null);
@@ -242,314 +217,393 @@ function StudentContent() {
   if (!authChecked || !authToken) {
     return (
       <div className="min-h-screen bg-owl-black p-6 text-sm text-zinc-400">
-        Checking your demo session...
+        Loading...
       </div>
     );
   }
 
   const displayNickname = seededPersona
     ? `Persona ${seededPersona.label}`
-    : (sessionStudent?.nickname ?? "Visitor");
+    : (sessionStudent?.nickname ?? "Student");
 
   const displayArea = seededPersona
-    ? PERSONA_AREA_LABELS[seededPersona.label]
+    ? SEEDED_PERSONA_AREA_LABELS[seededPersona.label]
     : sessionStudent
-      ? (AREA_LABELS[sessionStudent.area] ?? sessionStudent.area)
-      : "Simulated demo area";
+      ? (DEMO_AREA_LABELS[sessionStudent.area] ?? sessionStudent.area)
+      : "Campus area (demo)";
 
-  const activeClaimInvite =
-    invites.find(
-      (inv) =>
-        inv.claim?.status === "held" || inv.claim?.status === "picked_up",
-    ) ?? null;
-
+  const cardState = resolveStudentCardState(invites);
   const nowIso = new Date(nowTick).toISOString();
 
   return (
     <div className="min-h-screen bg-owl-black text-zinc-100">
       <DemoHeader sourceMode={sourceMode} isDemo={true} />
 
-      <main className="mx-auto max-w-2xl space-y-6 px-4 py-6">
-        {seededPersona && (
-          <div
-            role="status"
-            data-testid="seeded-persona-banner"
-            className="rounded-xl border border-amber-500/40 bg-amber-950/30 px-4 py-3 text-xs font-semibold text-amber-200"
-          >
-            Seeded persona (simulated) — Rehearsal mode using synthetic token{" "}
-            <code>{seededPersona.token}</code>.
-          </div>
-        )}
-
-        {/* Visitor / Persona Identity Header */}
-        <section className="flex flex-col justify-between gap-4 rounded-xl border border-zinc-800 bg-owl-slate p-5 sm:flex-row sm:items-center">
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1
-                data-testid="student-nickname"
-                className="text-2xl font-bold text-white"
-              >
-                {displayNickname}
-              </h1>
-              <span
-                data-testid="fixture-label"
-                className="rounded border border-sky-500/40 bg-sky-500/10 px-2 py-0.5 text-xs font-semibold text-sky-300"
-              >
-                {displayArea}
-              </span>
+      <main className="mx-auto flex max-w-md flex-col justify-between space-y-5 px-4 pb-10 pt-5 sm:max-w-lg">
+        {/* Compact Student Bar with Menu Toggle */}
+        <section className="space-y-3 rounded-2xl border border-zinc-800 bg-owl-slate p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1
+                  data-testid="student-nickname"
+                  className="truncate text-lg font-extrabold text-white"
+                >
+                  {displayNickname}
+                </h1>
+                {seededPersona && (
+                  <span
+                    data-testid="seeded-persona-banner"
+                    className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-300"
+                  >
+                    Simulated persona
+                  </span>
+                )}
+              </div>
+              <p className="truncate text-xs text-zinc-400">{displayArea}</p>
             </div>
-            <p className="text-xs text-zinc-400">
-              You see only your own invites and claims. Updates every 2 seconds.
-            </p>
+
+            <button
+              type="button"
+              data-testid="student-menu-button"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((prev) => !prev)}
+              className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-xl border border-zinc-700 bg-owl-black px-3.5 py-2 text-xs font-bold text-zinc-200 transition hover:border-owl-gold hover:text-white"
+            >
+              Menu
+            </button>
           </div>
 
-          <button
-            type="button"
-            data-testid="leave-demo-button"
-            disabled={busyId !== null}
-            onClick={() => void handleLeaveDemo()}
-            className="self-start rounded-lg border border-zinc-700 bg-owl-black px-3.5 py-2 text-xs font-semibold text-zinc-200 transition hover:border-rose-500/50 hover:text-rose-200 disabled:opacity-50 sm:self-auto"
-          >
-            {busyId === "leave" ? "Leaving..." : "Leave demo"}
-          </button>
+          {menuOpen && (
+            <div className="flex flex-col gap-2.5 border-t border-zinc-800 pt-3">
+              <p className="text-xs text-zinc-400">
+                Leaving releases any held spot so another nearby student can use
+                it.
+              </p>
+              <button
+                type="button"
+                data-testid="leave-demo-button"
+                disabled={busyId !== null}
+                onClick={() => void handleLeaveDemo()}
+                className="min-h-[44px] w-full rounded-xl border border-rose-500/40 bg-rose-950/30 px-4 py-2.5 text-xs font-bold text-rose-200 transition hover:bg-rose-900/40 disabled:opacity-50"
+              >
+                {busyId === "leave" ? "Leaving..." : "Leave demo"}
+              </button>
+            </div>
+          )}
         </section>
-
-        {statusMessage && (
-          <div
-            data-testid="student-status-message"
-            className="rounded-lg border border-emerald-500/40 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200"
-          >
-            {statusMessage}
-          </div>
-        )}
 
         {errorMessage && (
           <div
+            role="alert"
             data-testid="student-error-message"
-            className="rounded-lg border border-rose-500/40 bg-rose-950/30 px-4 py-3 text-sm text-rose-200"
+            className="rounded-xl border border-rose-500/40 bg-rose-950/30 px-4 py-3 text-sm text-rose-200"
           >
             {errorMessage}
           </div>
         )}
 
-        {/* Section 1: Your Claim */}
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-owl-gold">Your claim</h2>
+        {/* SINGLE FOCUSED CARD PER STATE */}
+        {cardState.kind === "waiting" && (
+          <section
+            data-testid="no-invites-card"
+            className="space-y-3 rounded-2xl border border-zinc-800 bg-owl-slate p-6 text-center shadow-lg"
+          >
+            <div className="flex justify-center">
+              <span
+                data-testid="simulated-notification-label"
+                className="rounded-full border border-owl-gold/35 bg-owl-gold/10 px-3 py-1 text-xs font-semibold text-owl-gold"
+              >
+                Simulated notifications
+              </span>
+            </div>
+            <h2 className="text-xl font-extrabold text-white">
+              We&apos;ll show nearby food here
+            </h2>
+            <p className="text-sm leading-relaxed text-zinc-300">
+              When a host shares leftover event food near{" "}
+              <span className="font-semibold text-white">{displayArea}</span>{" "}
+              that matches your filters, an invite card will appear right here.
+            </p>
+            <p className="text-xs text-zinc-400">
+              Allergens always say:{" "}
+              <strong className="text-amber-300">
+                {ALLERGEN_WARNING_TEXT}
+              </strong>
+              .
+            </p>
+          </section>
+        )}
 
-          {activeClaimInvite && activeClaimInvite.claim ? (
-            <div
-              data-testid="active-claim-banner"
-              className="space-y-3 rounded-xl border border-emerald-500/40 bg-emerald-950/30 p-5 text-sm text-emerald-100"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="rounded bg-emerald-500/20 px-2.5 py-0.5 text-xs font-bold uppercase text-emerald-300">
-                  {activeClaimInvite.claim.status === "held"
-                    ? "Spot Held (10 min)"
-                    : "Picked Up"}
-                </span>
-                {activeClaimInvite.claim.status === "held" && (
-                  <span className="text-xs font-semibold text-emerald-200">
-                    Hold expires at{" "}
-                    {formatEasternTime(activeClaimInvite.claim.held_until)} (
-                    {formatRemainingTime(
-                      activeClaimInvite.claim.held_until,
-                      nowIso,
-                    )}
-                    )
-                  </span>
+        {cardState.kind === "invite" && (
+          <article
+            data-testid={`invite-card-${cardState.activeInvite.id}`}
+            className="space-y-5 rounded-2xl border border-owl-gold/50 bg-owl-slate p-5 shadow-xl"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span
+                data-testid="simulated-notification-label"
+                className="rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-xs font-bold text-amber-300"
+              >
+                Simulated notification
+              </span>
+              <span
+                data-testid={`invite-countdown-${cardState.activeInvite.id}`}
+                className="rounded-full bg-owl-black px-3 py-1 text-xs font-extrabold text-owl-gold"
+              >
+                {formatRemainingTime(cardState.activeInvite.expires_at, nowIso)}{" "}
+                left
+              </span>
+            </div>
+
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-owl-gold">
+                Free food nearby • {displayArea}
+              </p>
+              <h2 className="text-2xl font-extrabold text-white">
+                {summarizeDropFood(cardState.activeInvite)}
+              </h2>
+              <p className="text-sm font-medium text-zinc-200">
+                {formatDropLocation(
+                  cardState.activeInvite.drop.building_code,
+                  cardState.activeInvite.drop.room,
                 )}
-              </div>
+              </p>
+              <p className="text-xs text-zinc-400">
+                About {cardState.activeInvite.drop.counts.available} of{" "}
+                {cardState.activeInvite.drop.counts.total} servings left
+              </p>
+            </div>
 
-              <div>
-                <div className="text-base font-bold text-white">
-                  {activeClaimInvite.drop.building_code}
-                  {activeClaimInvite.drop.room
-                    ? `, room ${activeClaimInvite.drop.room}`
-                    : ""}
-                </div>
-                <p className="mt-1 text-xs text-emerald-200">
-                  {activeClaimInvite.claim.status === "held"
-                    ? "Your spot is held for 10 minutes. Head over now — pickup needs no ID or proof."
-                    : "Serving marked picked up. Enjoy your meal."}
-                </p>
-              </div>
-
-              {activeClaimInvite.claim.status === "held" && (
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <button
-                    type="button"
-                    data-testid={`release-claim-button-${activeClaimInvite.claim.id}`}
-                    disabled={busyId !== null}
-                    onClick={() =>
-                      void handleReleaseClaim(activeClaimInvite.claim!.id)
-                    }
-                    className="rounded-lg border border-zinc-700 bg-owl-black px-3.5 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
+            {/* Food breakdown & dietary tags */}
+            <div className="space-y-2 rounded-xl bg-owl-black/70 p-3.5">
+              <ul className="space-y-1 text-sm text-zinc-100">
+                {cardState.activeInvite.drop.vision.items.map((item, idx) => (
+                  <li
+                    key={`${item.name}-${idx}`}
+                    className="flex items-center justify-between gap-2"
                   >
-                    Release hold
-                  </button>
-                  <button
-                    type="button"
-                    data-testid={`pickup-claim-button-${activeClaimInvite.claim.id}`}
-                    disabled={busyId !== null}
-                    onClick={() =>
-                      void handlePickupClaim(activeClaimInvite.claim!.id)
-                    }
-                    className="rounded-lg bg-emerald-500 px-3.5 py-2 text-xs font-bold text-owl-black hover:bg-emerald-400 disabled:opacity-50"
-                  >
-                    Confirm picked up (demo)
-                  </button>
+                    <span className="font-medium">{item.name}</span>
+                    <span className="shrink-0 text-xs text-zinc-400">
+                      ~{item.count_estimate} {item.portion_unit}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {cardState.activeInvite.drop.diet_tags_final.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {cardState.activeInvite.drop.diet_tags_final.map((d) => (
+                    <span
+                      key={d}
+                      className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-300"
+                    >
+                      {d.replace("_", " ")}
+                    </span>
+                  ))}
                 </div>
               )}
             </div>
-          ) : (
-            <div className="rounded-xl border border-zinc-800 bg-owl-slate/60 p-4 text-xs text-zinc-400">
-              You have no active 10-minute hold right now. Claim an invite below
-              when one arrives.
+
+            {/* Allergens with mandatory notice */}
+            <AllergenListDisplay
+              allergens={cardState.activeInvite.drop.allergens_final}
+              notice={cardState.activeInvite.drop.allergen_notice}
+              title="Allergens"
+              compact={true}
+            />
+
+            {/* Primary Reserve button + quiet secondary Decline */}
+            <div className="space-y-2.5 pt-1">
+              <button
+                type="button"
+                data-testid={`claim-invite-button-${cardState.activeInvite.id}`}
+                disabled={busyId !== null}
+                onClick={() => void handleClaim(cardState.activeInvite.id)}
+                className="min-h-[52px] w-full rounded-xl bg-owl-gold px-5 py-3.5 text-base font-extrabold text-owl-black shadow-md transition hover:bg-owl-goldDark disabled:opacity-50"
+              >
+                {busyId === cardState.activeInvite.id
+                  ? "Reserving..."
+                  : "Reserve \u2013 hold 10 min"}
+              </button>
+
+              <button
+                type="button"
+                data-testid={`decline-invite-button-${cardState.activeInvite.id}`}
+                disabled={busyId !== null}
+                onClick={() => void handleDecline(cardState.activeInvite.id)}
+                className="min-h-[44px] w-full rounded-xl border border-zinc-800 bg-transparent px-4 py-2.5 text-xs font-semibold text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200 disabled:opacity-50"
+              >
+                Decline
+              </button>
             </div>
-          )}
-        </section>
+          </article>
+        )}
 
-        {/* Section 2: Your Invites */}
-        <section className="space-y-4">
-          <h2 className="text-lg font-semibold text-owl-gold">
-            Your invites ({invites.length})
-          </h2>
+        {cardState.kind === "pickup" && (
+          <article
+            data-testid="active-claim-banner"
+            className="space-y-5 rounded-2xl border border-emerald-500/50 bg-owl-slate p-5 shadow-xl"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-extrabold uppercase text-emerald-300">
+                Your spot is held
+              </span>
+              <span
+                data-testid="simulated-notification-label"
+                className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-300"
+              >
+                Simulated notification
+              </span>
+            </div>
 
-          {invites.length === 0 ? (
-            <div
-              data-testid="no-invites-card"
-              className="rounded-xl border border-zinc-800 bg-owl-slate p-6 text-center"
-            >
-              <p className="text-sm font-medium text-zinc-200">
-                No active food invites for {displayNickname} yet.
+            {/* Where to go */}
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
+                Where to go
               </p>
-              <p className="mt-1 text-xs text-zinc-400">
-                When a host publishes a compatible drop within your wave ring,
-                your invite will appear here automatically. Allergens always
-                carry:{" "}
-                <strong className="text-amber-300">
-                  {ALLERGEN_WARNING_TEXT}
+              <h2 className="text-2xl font-extrabold text-white">
+                {formatDropLocation(
+                  cardState.activeInvite.drop.building_code,
+                  cardState.activeInvite.drop.room,
+                )}
+              </h2>
+              <p className="text-xs text-zinc-300">
+                Pickup needs no ID or proof. Just head over before your hold
+                ends.
+              </p>
+            </div>
+
+            {/* Hold countdown */}
+            <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-950/30 px-4 py-3">
+              <div>
+                <div className="text-xs font-medium text-emerald-200">
+                  10-minute hold countdown
+                </div>
+                <div className="text-xs text-emerald-300/80">
+                  Until {formatEasternTime(cardState.activeClaim.held_until)}
+                </div>
+              </div>
+              <div
+                data-testid="hold-countdown"
+                className="text-xl font-extrabold text-emerald-300"
+              >
+                {formatRemainingTime(cardState.activeClaim.held_until, nowIso)}
+              </div>
+            </div>
+
+            {/* What you reserved */}
+            <div className="space-y-2 rounded-xl bg-owl-black/70 p-3.5">
+              <div className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                What you reserved
+              </div>
+              <div className="text-sm font-bold text-white">
+                {summarizeDropFood(cardState.activeInvite)}
+              </div>
+              <ul className="space-y-1 text-xs text-zinc-300">
+                {cardState.activeInvite.drop.vision.items.map((item, idx) => (
+                  <li key={`${item.name}-${idx}`}>
+                    • {item.name} (~{item.count_estimate} {item.portion_unit})
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Allergen notice */}
+            <AllergenListDisplay
+              allergens={cardState.activeInvite.drop.allergens_final}
+              notice={cardState.activeInvite.drop.allergen_notice}
+              title="Allergens"
+              compact={true}
+            />
+
+            {/* Primary Confirm Picked Up + secondary Release */}
+            <div className="space-y-2.5 pt-1">
+              <button
+                type="button"
+                data-testid="pickup-confirm-button"
+                disabled={busyId !== null}
+                onClick={() => void handlePickupClaim(cardState.activeClaim.id)}
+                className="min-h-[52px] w-full rounded-xl bg-owl-gold px-5 py-3.5 text-base font-extrabold text-owl-black shadow-md transition hover:bg-owl-goldDark disabled:opacity-50"
+              >
+                {busyId === cardState.activeClaim.id
+                  ? "Confirming..."
+                  : "Confirm picked up (demo)"}
+              </button>
+
+              <button
+                type="button"
+                data-testid="pickup-release-button"
+                disabled={busyId !== null}
+                onClick={() =>
+                  void handleReleaseClaim(cardState.activeClaim.id)
+                }
+                className="min-h-[44px] w-full rounded-xl border border-zinc-800 bg-transparent px-4 py-2.5 text-xs font-semibold text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200 disabled:opacity-50"
+              >
+                Release
+              </button>
+            </div>
+          </article>
+        )}
+
+        {cardState.kind === "picked_up" && (
+          <section
+            data-testid="picked-up-card"
+            className="space-y-4 rounded-2xl border border-emerald-500/40 bg-owl-slate p-6 text-center shadow-lg"
+          >
+            <div className="flex justify-center gap-2">
+              <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-extrabold uppercase text-emerald-300">
+                Picked up
+              </span>
+              <span
+                data-testid="simulated-notification-label"
+                className="rounded-full border border-owl-gold/30 bg-owl-gold/10 px-3 py-1 text-xs font-semibold text-owl-gold"
+              >
+                Simulated notification
+              </span>
+            </div>
+
+            <div
+              data-testid="active-claim-banner"
+              className="space-y-1.5 text-center"
+            >
+              <h2 className="text-2xl font-extrabold text-white">
+                Enjoy your meal
+              </h2>
+              <p className="text-sm text-zinc-300">
+                Picked up from{" "}
+                <strong className="text-white">
+                  {formatDropLocation(
+                    cardState.activeInvite.drop.building_code,
+                    cardState.activeInvite.drop.room,
+                  )}
                 </strong>
                 .
               </p>
             </div>
-          ) : (
-            invites.map((inv) => {
-              const drop = inv.drop;
-              const countdown = formatRemainingTime(inv.expires_at, nowIso);
 
-              return (
-                <article
-                  key={inv.id}
-                  data-testid={`invite-card-${inv.id}`}
-                  className="space-y-4 rounded-xl border border-zinc-800 bg-owl-slate p-5"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="space-y-1.5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          data-testid="simulated-notification-label"
-                          className="rounded border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 text-xs font-bold text-amber-300"
-                        >
-                          Simulated notification
-                        </span>
-                        <span className="rounded bg-owl-gold/20 px-2.5 py-0.5 text-xs font-bold uppercase text-owl-gold">
-                          Status: {inv.status}
-                        </span>
-                      </div>
+            <p className="text-xs text-zinc-400">
+              Allergens: {ALLERGEN_WARNING_TEXT}.
+            </p>
+          </section>
+        )}
 
-                      <h3 className="text-lg font-bold text-white">
-                        Free food nearby: {drop.building_code}
-                        {drop.room ? `, room ${drop.room}` : ""}
-                      </h3>
-                      <p className="text-xs text-zinc-300">
-                        About {drop.counts.available} of {drop.counts.total}{" "}
-                        servings available.
-                      </p>
-                    </div>
-
-                    {inv.status === "sent" && (
-                      <div className="rounded-lg border border-zinc-700 bg-owl-black px-3 py-1.5 text-right text-xs">
-                        <div className="text-zinc-400">Invite countdown</div>
-                        <div
-                          data-testid={`invite-countdown-${inv.id}`}
-                          className="font-bold text-owl-gold"
-                        >
-                          {countdown}
-                        </div>
-                        <div className="text-[11px] text-zinc-400">
-                          Until {formatEasternTime(inv.expires_at)}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Estimated Food Items */}
-                  <div className="rounded-lg bg-owl-black/60 p-3">
-                    <div className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-                      Estimated Items
-                    </div>
-                    <ul className="mt-1.5 space-y-1 text-sm text-zinc-100">
-                      {drop.vision.items.map((item, idx) => (
-                        <li key={`${item.name}-${idx}`}>
-                          • {item.name} (~{item.count_estimate}{" "}
-                          {item.portion_unit})
-                        </li>
-                      ))}
-                    </ul>
-                    {drop.diet_tags_final.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {drop.diet_tags_final.map((d) => (
-                          <span
-                            key={d}
-                            className="rounded bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-300"
-                          >
-                            {d.replace("_", " ")}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Mandatory Allergen Notice Display */}
-                  <AllergenListDisplay
-                    allergens={drop.allergens_final}
-                    notice={drop.allergen_notice}
-                    title="Allergens for This Drop"
-                  />
-
-                  {/* Invite Actions */}
-                  <div className="flex flex-wrap items-center gap-3 pt-1">
-                    {inv.status === "sent" && (
-                      <>
-                        <button
-                          type="button"
-                          data-testid={`claim-invite-button-${inv.id}`}
-                          disabled={busyId !== null}
-                          onClick={() => void handleClaim(inv.id)}
-                          className="rounded-lg bg-owl-gold px-4 py-2.5 text-sm font-bold text-owl-black transition hover:bg-owl-goldDark disabled:opacity-50"
-                        >
-                          {busyId === inv.id
-                            ? "Holding spot..."
-                            : "I'm coming – hold 10 min"}
-                        </button>
-                        <button
-                          type="button"
-                          data-testid={`decline-invite-button-${inv.id}`}
-                          disabled={busyId !== null}
-                          onClick={() => void handleDecline(inv.id)}
-                          className="rounded-lg border border-zinc-700 bg-owl-black px-4 py-2.5 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800 disabled:opacity-50"
-                        >
-                          Decline
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </article>
-              );
-            })
-          )}
-        </section>
+        {/* Expired or declined invites collapsed to a short single line */}
+        {cardState.collapsedLines.length > 0 && (
+          <section
+            aria-label="Past invites"
+            className="space-y-1.5 rounded-xl border border-zinc-800/80 bg-owl-slate/50 px-3.5 py-2.5"
+          >
+            {cardState.collapsedLines.map((line) => (
+              <p
+                key={line.id}
+                data-testid={`collapsed-invite-${line.id}`}
+                className="truncate text-xs text-zinc-400"
+              >
+                {line.summary}
+              </p>
+            ))}
+          </section>
+        )}
       </main>
     </div>
   );
@@ -560,7 +614,7 @@ export default function StudentPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-owl-black p-6 text-sm text-zinc-400">
-          Loading student view...
+          Loading...
         </div>
       }
     >

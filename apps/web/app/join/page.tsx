@@ -50,7 +50,7 @@ function JoinDemoContent() {
         }
       })
       .catch(() => {
-        // Keep fallback areas if API is starting up
+        // Keep fallback areas if server is starting up
       });
     return () => {
       active = false;
@@ -78,7 +78,7 @@ function JoinDemoContent() {
 
     const trimmed = nickname.trim();
     if (!trimmed) {
-      setNicknameError("Enter a nickname to join the demo.");
+      setNicknameError("Enter a nickname to join.");
       return;
     }
 
@@ -113,7 +113,7 @@ function JoinDemoContent() {
     <div className="min-h-screen bg-owl-black text-zinc-100">
       <DemoHeader sourceMode={sourceMode} isDemo={true} />
 
-      <main className="mx-auto max-w-xl space-y-6 px-4 py-6">
+      <main className="mx-auto max-w-md space-y-5 px-4 pb-10 pt-5 sm:max-w-lg">
         {reason === "session_ended" && (
           <div
             role="alert"
@@ -124,39 +124,36 @@ function JoinDemoContent() {
           </div>
         )}
 
-        <section className="space-y-2 rounded-xl border border-zinc-800 bg-owl-slate p-5">
+        <div className="space-y-1.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h1 className="text-2xl font-bold text-white">
-              Join Owl Plate Demo
+            <h1 className="text-2xl font-extrabold tracking-tight text-white">
+              Find nearby food
             </h1>
             <span
-              data-testid="fixture-label"
-              className="rounded border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-300"
+              data-testid="simulated-notification-label"
+              className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-300"
             >
-              Simulated locations &amp; notifications
+              Simulated notifications
             </span>
           </div>
           <p className="text-sm text-zinc-300">
-            Receive nearby food invites on your phone during the live demo. No
-            account, email, or phone number required.
+            No account or phone number needed. Set your campus area and any
+            dietary filters below.
           </p>
-        </section>
+        </div>
 
         <form
           onSubmit={handleSubmit}
-          className="space-y-6 rounded-xl border border-zinc-800 bg-owl-slate p-5"
+          className="space-y-6 rounded-2xl border border-zinc-800 bg-owl-slate p-5 shadow-lg"
         >
-          {/* Nickname */}
-          <div>
+          {/* 1. Nickname */}
+          <div className="space-y-1.5">
             <label
               htmlFor="join-nickname-input"
-              className="block text-sm font-semibold text-white"
+              className="block text-sm font-bold text-white"
             >
-              Nickname
+              1. Your nickname
             </label>
-            <p className="mt-0.5 text-xs text-zinc-400">
-              Shown on the demo projector screen so you can spot your wave.
-            </p>
             <input
               id="join-nickname-input"
               data-testid="join-nickname-input"
@@ -170,7 +167,7 @@ function JoinDemoContent() {
               }}
               placeholder="e.g. ScrappyOwl"
               aria-invalid={nicknameError ? "true" : "false"}
-              className={`mt-2 w-full rounded-lg border bg-owl-black px-3.5 py-2.5 text-sm text-white focus:outline-none ${
+              className={`min-h-[48px] w-full rounded-xl border bg-owl-black px-4 py-3 text-base text-white placeholder:text-zinc-500 focus:outline-none ${
                 nicknameError
                   ? "border-rose-500 focus:border-rose-400"
                   : "border-zinc-700 focus:border-owl-gold"
@@ -180,23 +177,22 @@ function JoinDemoContent() {
               <p
                 role="alert"
                 data-testid="join-nickname-error"
-                className="mt-1.5 text-xs font-semibold text-rose-300"
+                className="text-xs font-semibold text-rose-300"
               >
                 {nicknameError}
               </p>
             )}
           </div>
 
-          {/* Demo Area (Simulated Locations) */}
-          <fieldset className="space-y-2.5">
-            <legend className="text-sm font-semibold text-white">
-              Simulated Demo Area
+          {/* 2. Campus Area (Simulated Locations) */}
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-bold text-white">
+              2. Where are you on campus?
             </legend>
             <p className="text-xs text-zinc-400">
-              All demo locations are simulated H3 rings around the event origin
-              (not real GPS tracking).
+              Simulated campus locations for this demo (no real GPS tracking).
             </p>
-            <div className="grid gap-2.5 sm:grid-cols-2">
+            <div className="grid gap-2.5 pt-1">
               {areas.map((area) => {
                 const selected = selectedArea === area.id;
                 return (
@@ -206,124 +202,123 @@ function JoinDemoContent() {
                     data-testid={`join-area-${area.id}`}
                     aria-pressed={selected}
                     onClick={() => setSelectedArea(area.id)}
-                    className={`flex flex-col items-start rounded-xl border p-3.5 text-left transition ${
+                    className={`flex min-h-[56px] w-full flex-col items-start justify-center rounded-xl border px-4 py-3 text-left transition ${
                       selected
-                        ? "border-owl-gold bg-owl-gold/15 text-white"
-                        : "border-zinc-700 bg-owl-black text-zinc-300 hover:border-zinc-600"
+                        ? "border-owl-gold bg-owl-gold/15 text-white ring-1 ring-owl-gold/50"
+                        : "border-zinc-700/80 bg-owl-black text-zinc-300 hover:border-zinc-600"
                     }`}
                   >
                     <div className="flex w-full items-center justify-between gap-2">
                       <span className="text-sm font-bold text-white">
                         {area.label}
                       </span>
-                      <span className="rounded bg-zinc-800 px-2 py-0.5 text-[11px] font-semibold text-owl-gold">
-                        Ring {area.ring_distance}
+                      <span className="rounded-md bg-zinc-800 px-2 py-0.5 text-[11px] font-semibold text-owl-gold">
+                        Simulated
                       </span>
                     </div>
-                    <span className="mt-1 text-xs text-zinc-300">
+                    <span className="mt-0.5 text-xs text-zinc-400">
                       {area.description}
                     </span>
-                    <span className="mt-1 text-[11px] text-amber-300/90">
-                      Simulated location
-                    </span>
                   </button>
                 );
               })}
             </div>
           </fieldset>
 
-          {/* Optional Allergens to Exclude */}
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-semibold text-white">
-              Allergens to Avoid (Optional)
-            </legend>
-            <p className="text-xs text-zinc-400">
-              Hard filter before invites are sent. Every allergen estimate
-              carries:{" "}
-              <strong className="text-amber-300">
-                {ALLERGEN_WARNING_TEXT}
-              </strong>
-              .
-            </p>
-            <div className="flex flex-wrap gap-2 pt-1">
-              {ALLERGENS.map((alg) => {
-                const active = selectedAllergens.includes(alg);
-                return (
-                  <button
-                    key={alg}
-                    type="button"
-                    data-testid={`join-allergen-${alg}`}
-                    aria-pressed={active}
-                    onClick={() => toggleAllergen(alg)}
-                    className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
-                      active
-                        ? "border-amber-400 bg-amber-500/20 text-amber-100"
-                        : "border-zinc-700 bg-owl-black text-zinc-300 hover:border-zinc-600"
-                    }`}
-                  >
-                    {active ? "✓ " : ""}
-                    {alg.replace("_", " ")}
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
+          {/* 3. Optional Dietary Restrictions */}
+          <div className="space-y-4 border-t border-zinc-800 pt-4">
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-bold text-white">
+                3. Allergens to avoid{" "}
+                <span className="font-normal text-zinc-400">(optional)</span>
+              </legend>
+              <p className="text-xs text-zinc-400">
+                Filtered before invites are sent. Allergens always say:{" "}
+                <strong className="text-amber-300">
+                  {ALLERGEN_WARNING_TEXT}
+                </strong>
+                .
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {ALLERGENS.map((alg) => {
+                  const active = selectedAllergens.includes(alg);
+                  return (
+                    <button
+                      key={alg}
+                      type="button"
+                      data-testid={`join-allergen-${alg}`}
+                      aria-pressed={active}
+                      onClick={() => toggleAllergen(alg)}
+                      className={`min-h-[44px] rounded-xl border px-3.5 py-2 text-xs font-semibold transition ${
+                        active
+                          ? "border-amber-400 bg-amber-500/20 text-amber-100"
+                          : "border-zinc-700 bg-owl-black text-zinc-300 hover:border-zinc-600"
+                      }`}
+                    >
+                      {active ? "✓ " : ""}
+                      {alg.replace("_", " ")}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
 
-          {/* Optional Required Diets */}
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-semibold text-white">
-              Dietary Requirements (Optional)
-            </legend>
-            <div className="flex flex-wrap gap-2 pt-1">
-              {DIETS.map((diet) => {
-                const active = selectedDiets.includes(diet);
-                return (
-                  <button
-                    key={diet}
-                    type="button"
-                    data-testid={`join-diet-${diet}`}
-                    aria-pressed={active}
-                    onClick={() => toggleDiet(diet)}
-                    className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
-                      active
-                        ? "border-emerald-400 bg-emerald-500/20 text-emerald-100"
-                        : "border-zinc-700 bg-owl-black text-zinc-300 hover:border-zinc-600"
-                    }`}
-                  >
-                    {active ? "✓ " : ""}
-                    {diet.replace("_", " ")}
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
-
-          {/* Required Privacy Notice */}
-          <div
-            data-testid="join-privacy-notice"
-            className="rounded-lg border border-zinc-700 bg-owl-black/80 p-3.5 text-xs text-zinc-200"
-          >
-            The demo screen shows your nickname and whether you were matched or
-            skipped. Your specific restrictions are never shown.
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-bold text-white">
+                Dietary requirements{" "}
+                <span className="font-normal text-zinc-400">(optional)</span>
+              </legend>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {DIETS.map((diet) => {
+                  const active = selectedDiets.includes(diet);
+                  return (
+                    <button
+                      key={diet}
+                      type="button"
+                      data-testid={`join-diet-${diet}`}
+                      aria-pressed={active}
+                      onClick={() => toggleDiet(diet)}
+                      className={`min-h-[44px] rounded-xl border px-3.5 py-2 text-xs font-semibold transition ${
+                        active
+                          ? "border-emerald-400 bg-emerald-500/20 text-emerald-100"
+                          : "border-zinc-700 bg-owl-black text-zinc-300 hover:border-zinc-600"
+                      }`}
+                    >
+                      {active ? "✓ " : ""}
+                      {diet.replace("_", " ")}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
           </div>
+
+          <p
+            data-testid="join-privacy-notice"
+            className="text-xs leading-relaxed text-zinc-400"
+          >
+            Your restrictions are private and used only to filter out food that
+            doesn&apos;t fit you.
+          </p>
 
           {generalError && (
             <div
               role="alert"
               data-testid="join-error-message"
-              className="rounded-lg border border-rose-500/40 bg-rose-950/30 px-4 py-3 text-xs text-rose-200"
+              className="rounded-xl border border-rose-500/40 bg-rose-950/30 px-4 py-3 text-xs text-rose-200"
             >
               {generalError}
             </div>
           )}
 
+          {/* Big bottom primary button */}
           <button
             type="submit"
             data-testid="join-submit"
             disabled={submitting}
-            className="w-full rounded-lg bg-owl-gold px-4 py-3 text-sm font-bold text-owl-black transition hover:bg-owl-goldDark disabled:opacity-50"
+            className="min-h-[52px] w-full rounded-xl bg-owl-gold px-5 py-3.5 text-base font-extrabold text-owl-black shadow-md transition hover:bg-owl-goldDark disabled:opacity-50"
           >
-            {submitting ? "Joining demo..." : "Join Demo & Watch for Food"}
+            {submitting ? "Joining..." : "Join"}
           </button>
         </form>
       </main>
@@ -336,7 +331,7 @@ export default function JoinPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-owl-black p-6 text-sm text-zinc-400">
-          Loading demo join screen...
+          Loading...
         </div>
       }
     >
