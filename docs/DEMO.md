@@ -6,6 +6,15 @@ The current rehearsal package is in `submission/`. Use
 register**. The latest checkpoint and Johaan's decisions are in `docs/HANDOFF.md`.
 Those records supersede early aspirational demo notes.
 
+## Run the local demo
+
+`make present` builds the web app when its sources change, starts API and web
+together, resets to 30 simulated students and prints the URLs (one browser port,
+3017; the API stays on loopback behind `/backend`). It always runs fixture vision
+and simulated notifications with the survey off. Reset with the Host page button
+or `make demo-reset`; stop with Ctrl+C. On a ZimaOS container use
+`make present-zima` (binds 0.0.0.0) and tunnel port 3017 over SSH.
+
 ## What can be shown now
 
 The reviewed application runs through photo upload → fixture estimate → host
