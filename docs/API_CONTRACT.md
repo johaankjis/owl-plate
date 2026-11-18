@@ -1,0 +1,43 @@
+# Frozen milestone contract, v1
+
+Manager owns this document and `services/api/schemas/`. Request/response models are in `schemas/api.py`; generate frontend types from the composed OpenAPI (`make types`). UUID strings, timezone-aware ISO 8601 UTC timestamps; display America/New_York. Errors use `{"detail":{"code":"capacity","message":"..."}}`; FastAPI validation errors use standard 422 arrays. Never expose tiers, scores, contacts, tokens or student preference data in another user's response. Allergen displays: **may contain, confirm with host**.
+
+## HTTP routes
+
+Base URL http://localhost:8000. `Authorization: Bearer demo-host`, `demo-projector`, or `demo-student-A` through E. These are explicit synthetic credentials, enabled only with AUTH_MODE=demo AND DEMO_MODE=true. No real auth bypass outside demo. No public list of students. GET /health unauthenticated returns status.
+
+| Method | Route | Request | Response / access |
+|---|---|---|---|
+| POST | /drops | multipart `photo` JPEG/PNG (max 10 MiB), optional `host_note` | DropResponse draft / host |
+| PATCH | /drops/{id} | DropEdit (complete review) | DropResponse / owning host |
+| POST | /drops/{id}/publish | none | DropResponse with wave 1 committed / owning host |
+| GET | /drops/{id} | none | DropResponse / owning host or invited student, projector demo |
+| GET | /students/me/invites | none | InvitesResponse / current student only |
+| POST | /invites/{id}/claim | none | ClaimResponse / invite owner, idempotent while held |
+| POST | /invites/{id}/decline | none | InviteResponse / invite owner, repeat safe |
+| POST | /claims/{id}/release | none | ClaimResponse / owner, repeat safe |
+| POST | /claims/{id}/pickup | none | ClaimResponse / owner demo only pending real pickup verification design |
+| GET | /drops/{id}/dispatch | none | DispatchResponse / demo-projector only; synthetic personas only |
+| PUT | /students/me/preferences | Preferences | Preferences / current student |
+| POST | /students/me/presence | PresenceRequest | `{"valid_until": timestamp}` / current student, 2-hour lifetime |
+| POST | /students/me/push-token | PushTokenRequest | `{"registered": true}` / current student |
+| POST | /demo/reset | none | DemoResetResponse / demo-host, atomic reset |
+| POST | /demo/tick | DemoTick | `{"server_time": timestamp}` / demo-host; injectable clock, same scheduler service |
+
+403 role/ownership mismatch (or 404 to avoid disclosing other users' IDs); 404 missing; 409 `capacity`, `invite_expired`, `invalid_state`, `active_claim`, `safety_review_required`; 503 provider failure. Publish retries must not duplicate waves/invites. Counts satisfy total = available + held + picked_up. Invites never reserve inventory. Expired/released holds restore availability; pickup consumes inventory. Held claim repeats return same claim. Expired invite cannot claim. SQLite write transaction or equivalent serializes mutations; tick and claims share transaction boundary. Persist all state with SQLModel; planner is pure Python with distance injected via geography.
+
+## Scheduler assumptions resolving doc ambiguities
+
+Tick every 10 seconds; do not widen on every tick while sent invites remain active. Widen when the current wave has no outstanding sent invites (expiry/decline/claim), inventory remains, and a later tick occurs. Ring starts 2, +2 up to 12. At max ring, stop inviting after exhaustion but keep existing holds/invites valid until their deadline or drop expiry; do not mark remaining food consumed. Decline changes only invite status; it does not increment availability because invites reserve nothing. Holds last 600 seconds, invites 60 demo / 90 production. Default drop expiry 45 minutes, max 120. Drop expiry cancels pending invites and releases holds. Use UTC injectable clock. TTL deadline is exclusive (now >= deadline is expired).
+
+## Fixture agreement
+
+`data/seed/demo.json` is private server seed, NEVER a public/static web asset. Contains synthetic IDs and priority flags, not real data. Origin lat/lng are explicitly arbitrary placeholders, not verified campus coordinates. Compute H3 resolution 11 cells and use `grid_disk` to choose cells at specified ring distance. A/C eligible initial nonvegetarian dairy/gluten tray; B excluded dairy; D distance 4; E requires vegetarian. Other 25 simulated students start alerts paused so the five-persona demo is repeatable. A holds one; C expires; inventory remains; D enters wave 2. Vegetarian variant may invite E; capacity/ranking still applies.
+
+## Vision and safety
+
+VisionEstimate is frozen for eval and adapters. Vision cannot assert halal/kosher/pork_free; discard those tags until host confirmation. Confidence < 0.6 adds all nine common allergens. Removing any estimated allergen requires ingredient_information_checked. Host must confirm the first three safety checks to publish. Religious tags require religious_diets_confirmed. Uploaded bytes are processed without persistence initially; no photos stored. Never silently label fixture output live Gemini. Fixture mode is allowed only in explicit demo mode and UI must label it.
+
+## Ownership
+
+Manager: schemas, data/seed, docs, root configuration, main.py, routes composition, providers/, vision/, live checks and submission materials. Backend worker: dispatch/, db/, business service modules, routes implementation, tests/ excluding provider/vision tests. Web: apps/web/ only. Eval: data/eval/ only. Integrator: composition and repo wiring plus accepted integration fixes. Contract changes require manager coordination.
