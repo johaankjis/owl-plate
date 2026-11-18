@@ -75,10 +75,17 @@ function loadFixturesModule() {
   return { fixtures: fixturesExports, store };
 }
 
-test("getVisionSourceLabel maps gemini to 'Live Gemini' and fixture to 'Saved demo estimate'", () => {
+test("getVisionSourceLabel maps openrouter to 'Live Gemini via OpenRouter', gemini to 'Live Gemini', and fixture to 'Saved demo estimate'", () => {
   const helpers = loadHostHelpers();
+  assert.equal(
+    helpers.getVisionSourceLabel("openrouter"),
+    "Live Gemini via OpenRouter",
+  );
   assert.equal(helpers.getVisionSourceLabel("gemini"), "Live Gemini");
   assert.equal(helpers.getVisionSourceLabel("fixture"), "Saved demo estimate");
+  assert.equal(helpers.isLiveVisionSource("openrouter"), true);
+  assert.equal(helpers.isLiveVisionSource("gemini"), true);
+  assert.equal(helpers.isLiveVisionSource("fixture"), false);
 });
 
 test("resolveHostStep maps null/expired to upload, draft to review, and live/claimed_out to counts", () => {
@@ -149,7 +156,7 @@ test("restoreHostDropState restores upload for null active drop, review for draf
   const draftDrop = {
     id: "drop-draft-1",
     status: "draft",
-    vision_source: "gemini",
+    vision_source: "openrouter",
     servings_final: 5,
     counts: { total: 5, available: 5, held: 0, picked_up: 0 },
   };

@@ -27,6 +27,7 @@ import {
   formatHostCounts,
   getVisionSourceLabel,
   HOST_POLL_INTERVAL_MS,
+  isLiveVisionSource,
   resolveHostStep,
   restoreHostDropState,
   shouldPollHostCounts,
@@ -476,7 +477,7 @@ export default function HostPage() {
                   <span
                     data-testid="vision-source-label"
                     className={`rounded-md border px-2.5 py-1 text-xs font-bold ${
-                      drop.vision_source === "gemini"
+                      isLiveVisionSource(drop.vision_source)
                         ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-300"
                         : "border-amber-400/40 bg-amber-500/15 text-amber-300"
                     }`}
@@ -947,7 +948,7 @@ export default function HostPage() {
                 <span
                   data-testid="vision-source-label"
                   className={`rounded-md border px-2.5 py-1 text-xs font-bold ${
-                    drop.vision_source === "gemini"
+                    isLiveVisionSource(drop.vision_source)
                       ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-300"
                       : "border-amber-400/40 bg-amber-500/15 text-amber-300"
                   }`}

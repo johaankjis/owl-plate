@@ -3,15 +3,23 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { DEMO_CREDENTIALS, type DemoCredential } from "../lib/types/api";
+import {
+  DEMO_CREDENTIALS,
+  type DemoCredential,
+  type VisionSource,
+} from "../lib/types/api";
 import type { DataSourceMode } from "../lib/api-client";
 import { useVisionMode, visionModeLabel } from "../lib/vision-mode";
+import {
+  getVisionSourceLabel,
+  isLiveVisionSource,
+} from "../app/host/host-helpers";
 
 interface DemoHeaderProps {
   credential?: DemoCredential;
   onCredentialChange?: (cred: DemoCredential) => void;
   sourceMode: DataSourceMode;
-  visionSource?: "fixture" | "gemini" | "openrouter";
+  visionSource?: VisionSource;
   isDemo?: boolean;
   allowedRoles?: Array<"host" | "projector" | "student">;
   showCredentialSelector?: boolean;
@@ -123,11 +131,13 @@ export function DemoHeader({
           {visionSource && (
             <span
               data-testid="vision-source-badge"
-              className="rounded border border-purple-500/40 bg-purple-500/10 px-2 py-0.5 font-medium text-purple-300"
+              className={`rounded border px-2 py-0.5 font-medium ${
+                isLiveVisionSource(visionSource)
+                  ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-300"
+                  : "border-amber-400/40 bg-amber-500/15 text-amber-300"
+              }`}
             >
-              {visionSource === "fixture"
-                ? "Saved demo estimate"
-                : "Live Gemini"}
+              {getVisionSourceLabel(visionSource)}
             </span>
           )}
         </div>
