@@ -13,7 +13,16 @@ import h3
 from sqlalchemy import Engine, delete, inspect
 from sqlmodel import Session, SQLModel, select
 
-from services.api.db.models import Claim, Coordinator, Drop, Invite, Student, Wave
+from services.api.db.models import (
+    Claim,
+    Coordinator,
+    DemoSettings,
+    Drop,
+    Invite,
+    Student,
+    VisitorSession,
+    Wave,
+)
 from services.api.db.session import transaction
 from services.api.dispatch import CandidateView, DropView, plan_wave
 from services.api.dispatch.config import INITIAL_RING, MAX_RING, RING_STEP
@@ -39,6 +48,18 @@ from services.api.schemas.api import (
     SessionStudent,
     VisionEstimate,
     WaveResponse,
+)
+from services.api.sessions import (
+    TOKEN_PREFIX,
+    SessionError,
+    areas_response,
+    create_session,
+    end_session,
+    require_session,
+    resolve_token,
+    session_student,
+    visitor_count,
+    visitor_decisions,
 )
 
 logger = logging.getLogger(__name__)
@@ -137,6 +158,14 @@ class Backend:
                 for student in self.seed["students"][:5]:
                     if student["label"] == label:
                         return Actor("student", student["id"])
+        if token.startswith(TOKEN_PREFIX):
+            student_id = None
+            if self.demo_mode and self.auth_mode == "demo":
+                with Session(self.engine) as session:
+                    student_id = resolve_token(session, token)
+            if student_id is None:
+                raise DomainError("unauthorized", "Session ended. Join again.", 401)
+            return Actor("student", student_id)
         if token.startswith("demo-") or self.authenticate is None:
             raise DomainError("unauthorized", "Sign in required.", 401)
         return self.authenticate(token)
@@ -153,25 +182,79 @@ class Backend:
         ):
             raise DomainError("forbidden", "Access denied.", 403)
 
+    def _require_demo(self) -> None:
+        """Restrict unauthenticated demo surfaces to explicit demo gates."""
+        if not (self.demo_mode and self.auth_mode == "demo"):
+            raise DomainError("forbidden", "Access denied.", 403)
+
     def areas(self) -> DemoAreasResponse:
-        """TODO(backend): return the four contract demo areas (demo gates only)."""
-        raise DomainError("not_implemented", "Not implemented yet.", 501)
+        """Return the four fixed, unverified demo areas under demo gates only."""
+        self._require_demo()
+        return areas_response()
+
+    def _session_run(self, operation: Callable[[Session, datetime], T]) -> T:
+        """Run visitor-session logic and map its failures to contract errors."""
+        try:
+            return self._run(operation)
+        except SessionError as exc:
+            raise DomainError(exc.code, exc.message, exc.status) from None
 
     def join(self, request: JoinRequest) -> JoinResponse:
-        """TODO(backend): create a distinct visitor session per docs/API_CONTRACT.md v2."""
-        raise DomainError("not_implemented", "Not implemented yet.", 501)
+        """Create a distinct visitor session per docs/API_CONTRACT.md v2."""
+        self._require_demo()
+        return self._session_run(
+            lambda session, now: create_session(
+                session, origin=self.origin, now=now, request=request
+            )
+        )
 
     def session_me(self, actor: Actor) -> SessionStudent:
-        """TODO(backend): return the caller's own visitor session."""
-        raise DomainError("not_implemented", "Not implemented yet.", 501)
+        """Return the caller's own visitor session, or nothing for seeded personas."""
+
+        def operation(session: Session, now: datetime) -> SessionStudent:
+            return session_student(session, require_session(session, actor.id))
+
+        return self._session_run(operation)
 
     def leave(self, actor: Actor) -> SessionLeftResponse:
-        """TODO(backend): delete the visitor session and release its holds."""
-        raise DomainError("not_implemented", "Not implemented yet.", 501)
+        """Revoke the visitor token, release holds, and decline pending invites."""
+
+        def operation(session: Session, now: datetime) -> SessionLeftResponse:
+            for drop in end_session(session, actor.id):
+                self._refresh(session, drop)
+            return SessionLeftResponse()
+
+        return self._session_run(operation)
 
     def demo_status(self, actor: Actor) -> DemoStatusResponse:
-        """TODO(backend): presenter overview per docs/API_CONTRACT.md v2."""
-        raise DomainError("not_implemented", "Not implemented yet.", 501)
+        """Give presenter controls a projector-safe overview."""
+        self.require_presenter(actor)
+
+        def operation(session: Session, now: datetime) -> DemoStatusResponse:
+            drop = self._active_drop(session)
+            return DemoStatusResponse(
+                scenario=self._scenario(session),
+                visitors=visitor_count(session),
+                active_drop_id=drop.id if drop else None,
+                server_time=now,
+                clock_offset_seconds=session.get(Coordinator, 1).clock_offset,
+            )
+
+        return self._run(operation)
+
+    def _scenario(self, session: Session) -> Scenario:
+        """Read the presenter-selected scenario, defaulting to v1 behavior."""
+        settings = session.get(DemoSettings, 1)
+        return settings.scenario if settings else "seeded"
+
+    def _active_drop(self, session: Session) -> Drop | None:
+        """Find the latest non-expired drop so presenters never share browser state."""
+        return session.exec(
+            select(Drop)
+            .where(Drop.status.in_(["draft", "live", "claimed_out"]))
+            .order_by(Drop.data["created_at"].as_string().desc(), Drop.id.desc())
+            .limit(1)
+        ).first()
 
     def _now(self, session: Session) -> datetime:
         now = self.clock()
@@ -648,32 +731,32 @@ class Backend:
     def active_drop(self, actor: Actor) -> DemoActiveDropResponse:
         """Discover the latest demo drop without sharing browser state or recipient details."""
         self.require(actor, "host" if actor.role == "host" else "projector", demo=True)
-
-        def operation(session: Session, now: datetime) -> DemoActiveDropResponse:
-            drop = session.exec(
-                select(Drop)
-                .where(Drop.status.in_(["draft", "live", "claimed_out"]))
-                .order_by(Drop.data["created_at"].as_string().desc(), Drop.id.desc())
-                .limit(1)
-            ).first()
-            return DemoActiveDropResponse(drop_id=drop.id if drop else None)
-
-        return self._run(operation)
+        return self._run(
+            lambda session, now: DemoActiveDropResponse(
+                drop_id=drop.id if (drop := self._active_drop(session)) else None
+            )
+        )
 
     def reset(self, actor: Actor, scenario: Scenario = "seeded") -> DemoResetResponse:
-        """Replace demo state atomically with the private thirty-student fixture."""
-        self.require(actor, "host", demo=True)
+        """Replace demo state atomically; any reset ends every visitor session."""
+        self.require_presenter(actor)
         with transaction(self.engine) as session:
             registrations = SQLModel.metadata.tables.get("pushregistration")
             if registrations is not None and inspect(session.connection()).has_table(
                 registrations.name
             ):
                 session.execute(delete(registrations))
-            for model in (Claim, Invite, Wave, Drop, Student):
+            for model in (Claim, Invite, Wave, Drop, VisitorSession, Student):
                 session.execute(delete(model))
             coordinator = session.get(Coordinator, 1)
             coordinator.clock_offset = 0
             session.add(coordinator)
+            settings = session.get(DemoSettings, 1)
+            if settings is None:
+                session.add(DemoSettings(id=1, scenario=scenario))
+            else:
+                settings.scenario = scenario
+                session.add(settings)
             now = self._now(session)
             for record in self.seed["students"]:
                 ring = record["ring_distance"]
@@ -689,6 +772,7 @@ class Backend:
                         is_simulated=True,
                         data={
                             **record,
+                            "alerts_paused": record["alerts_paused"] or scenario == "visitors",
                             "cell": cell,
                             "valid_from": now.isoformat(),
                             "valid_until": (now + timedelta(hours=2)).isoformat(),
@@ -698,6 +782,7 @@ class Backend:
             return DemoResetResponse(
                 students=len(self.seed["students"]),
                 personas={row["label"]: row["id"] for row in self.seed["students"][:5]},
+                scenario=scenario,
             )
 
     def preferences(self, actor: Actor, preferences: Preferences) -> Preferences:
@@ -746,26 +831,39 @@ class Backend:
                 for i in session.exec(select(Invite).where(Invite.drop_id == drop.id)).all()
             }
             last = waves[-1] if waves else None
+            scenario = self._scenario(session)
             personas = []
-            for student in session.exec(select(Student).where(Student.is_simulated == True)).all():
-                invite = invites.get(student.id)
-                reason = (
-                    last.decisions["excluded"].get(student.id, "not_selected")
-                    if last
-                    else "not_published"
-                )
-                reasons = ["nearby", "diet_match", "fair_share"] if invite else [reason]
-                personas.append(
-                    PersonaDecision(
-                        label=student.label,
-                        ring_distance=grid_distance(
-                            drop.data["origin_cell"], student.data.get("cell", "")
-                        ),
-                        status=invite.status if invite else "excluded",
-                        reason_codes=reasons,
-                        h3_cell=student.data.get("cell"),
+            if scenario != "visitors":
+                numbers = {w.id: w.number for w in waves}
+                for student in session.exec(
+                    select(Student).where(Student.is_simulated == True)
+                ).all():
+                    invite = invites.get(student.id)
+                    reason = (
+                        last.decisions["excluded"].get(student.id, "not_selected")
+                        if last
+                        else "not_published"
                     )
-                )
+                    reasons = ["nearby", "diet_match", "fair_share"] if invite else [reason]
+                    personas.append(
+                        PersonaDecision(
+                            label=student.label,
+                            ring_distance=grid_distance(
+                                drop.data["origin_cell"], student.data.get("cell", "")
+                            ),
+                            status=invite.status if invite else "excluded",
+                            reason_codes=reasons,
+                            h3_cell=student.data.get("cell"),
+                            wave_number=numbers.get(invite.wave_id) if invite else None,
+                        )
+                    )
+            visitors = visitor_decisions(
+                session,
+                origin_cell=drop.data["origin_cell"],
+                waves=waves,
+                invites=invites,
+                distance=grid_distance,
+            )
             pending = [timestamp(i.expires_at) for i in invites.values() if i.status == "sent"]
             next_wave_at = None
             if last and last.ring_k < MAX_RING and drop.status == "live":
@@ -786,6 +884,8 @@ class Backend:
                     for w in waves
                 ],
                 personas=personas,
+                visitors=visitors,
+                scenario=scenario,
                 next_wave_at=next_wave_at,
                 server_time=now,
                 is_demo=True,
