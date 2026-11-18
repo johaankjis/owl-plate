@@ -9,11 +9,20 @@ Those records supersede early aspirational demo notes.
 ## Run the local demo
 
 `make present` builds the web app when its sources change, starts API and web
-together, resets to 30 simulated students and prints the URLs (one browser port,
-3017; the API stays on loopback behind `/backend`). It always runs fixture vision
-and simulated notifications with the survey off. Reset with the Host page button
-or `make demo-reset`; stop with Ctrl+C. On a ZimaOS container use
-`make present-zima` (binds 0.0.0.0) and tunnel port 3017 over SSH.
+together on one browser port (3017; the API stays on loopback behind `/backend`)
+and resets to the live-visitor scenario. Fixture vision and simulated
+notifications are always on and labeled; the survey is off. On a ZimaOS
+container use `make present-zima` and tunnel port 3017 over SSH.
+
+- Visitors open `/join` (or Home → Find food), pick a nickname, a simulated demo
+  area and optional restrictions, then see only their own invites on `/student`.
+- The host uses Home → Share food: upload → review (safety checks) → publish.
+- `/dispatch` is the projector view. Presenter controls at the bottom reset for
+  live visitors, load the seeded A–E rehearsal (with `/student?persona=X` links),
+  and advance the clock.
+- `node scripts/verify_join_flow.cjs` re-checks the four-visitor flow with
+  natural expiry (see the script header). `scripts/rehearse_demo.cjs` and
+  `scripts/browser_smoke.cjs` target the pre-revamp screens.
 
 ## What can be shown now
 

@@ -299,8 +299,7 @@ function StudentContent() {
               </span>
             </div>
             <p className="text-xs text-zinc-400">
-              Polling exclusively your own invites every 2s. Hosts see aggregate
-              counts only.
+              You see only your own invites and claims. Updates every 2 seconds.
             </p>
           </div>
 
@@ -437,7 +436,6 @@ function StudentContent() {
           ) : (
             invites.map((inv) => {
               const drop = inv.drop;
-              const isHeld = inv.claim?.status === "held";
               const countdown = formatRemainingTime(inv.expires_at, nowIso);
 
               return (
@@ -470,18 +468,20 @@ function StudentContent() {
                       </p>
                     </div>
 
-                    <div className="rounded-lg border border-zinc-700 bg-owl-black px-3 py-1.5 text-right text-xs">
-                      <div className="text-zinc-400">Invite countdown</div>
-                      <div
-                        data-testid={`invite-countdown-${inv.id}`}
-                        className="font-bold text-owl-gold"
-                      >
-                        {countdown}
+                    {inv.status === "sent" && (
+                      <div className="rounded-lg border border-zinc-700 bg-owl-black px-3 py-1.5 text-right text-xs">
+                        <div className="text-zinc-400">Invite countdown</div>
+                        <div
+                          data-testid={`invite-countdown-${inv.id}`}
+                          className="font-bold text-owl-gold"
+                        >
+                          {countdown}
+                        </div>
+                        <div className="text-[11px] text-zinc-400">
+                          Until {formatEasternTime(inv.expires_at)}
+                        </div>
                       </div>
-                      <div className="text-[11px] text-zinc-400">
-                        Until {formatEasternTime(inv.expires_at)}
-                      </div>
-                    </div>
+                    )}
                   </div>
 
                   {/* Estimated Food Items */}
@@ -543,18 +543,6 @@ function StudentContent() {
                           Decline
                         </button>
                       </>
-                    )}
-
-                    {inv.claim && isHeld && (
-                      <button
-                        type="button"
-                        data-testid={`invite-release-button-${inv.claim.id}`}
-                        disabled={busyId !== null}
-                        onClick={() => void handleReleaseClaim(inv.claim!.id)}
-                        className="rounded-lg border border-zinc-700 bg-owl-black px-3.5 py-2 text-xs font-semibold text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
-                      >
-                        Release hold
-                      </button>
                     )}
                   </div>
                 </article>
