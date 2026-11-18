@@ -31,7 +31,9 @@ self.addEventListener("push", (event) => {
     icon: "/icon.svg",
     badge: "/icon.svg",
     data: {
-      url: dropId ? `/student?drop_id=${encodeURIComponent(dropId)}` : "/student",
+      url: dropId
+        ? `/student?drop_id=${encodeURIComponent(dropId)}`
+        : "/student",
     },
   };
 
@@ -42,17 +44,19 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const targetUrl = event.notification?.data?.url || "/student";
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
-      for (const client of windowClients) {
-        if ("focus" in client) {
-          client.navigate(targetUrl);
-          return client.focus();
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((windowClients) => {
+        for (const client of windowClients) {
+          if ("focus" in client) {
+            client.navigate(targetUrl);
+            return client.focus();
+          }
         }
-      }
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(targetUrl);
-      }
-      return undefined;
-    })
+        if (self.clients.openWindow) {
+          return self.clients.openWindow(targetUrl);
+        }
+        return undefined;
+      }),
   );
 });

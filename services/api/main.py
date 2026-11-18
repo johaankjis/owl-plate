@@ -112,7 +112,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
     app.state.backend = backend
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:3000").split(","),
+        allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:3017").split(","),
         allow_methods=["GET", "POST", "PATCH", "PUT"],
         allow_headers=["Authorization", "Content-Type"],
     )

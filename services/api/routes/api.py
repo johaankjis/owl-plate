@@ -1,7 +1,6 @@
 """Expose frozen HTTP shapes while leaving transitions in the application service."""
 
 from collections.abc import Callable
-from datetime import datetime
 from typing import Annotated, ParamSpec, TypeVar
 from uuid import UUID
 
@@ -14,14 +13,18 @@ from services.api.schemas.api import (
     DemoActiveDropResponse,
     DemoResetResponse,
     DemoTick,
+    DemoTickResponse,
     DispatchResponse,
     DropEdit,
     DropResponse,
+    ErrorResponse,
     InviteResponse,
     InvitesResponse,
     Preferences,
     PresenceRequest,
+    PresenceResponse,
     PushTokenRequest,
+    PushTokenResponse,
 )
 
 P = ParamSpec("P")
@@ -32,7 +35,9 @@ def build_router(
     backend: Backend, register_push_token: Callable[[str, str], None] | None = None
 ) -> APIRouter:
     """Bind manager-owned adapters without relying on global app state."""
-    router = APIRouter()
+    router = APIRouter(
+        responses={code: {"model": ErrorResponse} for code in [401, 403, 404, 409, 413, 503]}
+    )
 
     def invoke(method: Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> R:
         """Translate only intentional domain failures to the frozen error envelope."""
@@ -118,13 +123,13 @@ def build_router(
         """Accept only the frozen student-editable preference fields."""
         return invoke(backend.preferences, actor, preferences)
 
-    @router.post("/students/me/presence", response_model=dict[str, datetime])
-    def presence(presence: PresenceRequest, actor: Identity) -> dict[str, datetime]:
+    @router.post("/students/me/presence", response_model=PresenceResponse)
+    def presence(presence: PresenceRequest, actor: Identity) -> PresenceResponse:
         """Return the lifetime without exposing anyone else's presence."""
-        return {"valid_until": invoke(backend.presence, actor, presence.building_code)}
+        return PresenceResponse(valid_until=invoke(backend.presence, actor, presence.building_code))
 
-    @router.post("/students/me/push-token", response_model=dict[str, bool])
-    def push_token(token: PushTokenRequest, actor: Identity) -> dict[str, bool]:
+    @router.post("/students/me/push-token", response_model=PushTokenResponse)
+    def push_token(token: PushTokenRequest, actor: Identity) -> PushTokenResponse:
         """Register only the authenticated student's device through encrypted storage."""
         invoke(backend.require, actor, "student")
         if register_push_token is not None:
@@ -138,7 +143,7 @@ def build_router(
                         "message": "Encrypted push registration unavailable.",
                     },
                 ) from None
-            return {"registered": True}
+            return PushTokenResponse(registered=True)
         raise HTTPException(
             503,
             detail={
@@ -157,10 +162,10 @@ def build_router(
         """Make reset a single host-authorized demo transaction."""
         return invoke(backend.reset, actor)
 
-    @router.post("/demo/tick", response_model=dict[str, datetime])
-    def tick(tick: DemoTick, actor: Identity) -> dict[str, datetime]:
+    @router.post("/demo/tick", response_model=DemoTickResponse)
+    def tick(tick: DemoTick, actor: Identity) -> DemoTickResponse:
         """Advance only the demo clock while reusing production scheduling logic."""
         invoke(backend.require, actor, "host", demo=True)
-        return {"server_time": invoke(backend.tick, tick.advance_seconds)}
+        return DemoTickResponse(server_time=invoke(backend.tick, tick.advance_seconds))
 
     return router

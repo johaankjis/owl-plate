@@ -95,3 +95,42 @@ Mocked composition checks cover encrypted own-token registration, unauthorized r
 Final continuation checks: `PYTHONPATH=. /tmp/owl-plate-verified-tools/root/usr/bin/make test smoke PYTHON=/home/node/projects/owl-plate/.venv/bin/python` passed: **62 API tests**, **116 eval tests**, and full composed HTTP demo smoke. One Starlette/httpx deprecation warning remains. Ruff check passed for services/scripts/data/eval; Ruff format reports 48 files already formatted. `git diff --check` passed. Full make lint still awaits accepted web. Fixture CLI text/JSON and missing-credentials guard passed separately; these prove harness behavior only.
 
 Web acceptance remains pending. After the exact SHA arrives: API default with visible errors; explicit fixture opt-in/banner; >=60s photo timeout; raster sample bytes; projector polls active-drop across devices; truthful reset message (students seeded, no wave); remove visible CARE/priority-tier phrases while retaining serving-count privacy copy and simulated markers. Generate true schema aliases/OpenAPI including DemoActiveDropResponse, finish full lint/build/types and root README accuracy. Manager owns final integrated browser proof: shared preview failed missing system libraries, and manager is preparing temporary Playwright libraries. Integrator must not duplicate browser/server setup; provide the final candidate SHA for that verification.
+
+## Final web candidate for manager browser verification (Nov 18)
+
+This section supersedes the earlier pending-web checkpoints. Inspected accepted web `f748c8325890a0aec58643c30138ef942b208121` (apps/web only) and cherry-picked it as `d4b3778539112c74d66ba89c342934508b93b2e7`. No conflicts; no unaccepted branch changes. Runtime and binding remain Codex gpt-6.1-sol, `/home/node/.t3/worktrees/owl-plate/integration-owl-plate-verified`, `integration/owl-plate-verified`.
+
+Acceptance fixes:
+
+- API is the default. Network/timeout/HTTP errors remain visible failures and never fall back after failed mutations. Standalone UI simulation requires explicit build-time `NEXT_PUBLIC_UI_FIXTURE_MODE=true`, has a global banner, makes no API calls and disables real FCM registration. Default is false. Server fixture vision remains separately labeled.
+- Upload timeout is 65 seconds. Host requires a selected genuine JPEG/PNG; removed SVG bytes mislabeled JPEG. Empty uploads cannot fabricate a sample success.
+- Projector polls `/demo/active-drop` independently of host localStorage, handles null as a waiting state and uses only synthetic persona output. Host and projector reset messages truthfully describe reseeding students without drops/invites; the standalone fixture reset now matches. Visible CARE/priority-tier copy was removed from home, host, student, projector and map. Host copy is “Hosts see serving counts.” Allergen notices and simulated markers remain.
+- Exported actual composed OpenAPI to `apps/web/openapi.json`; generated `lib/api.generated.ts` with openapi-typescript 7.10.1. `lib/types/api.ts` HTTP types are schema aliases, including DemoActiveDropResponse. Existing presence/push/tick success envelopes and error envelopes now have explicit Pydantic schema models with unchanged JSON shapes. `make types` formats both artifacts so regeneration passes Prettier.
+- Registry lookup selected latest stable Next 15 patch **15.5.29**, pinned together with matching eslint-config-next. No framework migration. Added Prettier to the required lint chain and sandboxed client tests to make test. Next route type generation runs before standalone typecheck. Removed tracked tsconfig.tsbuildinfo and ignored all *.tsbuildinfo.
+- Added deterministic matching owl PNG icons (192/512) and apple-touch-icon (180), referenced by manifest/layout. Pillow validation confirmed PNG formats and exact dimensions. Rebuild with `python -m scripts.build_icons`. This is not installation or physical receipt evidence.
+- Root README/runbook now describe actual readiness, the two vision/UI fixture modes, photo selection, cross-device discovery, reset and private optional FCM setup. scripts/dev.py loads root env for both apps, uses the selected Python, and terminates only its own child process groups when either app exits.
+
+### Owl port isolation
+
+Manager identified DeckScout already occupying 8000 (PID 950177); integrator did not contact, stop or signal it. Owl defaults are now **API 8017 / web 3017** via API_PORT/WEB_PORT, NEXT_PUBLIC_API_URL and CORS_ORIGINS. Updated dev launcher, API CORS/client defaults, contract base URL, README and runbook. Alternate ports require matching public URL/CORS configuration. Mocked launch checks verified defaults and custom 8123/3123 overrides plus cleanup of only the two fake child groups; no actual processes were launched or signaled. Default CORS preflight returned 200 with `http://localhost:3017` allowed. The final web build explicitly uses `NEXT_PUBLIC_API_URL=http://localhost:8017` and `NEXT_PUBLIC_UI_FIXTURE_MODE=false`.
+
+### Final verification
+
+From this worktree with `PYTHONPATH=.` and manager's existing Python 3.11 environment, without installing/changing shared Python packages:
+
+| Command/check | Result |
+|---|---|
+| `make test` with temporary GNU Make/Python overrides documented above | 62 API tests, 116 eval tests, 5 sandboxed client tests passed |
+| `make lint` with shared Ruff executable override | Ruff check passed; 49 files formatted; ESLint and Prettier passed |
+| `make types` | Composed OpenAPI and genuine generated types/aliases exported and formatted successfully |
+| `make smoke` | Photo/review to 2 servings; A/C wave1; A idempotent hold; C expires; D ring4; private snapshot; clean reset passed |
+| `npm run typecheck` | Next route type generation and strict tsc passed |
+| `NEXT_PUBLIC_API_URL=http://localhost:8017 NEXT_PUBLIC_UI_FIXTURE_MODE=false npm run build` | Passed; production Next 15.5.29 build completed with home/host/student/dispatch static routes |
+| Default CORS / log push probe | Owl origin 3017 allowed; registration explicit 503 without echoing synthetic token |
+| `git diff --check` | Passed |
+
+One Starlette/httpx TestClient deprecation warning remains; no failed checks from it. An initial final-lint attempt found JSON formatting drift after OpenAPI export; make types now formats JSON and generated TS, and the subsequent full lint/types/smoke passed. An earlier build on old ports was superseded by the explicit 8017 rebuild.
+
+Integrator started **no API/web/browser servers**, so has none to stop. Manager owns the final integrated browser run on this candidate with separate host/projector contexts: null after reset → host uploads/reviews 2 → A/C wave1 → A holds → C expiry → D ring4 → reset clears. Use API 8017/web 3017 and preserve DeckScout. Manager fallback path is `/tmp/owl-browser-run/node_modules/playwright-core`, Chromium `/home/node/.cache/ms-playwright/chromium_headless_shell-1254/chrome-headless-shell-linux64/chrome-headless-shell`, with manager-provided temporary LD_LIBRARY_PATH. No browser proof is claimed here.
+
+No subagents, pushes, deployments, default-branch merges, real sends, live provider calls, real recipient data or token/contact logs. FCM/Entra/live credentials and physical Android/iPhone receipts remain absent/unverified; no measured model accuracy, survey results or policy approval are implied. The exact final candidate SHA is reported by the integrator after committing this record.

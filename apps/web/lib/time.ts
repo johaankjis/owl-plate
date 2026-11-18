@@ -3,7 +3,9 @@
  * Per AGENTS.md & API_CONTRACT.md: Times stored in UTC, shown in America/New_York.
  */
 
-export function formatEasternTime(isoString: string | null | undefined): string {
+export function formatEasternTime(
+  isoString: string | null | undefined,
+): string {
   if (!isoString) return "—";
   const date = new Date(isoString);
   if (Number.isNaN(date.getTime())) return isoString;
@@ -19,7 +21,7 @@ export function formatEasternTime(isoString: string | null | undefined): string 
 
 export function formatRemainingTime(
   expiresAtIso: string | null | undefined,
-  referenceIso?: string | null
+  referenceIso?: string | null,
 ): string {
   if (!expiresAtIso) return "—";
   const expiresMs = new Date(expiresAtIso).getTime();

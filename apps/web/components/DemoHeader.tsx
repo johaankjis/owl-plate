@@ -29,7 +29,8 @@ export function DemoHeader({
     : DEMO_CREDENTIALS;
 
   const activeInfo =
-    DEMO_CREDENTIALS.find((c) => c.token === credential) ?? DEMO_CREDENTIALS[0]!;
+    DEMO_CREDENTIALS.find((c) => c.token === credential) ??
+    DEMO_CREDENTIALS[0]!;
 
   return (
     <header className="border-b border-zinc-800 bg-owl-slate text-zinc-100">
@@ -98,14 +99,19 @@ export function DemoHeader({
             >
               {sourceMode === "live_api"
                 ? "HTTP API Connected"
-                : "Offline Cached Fixture State"}
+                : sourceMode === "offline_fixture"
+                  ? "Standalone UI Fixture"
+                  : "Connecting to API"}
             </span>
             {visionSource && (
               <span
                 data-testid="vision-source-badge"
                 className="rounded border border-purple-500/40 bg-purple-500/10 px-2 py-0.5 font-medium text-purple-300"
               >
-                Vision: {visionSource === "fixture" ? "Cached Fixture Estimate" : "Live Gemini"}
+                Vision:{" "}
+                {visionSource === "fixture"
+                  ? "Cached Fixture Estimate"
+                  : "Live Gemini"}
               </span>
             )}
           </div>
@@ -123,7 +129,9 @@ export function DemoHeader({
             id="demo-credential-select"
             data-testid="demo-credential-select"
             value={credential}
-            onChange={(e) => onCredentialChange(e.target.value as DemoCredential)}
+            onChange={(e) =>
+              onCredentialChange(e.target.value as DemoCredential)
+            }
             className="rounded-lg border border-zinc-700 bg-owl-black px-2.5 py-1.5 text-xs font-semibold text-owl-gold focus:border-owl-gold focus:outline-none"
           >
             {filteredCredentials.map((cred) => (

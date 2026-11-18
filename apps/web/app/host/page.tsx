@@ -19,33 +19,29 @@ import {
   advanceDemoClock,
   createDrop,
   getDrop,
-  getStoredActiveDropId,
+  getActiveDrop,
   publishDrop,
   resetDemoState,
   updateDrop,
+  INITIAL_DATA_SOURCE,
   type DataSourceMode,
 } from "../../lib/api-client";
 import { formatEasternTime } from "../../lib/time";
 
-function createSampleFoodImageFile(): File {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400">
-    <rect width="600" height="400" fill="#1E1F24"/>
-    <text x="40" y="180" fill="#FDBB30" font-size="28" font-family="sans-serif">Demo Event Food Tray Photo</text>
-  </svg>`;
-  const blob = new Blob([svg], { type: "image/jpeg" });
-  return new File([blob], "demo-food-tray.jpg", { type: "image/jpeg" });
-}
-
 export default function HostPage() {
   const [credential, setCredential] = useState<DemoCredential>("demo-host");
-  const [sourceMode, setSourceMode] = useState<DataSourceMode>("offline_fixture");
+  const [sourceMode, setSourceMode] =
+    useState<DataSourceMode>(INITIAL_DATA_SOURCE);
   const [drop, setDrop] = useState<DropResponse | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [hostNote, setHostNote] = useState<string>("");
 
   // Host review form state
   const [servingsFinal, setServingsFinal] = useState<number>(2);
-  const [allergensFinal, setAllergensFinal] = useState<Allergen[]>(["dairy", "gluten"]);
+  const [allergensFinal, setAllergensFinal] = useState<Allergen[]>([
+    "dairy",
+    "gluten",
+  ]);
   const [dietTagsFinal, setDietTagsFinal] = useState<Diet[]>([]);
   const [buildingCode, setBuildingCode] = useState<string>("DEMO-ORIGIN");
   const [room, setRoom] = useState<string>("214");
@@ -84,16 +80,25 @@ export default function HostPage() {
 
   useEffect(() => {
     let active = true;
-    const activeId = getStoredActiveDropId();
-    getDrop(activeId, credential)
+    getActiveDrop(credential)
+      .then((activeDrop) => {
+        if (!active) return null;
+        setSourceMode(activeDrop.source);
+        return activeDrop.data.drop_id
+          ? getDrop(activeDrop.data.drop_id, credential)
+          : null;
+      })
       .then((res) => {
-        if (!active) return;
+        if (!active || !res) return;
         setDrop(res.data);
         setSourceMode(res.source);
         syncFormFromDrop(res.data);
       })
-      .catch(() => {
-        // ignore initial load error if no drop yet
+      .catch((err) => {
+        if (active)
+          setErrorMessage(
+            err instanceof Error ? err.message : "Failed to load current drop",
+          );
       });
     return () => {
       active = false;
@@ -101,12 +106,14 @@ export default function HostPage() {
   }, [credential, syncFormFromDrop]);
 
   const removedEstimatedAllergens = drop
-    ? drop.vision.allergens_likely.filter((alg) => !allergensFinal.includes(alg))
+    ? drop.vision.allergens_likely.filter(
+        (alg) => !allergensFinal.includes(alg),
+      )
     : [];
   const requiresIngredientCheck = removedEstimatedAllergens.length > 0;
 
   const selectedReligiousDiets = dietTagsFinal.filter((d) =>
-    RELIGIOUS_DIETS.includes(d)
+    RELIGIOUS_DIETS.includes(d),
   );
   const requiresReligiousConfirmation = selectedReligiousDiets.length > 0;
 
@@ -122,13 +129,15 @@ export default function HostPage() {
 
   const toggleAllergen = (alg: Allergen) => {
     setAllergensFinal((prev) =>
-      prev.includes(alg) ? prev.filter((item) => item !== alg) : [...prev, alg]
+      prev.includes(alg) ? prev.filter((item) => item !== alg) : [...prev, alg],
     );
   };
 
   const toggleDiet = (diet: Diet) => {
     setDietTagsFinal((prev) =>
-      prev.includes(diet) ? prev.filter((item) => item !== diet) : [...prev, diet]
+      prev.includes(diet)
+        ? prev.filter((item) => item !== diet)
+        : [...prev, diet],
     );
   };
 
@@ -138,8 +147,9 @@ export default function HostPage() {
     setErrorMessage(null);
     setStatusMessage(null);
     try {
-      const fileToUpload = selectedFile ?? createSampleFoodImageFile();
-      const res = await createDrop(fileToUpload, hostNote, credential);
+      if (!selectedFile)
+        throw new Error("Select a JPEG or PNG food photo first.");
+      const res = await createDrop(selectedFile, hostNote, credential);
       setDrop(res.data);
       setSourceMode(res.source);
       syncFormFromDrop(res.data);
@@ -148,10 +158,12 @@ export default function HostPage() {
           res.data.vision_source === "fixture"
             ? "Cached Fixture Vision Estimate"
             : "Live Gemini Vision"
-        }). Review servings, allergens, and safety checklist below.`
+        }). Review servings, allergens, and safety checklist below.`,
       );
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to create drop");
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to create drop",
+      );
     } finally {
       setBusyAction(null);
     }
@@ -178,7 +190,9 @@ export default function HostPage() {
       setSourceMode(res.source);
       setStatusMessage("Host review saved (PATCH /drops/{id}).");
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to update drop");
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to update drop",
+      );
     } finally {
       setBusyAction(null);
     }
@@ -191,15 +205,21 @@ export default function HostPage() {
     setStatusMessage(null);
     try {
       // Save latest review first via PATCH /drops/{id}, then POST /drops/{id}/publish
-      const patched = await updateDrop(drop.id, buildDropEditPayload(), credential);
+      const patched = await updateDrop(
+        drop.id,
+        buildDropEditPayload(),
+        credential,
+      );
       const published = await publishDrop(patched.data.id, credential);
       setDrop(published.data);
       setSourceMode(published.source);
       setStatusMessage(
-        `Got it. About ${published.data.servings_final} servings. We'll send it to the right people.`
+        `Got it. About ${published.data.servings_final} servings. We'll send it to the right people.`,
       );
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to publish drop");
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to publish drop",
+      );
     } finally {
       setBusyAction(null);
     }
@@ -212,15 +232,16 @@ export default function HostPage() {
     try {
       const res = await resetDemoState(credential);
       setSourceMode(res.source);
-      const activeId = getStoredActiveDropId();
-      const dropRes = await getDrop(activeId, credential);
-      setDrop(dropRes.data);
-      syncFormFromDrop(dropRes.data);
+      setDrop(null);
+      setSelectedFile(null);
+      setServerTimeIso(null);
       setStatusMessage(
-        `Demo state reset (${res.data.students} simulated students, personas A–E restored).`
+        `Reset complete: ${res.data.students} simulated students seeded. No drop or invitations. Upload a photo to begin.`,
       );
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to reset demo state");
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to reset demo state",
+      );
     } finally {
       setBusyAction(null);
     }
@@ -240,11 +261,13 @@ export default function HostPage() {
       }
       setStatusMessage(
         `Advanced demo clock by +60 seconds (Server time: ${formatEasternTime(
-          res.data.server_time
-        )}). Expired invites widen to the next H3 wave ring.`
+          res.data.server_time,
+        )}). Expired invites widen to the next H3 wave ring.`,
       );
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to advance demo clock");
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to advance demo clock",
+      );
     } finally {
       setBusyAction(null);
     }
@@ -258,6 +281,7 @@ export default function HostPage() {
         sourceMode={sourceMode}
         visionSource={drop?.vision_source}
         isDemo={drop?.is_demo ?? true}
+        allowedRoles={["host"]}
       />
 
       <main className="mx-auto max-w-5xl space-y-6 px-4 py-6">
@@ -268,8 +292,8 @@ export default function HostPage() {
               Event Host — Post Leftover Food
             </h1>
             <p className="mt-1 text-sm text-zinc-300">
-              One photo, review the AI estimate, confirm food safety, and publish.
-              Hosts see aggregate serving counts only — never student names or priority tiers.
+              One photo, review the AI estimate, confirm food safety, and
+              publish. Hosts see serving counts.
             </p>
           </div>
 
@@ -299,7 +323,9 @@ export default function HostPage() {
         {serverTimeIso && (
           <div className="rounded-lg border border-sky-500/30 bg-sky-950/20 px-4 py-2 text-xs text-sky-200">
             Injectable Demo Clock (America/New_York):{" "}
-            <strong className="font-semibold">{formatEasternTime(serverTimeIso)}</strong>
+            <strong className="font-semibold">
+              {formatEasternTime(serverTimeIso)}
+            </strong>
           </div>
         )}
 
@@ -328,11 +354,15 @@ export default function HostPage() {
               Step 1: Snap or Upload Food Photo
             </h2>
             <span className="text-xs text-zinc-400">
-              Photos must show food only (no people); deleted within 24 hours.
+              Photos must show food only. Uploaded photos are processed without
+              storage.
             </span>
           </div>
 
-          <form onSubmit={handleUploadPhoto} className="mt-4 grid gap-4 sm:grid-cols-3">
+          <form
+            onSubmit={handleUploadPhoto}
+            className="mt-4 grid gap-4 sm:grid-cols-3"
+          >
             <div className="sm:col-span-1">
               <label
                 htmlFor="food-photo-input"
@@ -344,12 +374,13 @@ export default function HostPage() {
                 id="food-photo-input"
                 data-testid="food-photo-input"
                 type="file"
+                required
                 accept="image/jpeg,image/png"
                 onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
                 className="mt-1.5 block w-full rounded-lg border border-zinc-700 bg-owl-black px-3 py-2 text-xs text-zinc-200 file:mr-3 file:rounded file:border-0 file:bg-owl-gold file:px-2.5 file:py-1 file:text-xs file:font-semibold file:text-owl-black"
               />
               <p className="mt-1 text-[11px] text-zinc-400">
-                Leave empty in demo mode to submit a synthetic sample tray image.
+                Select a food-only JPEG or PNG photo.
               </p>
             </div>
 
@@ -427,12 +458,14 @@ export default function HostPage() {
                   <span className="text-zinc-400">AI Confidence:</span>
                   <span className="font-semibold text-zinc-200">
                     {Math.round(drop.vision.confidence * 100)}% (Range{" "}
-                    {drop.vision.servings_low}–{drop.vision.servings_high} servings)
+                    {drop.vision.servings_low}–{drop.vision.servings_high}{" "}
+                    servings)
                   </span>
                 </div>
                 {drop.vision.confidence < 0.6 && (
                   <p className="rounded bg-amber-500/20 p-2 text-amber-200">
-                    Low vision confidence (&lt;60%): all 9 common allergens were automatically flagged.
+                    Low vision confidence (&lt;60%): all 9 common allergens were
+                    automatically flagged.
                   </p>
                 )}
               </div>
@@ -447,7 +480,9 @@ export default function HostPage() {
                       key={`${item.name}-${idx}`}
                       className="flex items-center justify-between rounded-lg bg-owl-black/50 px-3 py-2"
                     >
-                      <span className="font-medium text-zinc-100">{item.name}</span>
+                      <span className="font-medium text-zinc-100">
+                        {item.name}
+                      </span>
                       <span className="text-xs text-zinc-400">
                         ~{item.count_estimate} {item.portion_unit}(s)
                       </span>
@@ -524,7 +559,9 @@ export default function HostPage() {
                     <button
                       type="button"
                       data-testid="servings-decrement"
-                      onClick={() => setServingsFinal((s) => Math.max(1, s - 1))}
+                      onClick={() =>
+                        setServingsFinal((s) => Math.max(1, s - 1))
+                      }
                       className="h-9 w-9 rounded-lg border border-zinc-700 bg-owl-black text-base font-bold text-zinc-200 hover:bg-zinc-800"
                     >
                       −
@@ -537,7 +574,10 @@ export default function HostPage() {
                       value={servingsFinal}
                       onChange={(e) =>
                         setServingsFinal(
-                          Math.min(500, Math.max(1, Number(e.target.value) || 1))
+                          Math.min(
+                            500,
+                            Math.max(1, Number(e.target.value) || 1),
+                          ),
                         )
                       }
                       className="w-20 rounded-lg border border-zinc-700 bg-owl-black px-2 py-1.5 text-center text-sm font-bold text-white"
@@ -545,7 +585,9 @@ export default function HostPage() {
                     <button
                       type="button"
                       data-testid="servings-increment"
-                      onClick={() => setServingsFinal((s) => Math.min(500, s + 1))}
+                      onClick={() =>
+                        setServingsFinal((s) => Math.min(500, s + 1))
+                      }
                       className="h-9 w-9 rounded-lg border border-zinc-700 bg-owl-black text-base font-bold text-zinc-200 hover:bg-zinc-800"
                     >
                       +
@@ -592,7 +634,10 @@ export default function HostPage() {
                       value={expiresInMinutes}
                       onChange={(e) =>
                         setExpiresInMinutes(
-                          Math.min(120, Math.max(1, Number(e.target.value) || 45))
+                          Math.min(
+                            120,
+                            Math.max(1, Number(e.target.value) || 45),
+                          ),
                         )
                       }
                       className="w-1/2 rounded-lg border border-zinc-700 bg-owl-black px-3 py-2 text-sm text-white"
@@ -616,7 +661,8 @@ export default function HostPage() {
                 <div className="mt-2 flex flex-wrap gap-2">
                   {ALLERGENS.map((alg) => {
                     const checked = allergensFinal.includes(alg);
-                    const wasEstimated = drop.vision.allergens_likely.includes(alg);
+                    const wasEstimated =
+                      drop.vision.allergens_likely.includes(alg);
                     return (
                       <button
                         key={alg}
@@ -637,7 +683,8 @@ export default function HostPage() {
                   })}
                 </div>
                 <p className="mt-1.5 text-[11px] text-amber-300/90">
-                  Every allergen display carries: <strong>{ALLERGEN_WARNING_TEXT}</strong>.
+                  Every allergen display carries:{" "}
+                  <strong>{ALLERGEN_WARNING_TEXT}</strong>.
                 </p>
               </div>
 
@@ -648,7 +695,8 @@ export default function HostPage() {
                     Dietary Tags
                   </label>
                   <span className="text-[11px] text-zinc-400">
-                    Halal, Kosher, and Pork-Free cannot be inferred by AI and require host confirmation.
+                    Halal, Kosher, and Pork-Free cannot be inferred by AI and
+                    require host confirmation.
                   </span>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -696,7 +744,8 @@ export default function HostPage() {
                     className="mt-0.5 h-4 w-4 rounded border-zinc-600 accent-owl-gold"
                   />
                   <span>
-                    <strong>Covered &amp; temperature safe:</strong> Food has been kept covered and at a safe holding temperature.
+                    <strong>Covered &amp; temperature safe:</strong> Food has
+                    been kept covered and at a safe holding temperature.
                   </span>
                 </label>
 
@@ -714,7 +763,8 @@ export default function HostPage() {
                     className="mt-0.5 h-4 w-4 rounded border-zinc-600 accent-owl-gold"
                   />
                   <span>
-                    <strong>Served within 2 hours:</strong> Food was set out within the last two hours.
+                    <strong>Served within 2 hours:</strong> Food was set out
+                    within the last two hours.
                   </span>
                 </label>
 
@@ -732,7 +782,8 @@ export default function HostPage() {
                     className="mt-0.5 h-4 w-4 rounded border-zinc-600 accent-owl-gold"
                   />
                   <span>
-                    <strong>Untouched serving trays:</strong> Food comes from shared catering/event trays, never individual plates.
+                    <strong>Untouched serving trays:</strong> Food comes from
+                    shared catering/event trays, never individual plates.
                   </span>
                 </label>
 
@@ -757,7 +808,8 @@ export default function HostPage() {
                     className="mt-0.5 h-4 w-4 rounded border-zinc-600 accent-owl-gold"
                   />
                   <span>
-                    <strong>Ingredient information checked:</strong> Required if removing any AI-estimated allergen
+                    <strong>Ingredient information checked:</strong> Required if
+                    removing any AI-estimated allergen
                     {requiresIngredientCheck
                       ? ` (You removed: ${removedEstimatedAllergens.join(", ")})`
                       : "."}
@@ -785,7 +837,8 @@ export default function HostPage() {
                     className="mt-0.5 h-4 w-4 rounded border-zinc-600 accent-owl-gold"
                   />
                   <span>
-                    <strong>Religious diet compliance confirmed:</strong> Required when tagging food as halal, kosher, or pork_free
+                    <strong>Religious diet compliance confirmed:</strong>{" "}
+                    Required when tagging food as halal, kosher, or pork_free
                     {requiresReligiousConfirmation
                       ? ` (Selected: ${selectedReligiousDiets.join(", ")})`
                       : "."}
@@ -822,7 +875,8 @@ export default function HostPage() {
                   data-testid="publish-validation-hint"
                   className="text-right text-xs text-amber-300"
                 >
-                  Check all required safety confirmations above to enable publishing.
+                  Check all required safety confirmations above to enable
+                  publishing.
                 </p>
               )}
             </section>

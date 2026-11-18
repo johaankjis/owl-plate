@@ -6,9 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint . --max-warnings=0",
-    "types": "tsc --noEmit",
-    "typecheck": "tsc --noEmit"
+    "lint": "eslint . --max-warnings=0 && prettier --check .",
+    "types": "next typegen && tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@deck.gl/core": "^9.0.35",
@@ -21,7 +22,7 @@
     "firebase": "^11.0.2",
     "h3-js": "^4.1.0",
     "lucide-react": "^0.460.0",
-    "next": "15.1.0",
+    "next": "15.5.29",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
@@ -32,8 +33,9 @@
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.16.0",
-    "eslint-config-next": "15.1.0",
+    "eslint-config-next": "15.5.29",
     "postcss": "^8.4.49",
+    "prettier": "3.10.1",
     "tailwindcss": "^3.4.16",
     "typescript": "^5.7.2"
   }

@@ -90,7 +90,10 @@ export function DispatchMap({ originCell, ringK, personas }: DispatchMapProps) {
         status: p.status,
         reasonCodes: p.reason_codes,
         ringDistance: p.ring_distance,
-        position: [lng + Math.cos(angle) * offset, lat + Math.sin(angle) * offset],
+        position: [
+          lng + Math.cos(angle) * offset,
+          lat + Math.sin(angle) * offset,
+        ],
       };
     });
   }, [personas, originLatLng]);
@@ -103,7 +106,7 @@ export function DispatchMap({ originCell, ringK, personas }: DispatchMapProps) {
       pitch: 30,
       bearing: 0,
     }),
-    [originLatLng]
+    [originLatLng],
   );
 
   const layers = useMemo(() => {
@@ -166,22 +169,27 @@ export function DispatchMap({ originCell, ringK, personas }: DispatchMapProps) {
         >
           <strong>Simulated Venue (Unverified Placeholder Coordinates):</strong>{" "}
           Origin cell <code className="text-owl-gold">{originCell}</code> (lat{" "}
-          {originLatLng[0].toFixed(4)}, lng {originLatLng[1].toFixed(4)}) — H3 res 11{" "}
-          <code>grid_disk(origin, k={ringK})</code> ({hexData.length} cells)
+          {originLatLng[0].toFixed(4)}, lng {originLatLng[1].toFixed(4)}) — H3
+          res 11 <code>grid_disk(origin, k={ringK})</code> ({hexData.length}{" "}
+          cells)
         </div>
 
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-700 bg-owl-black/90 px-3 py-1.5 text-[11px] text-zinc-200">
           <span className="inline-flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded-full bg-owl-gold" /> Sent Invite
+            <span className="h-2.5 w-2.5 rounded-full bg-owl-gold" /> Sent
+            Invite
           </span>
           <span className="inline-flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Claimed / Held
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Claimed
+            / Held
           </span>
           <span className="inline-flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded-full bg-rose-500" /> Excluded / Expired
+            <span className="h-2.5 w-2.5 rounded-full bg-rose-500" /> Excluded /
+            Expired
           </span>
           <span className="inline-flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded-full bg-slate-400" /> Outside Ring / Standby
+            <span className="h-2.5 w-2.5 rounded-full bg-slate-400" /> Outside
+            Ring / Standby
           </span>
         </div>
       </div>
@@ -206,15 +214,14 @@ export function DispatchMap({ originCell, ringK, personas }: DispatchMapProps) {
       <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-800 bg-owl-black/90 px-3 py-2 text-[11px] text-zinc-300">
         <span>
           <strong>Deck.gl H3HexagonLayer + Simulated Persona Markers:</strong>{" "}
-          Every marker represents a synthetic persona (<code>is_simulated = true</code>) labeled with{" "}
+          Every marker represents a synthetic persona (
+          <code>is_simulated = true</code>) labeled with{" "}
           <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-owl-gold">
             [SIM]
           </span>
           .
         </span>
-        <span className="text-zinc-400">
-          Priority tiers are never exposed on the projector.
-        </span>
+        <span className="text-zinc-400">Simulated demo locations.</span>
       </div>
     </div>
   );

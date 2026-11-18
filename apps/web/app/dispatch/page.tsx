@@ -14,8 +14,9 @@ import {
   advanceDemoClock,
   getDispatchView,
   getDrop,
-  getStoredActiveDropId,
+  getActiveDrop,
   resetDemoState,
+  INITIAL_DATA_SOURCE,
   type DataSourceMode,
 } from "../../lib/api-client";
 import { formatEasternTime, formatRemainingTime } from "../../lib/time";
@@ -34,24 +35,40 @@ const ALLOWED_GENERIC_REASON_CODES: Record<string, string> = {
 function sanitizeReasonCode(code: string): string {
   // Never expose priority or score on the projector even if an unexpected string arrives
   const normalized = code.toLowerCase();
-  if (normalized.includes("priority") || normalized.includes("care") || normalized.includes("score")) {
+  if (
+    normalized.includes("priority") ||
+    normalized.includes("care") ||
+    normalized.includes("score")
+  ) {
     return "fair_share (balanced campus distribution)";
   }
-  return ALLOWED_GENERIC_REASON_CODES[code] ?? code;
+  return ALLOWED_GENERIC_REASON_CODES[code] ?? "not selected for this wave";
 }
 
 export default function DispatchProjectorPage() {
-  const [credential, setCredential] = useState<DemoCredential>("demo-projector");
-  const [sourceMode, setSourceMode] = useState<DataSourceMode>("offline_fixture");
-  const [dispatchData, setDispatchData] = useState<DispatchResponse | null>(null);
+  const [credential, setCredential] =
+    useState<DemoCredential>("demo-projector");
+  const [sourceMode, setSourceMode] =
+    useState<DataSourceMode>(INITIAL_DATA_SOURCE);
+  const [dispatchData, setDispatchData] = useState<DispatchResponse | null>(
+    null,
+  );
   const [dropDetails, setDropDetails] = useState<DropResponse | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const pollDispatch = useCallback(async () => {
-    const activeDropId = getStoredActiveDropId();
     try {
+      const active = await getActiveDrop(credential);
+      const activeDropId = active.data.drop_id;
+      setSourceMode(active.source);
+      if (!activeDropId) {
+        setDispatchData(null);
+        setDropDetails(null);
+        setErrorMessage(null);
+        return;
+      }
       const [dispRes, dropRes] = await Promise.all([
         getDispatchView(activeDropId, credential),
         getDrop(activeDropId, credential),
@@ -59,9 +76,12 @@ export default function DispatchProjectorPage() {
       setDispatchData(dispRes.data);
       setDropDetails(dropRes.data);
       setSourceMode(dispRes.source);
+      setErrorMessage(null);
     } catch (err) {
       setErrorMessage(
-        err instanceof Error ? err.message : "Failed to poll /drops/{id}/dispatch"
+        err instanceof Error
+          ? err.message
+          : "Failed to poll /drops/{id}/dispatch",
       );
     }
   }, [credential]);
@@ -84,7 +104,7 @@ export default function DispatchProjectorPage() {
       setSourceMode(res.source);
       await pollDispatch();
       setStatusMessage(
-        "Demo state reset to Wave 1 (Personas A & C invited, B excluded for dairy allergen, D at ring 4)."
+        "Reset complete: simulated students seeded. No drop or invitations. Waiting for a host photo.",
       );
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Reset failed");
@@ -103,11 +123,13 @@ export default function DispatchProjectorPage() {
       await pollDispatch();
       setStatusMessage(
         `Advanced demo clock (+61s) to ${formatEasternTime(
-          res.data.server_time
-        )}. Unclaimed invites expired and ring widened.`
+          res.data.server_time,
+        )}. Dispatch checked for expired invites and eligible next waves.`,
       );
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Clock advance failed");
+      setErrorMessage(
+        err instanceof Error ? err.message : "Clock advance failed",
+      );
     } finally {
       setBusyAction(null);
     }
@@ -121,6 +143,7 @@ export default function DispatchProjectorPage() {
         sourceMode={sourceMode}
         visionSource={dropDetails?.vision_source}
         isDemo={dispatchData?.is_demo ?? true}
+        allowedRoles={["projector", "host"]}
       />
 
       <main className="mx-auto max-w-7xl space-y-6 px-4 py-6">
@@ -136,8 +159,7 @@ export default function DispatchProjectorPage() {
               </span>
             </div>
             <p className="mt-1 text-sm text-zinc-300">
-              Showing synthetic demo personas (<code className="text-owl-gold">is_simulated = true</code>) and generic dispatch reason codes only.
-              CARE priority tiers are invisible on all screens.
+              Simulated personas and dispatch waves. Hosts see serving counts.
             </p>
           </div>
 
@@ -158,7 +180,7 @@ export default function DispatchProjectorPage() {
               onClick={() => void handleAdvance60s()}
               className="rounded-lg bg-owl-gold px-4 py-2 text-xs font-bold text-owl-black hover:bg-owl-goldDark disabled:opacity-50"
             >
-              {busyAction === "tick" ? "Advancing..." : "Advance Clock +60s (Widen Wave)"}
+              {busyAction === "tick" ? "Advancing..." : "Advance Clock +61s"}
             </button>
           </div>
         </section>
@@ -179,6 +201,15 @@ export default function DispatchProjectorPage() {
           >
             {errorMessage}
           </div>
+        )}
+
+        {!dispatchData && !errorMessage && (
+          <p
+            data-testid="dispatch-waiting"
+            className="rounded-xl border border-zinc-800 p-6 text-zinc-300"
+          >
+            Waiting for a host to upload a photo.
+          </p>
         )}
 
         {dispatchData && (
@@ -248,7 +279,7 @@ export default function DispatchProjectorPage() {
                     Next wave check:{" "}
                     {formatRemainingTime(
                       dispatchData.next_wave_at,
-                      dispatchData.server_time
+                      dispatchData.server_time,
                     )}
                   </div>
                 )}
@@ -268,7 +299,9 @@ export default function DispatchProjectorPage() {
                 {dropDetails && (
                   <AllergenListDisplay
                     allergens={dropDetails.allergens_final}
-                    notice={dropDetails.allergen_notice || ALLERGEN_WARNING_TEXT}
+                    notice={
+                      dropDetails.allergen_notice || ALLERGEN_WARNING_TEXT
+                    }
                     title={`Active Drop (${dropDetails.building_code} ${dropDetails.room}) Allergens`}
                   />
                 )}
@@ -283,7 +316,8 @@ export default function DispatchProjectorPage() {
                   </h2>
                   {dispatchData.waves.length === 0 ? (
                     <p className="mt-2 text-xs text-zinc-400">
-                      No waves planned yet. Publish the drop on /host to launch Wave 1.
+                      No waves planned yet. Publish the drop on /host to launch
+                      Wave 1.
                     </p>
                   ) : (
                     <div className="mt-3 space-y-2">
@@ -297,10 +331,13 @@ export default function DispatchProjectorPage() {
                             <span className="font-bold text-white">
                               Wave {w.number}
                             </span>{" "}
-                            <span className="text-sky-400">(ring_k = {w.ring_k})</span>
+                            <span className="text-sky-400">
+                              (ring_k = {w.ring_k})
+                            </span>
                           </div>
                           <div className="text-zinc-300">
-                            {w.invite_count} invite(s) • {formatEasternTime(w.planned_at)}
+                            {w.invite_count} invite(s) •{" "}
+                            {formatEasternTime(w.planned_at)}
                           </div>
                         </div>
                       ))}
@@ -349,7 +386,8 @@ export default function DispatchProjectorPage() {
                                 ? "bg-emerald-500/20 text-emerald-300"
                                 : p.status === "sent"
                                   ? "bg-owl-gold/20 text-owl-gold"
-                                  : p.status === "excluded" || p.status === "expired"
+                                  : p.status === "excluded" ||
+                                      p.status === "expired"
                                     ? "bg-rose-500/20 text-rose-300"
                                     : "bg-zinc-800 text-zinc-300"
                             }`}
@@ -367,7 +405,8 @@ export default function DispatchProjectorPage() {
                           </span>
                           {p.h3_cell && (
                             <span>
-                              Cell: <code className="text-zinc-300">{p.h3_cell}</code>
+                              Cell:{" "}
+                              <code className="text-zinc-300">{p.h3_cell}</code>
                             </span>
                           )}
                         </div>

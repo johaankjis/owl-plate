@@ -164,6 +164,22 @@ class PushTokenRequest(ContractModel):
     token: str = Field(min_length=1, max_length=4096)
 
 
+class PresenceResponse(ContractModel):
+    valid_until: datetime
+
+
+class PushTokenResponse(ContractModel):
+    registered: bool
+
+
+class DemoTickResponse(ContractModel):
+    server_time: datetime
+
+
 class ErrorDetail(ContractModel):
     code: str
     message: str
+
+
+class ErrorResponse(ContractModel):
+    detail: ErrorDetail

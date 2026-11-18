@@ -1,5 +1,5 @@
 {
-  "name": "Owl Plate — KSU Campus Food Dispatch",
+  "name": "Owl Plate \u2014 KSU Campus Food Dispatch",
   "short_name": "Owl Plate",
   "description": "Routes leftover campus event food to nearby KSU students who can safely eat it.",
   "start_url": "/student",
@@ -9,10 +9,22 @@
   "orientation": "portrait-primary",
   "icons": [
     {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }

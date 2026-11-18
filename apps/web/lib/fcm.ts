@@ -17,6 +17,12 @@ export interface FcmConfigStatus {
 }
 
 export function getFcmConfigStatus(): FcmConfigStatus {
+  if (process.env.NEXT_PUBLIC_UI_FIXTURE_MODE === "true") {
+    return {
+      enabled: false,
+      reason: "Push is disabled in standalone UI fixture mode.",
+    };
+  }
   const rawConfig = process.env.NEXT_PUBLIC_FIREBASE_CONFIG;
   const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
 
@@ -30,7 +36,12 @@ export function getFcmConfigStatus(): FcmConfigStatus {
 
   try {
     const parsed = JSON.parse(rawConfig) as Record<string, unknown>;
-    if (!parsed.apiKey || !parsed.projectId || !parsed.messagingSenderId || !parsed.appId) {
+    if (
+      !parsed.apiKey ||
+      !parsed.projectId ||
+      !parsed.messagingSenderId ||
+      !parsed.appId
+    ) {
       return {
         enabled: false,
         reason:
@@ -44,7 +55,8 @@ export function getFcmConfigStatus(): FcmConfigStatus {
   } catch {
     return {
       enabled: false,
-      reason: "Real FCM disabled: NEXT_PUBLIC_FIREBASE_CONFIG is not valid JSON.",
+      reason:
+        "Real FCM disabled: NEXT_PUBLIC_FIREBASE_CONFIG is not valid JSON.",
     };
   }
 }
@@ -95,9 +107,12 @@ export async function requestFcmPushToken(): Promise<{
     const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY!;
     const firebaseConfig = JSON.parse(rawConfig) as Record<string, string>;
 
-    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]!;
+    const app =
+      getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]!;
     const messaging = getMessaging(app);
-    const swRegistration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+    const swRegistration = await navigator.serviceWorker.register(
+      "/firebase-messaging-sw.js",
+    );
 
     const token = await getToken(messaging, {
       vapidKey,

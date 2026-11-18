@@ -14,9 +14,9 @@ export default function HomePage() {
             Owl Plate
           </h1>
           <p className="max-w-2xl text-base text-zinc-300">
-            One photo from an event host. AI estimates food, servings, and allergens.
-            Smart wave dispatch notifies just enough nearby students who can safely eat it,
-            widening H3 rings if spots go unclaimed.
+            One photo from an event host. AI estimates food, servings, and
+            allergens. Smart wave dispatch notifies just enough nearby students
+            who can safely eat it, widening H3 rings if spots go unclaimed.
           </p>
         </header>
 
@@ -34,8 +34,9 @@ export default function HomePage() {
                 /host — Event Organizer
               </h2>
               <p className="mt-2 text-sm text-zinc-300">
-                Upload food tray photo, review AI serving &amp; allergen estimate, complete
-                food safety checklist, publish Wave 1, or reset/advance the demo clock.
+                Upload food tray photo, review AI serving &amp; allergen
+                estimate, complete food safety checklist, publish Wave 1, or
+                reset/advance the demo clock.
               </p>
             </div>
             <span className="mt-5 text-xs font-bold text-owl-gold">
@@ -56,8 +57,9 @@ export default function HomePage() {
                 /student — Student Phone PWA
               </h2>
               <p className="mt-2 text-sm text-zinc-300">
-                Switch between simulated personas A–E, view your own invites, hold a
-                serving for 10 minutes, decline to free the spot, or configure dietary filters.
+                Switch between simulated personas A–E, view your own invites,
+                hold a serving for 10 minutes, decline to free the spot, or
+                configure dietary filters.
               </p>
             </div>
             <span className="mt-5 text-xs font-bold text-owl-gold">
@@ -78,8 +80,9 @@ export default function HomePage() {
                 /dispatch — Big Screen Map
               </h2>
               <p className="mt-2 text-sm text-zinc-300">
-                Live 2-second polling projector view with deck.gl H3HexagonLayer rings,
-                distinct simulated persona markers, and generic dispatch reasons.
+                Live 2-second polling projector view with deck.gl H3HexagonLayer
+                rings, distinct simulated persona markers, and generic dispatch
+                reasons.
               </p>
             </div>
             <span className="mt-5 text-xs font-bold text-owl-gold">
@@ -90,10 +93,11 @@ export default function HomePage() {
 
         <footer className="rounded-xl border border-zinc-800 bg-owl-slate/60 p-4 text-xs text-zinc-400 space-y-1">
           <div>
-            <strong className="text-zinc-200">Safety &amp; Dignity Principles:</strong>{" "}
-            Every allergen display carries &ldquo;{ALLERGEN_WARNING_TEXT}&rdquo;. Priority
-            tiers are never exposed in any UI or client payload. Simulated students are
-            explicitly labeled.
+            <strong className="text-zinc-200">
+              Safety &amp; Dignity Principles:
+            </strong>{" "}
+            Allergens: &ldquo;{ALLERGEN_WARNING_TEXT}&rdquo;. Hosts see serving
+            counts. Simulated students are explicitly labeled.
           </div>
         </footer>
       </div>

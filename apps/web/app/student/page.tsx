@@ -22,14 +22,17 @@ import {
   registerPushToken,
   releaseClaim,
   updateMyPreferences,
+  INITIAL_DATA_SOURCE,
   type DataSourceMode,
 } from "../../lib/api-client";
 import { getFcmConfigStatus, requestFcmPushToken } from "../../lib/fcm";
 import { formatEasternTime, formatRemainingTime } from "../../lib/time";
 
 export default function StudentPage() {
-  const [credential, setCredential] = useState<DemoCredential>("demo-student-A");
-  const [sourceMode, setSourceMode] = useState<DataSourceMode>("offline_fixture");
+  const [credential, setCredential] =
+    useState<DemoCredential>("demo-student-A");
+  const [sourceMode, setSourceMode] =
+    useState<DataSourceMode>(INITIAL_DATA_SOURCE);
   const [invites, setInvites] = useState<InviteResponse[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -39,8 +42,11 @@ export default function StudentPage() {
   const [myAllergens, setMyAllergens] = useState<Allergen[]>([]);
   const [myDiets, setMyDiets] = useState<Diet[]>([]);
   const [alertsPaused, setAlertsPaused] = useState<boolean>(false);
-  const [presenceBuilding, setPresenceBuilding] = useState<string>("DEMO-ORIGIN");
-  const [presenceValidUntil, setPresenceValidUntil] = useState<string | null>(null);
+  const [presenceBuilding, setPresenceBuilding] =
+    useState<string>("DEMO-ORIGIN");
+  const [presenceValidUntil, setPresenceValidUntil] = useState<string | null>(
+    null,
+  );
 
   // Opt-in FCM status
   const [fcmStatus] = useState(() => getFcmConfigStatus());
@@ -52,7 +58,9 @@ export default function StudentPage() {
       setInvites(res.data.invites);
       setSourceMode(res.source);
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to load invites");
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to load invites",
+      );
     }
   }, [credential]);
 
@@ -74,11 +82,13 @@ export default function StudentPage() {
       const res = await claimInvite(inviteId, credential);
       setSourceMode(res.source);
       setStatusMessage(
-        `Your spot is held for 10 minutes (until ${formatEasternTime(res.data.held_until)}). No ID or proof needed at pickup.`
+        `Your spot is held for 10 minutes (until ${formatEasternTime(res.data.held_until)}). No ID or proof needed at pickup.`,
       );
       await loadInvites();
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to claim serving");
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to claim serving",
+      );
     } finally {
       setBusyId(null);
     }
@@ -91,10 +101,14 @@ export default function StudentPage() {
     try {
       const res = await declineInvite(inviteId, credential);
       setSourceMode(res.source);
-      setStatusMessage("Invite declined. Your spot was freed for another student.");
+      setStatusMessage(
+        "Invite declined. Your spot was freed for another student.",
+      );
       await loadInvites();
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to decline invite");
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to decline invite",
+      );
     } finally {
       setBusyId(null);
     }
@@ -110,7 +124,9 @@ export default function StudentPage() {
       setStatusMessage("Hold released back to available pool.");
       await loadInvites();
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to release claim");
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to release claim",
+      );
     } finally {
       setBusyId(null);
     }
@@ -123,10 +139,14 @@ export default function StudentPage() {
     try {
       const res = await pickupClaim(claimId, credential);
       setSourceMode(res.source);
-      setStatusMessage("Marked as picked up (demo verification mode). Enjoy your meal.");
+      setStatusMessage(
+        "Marked as picked up (demo verification mode). Enjoy your meal.",
+      );
       await loadInvites();
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to mark picked up");
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to mark picked up",
+      );
     } finally {
       setBusyId(null);
     }
@@ -145,9 +165,13 @@ export default function StudentPage() {
       };
       const res = await updateMyPreferences(payload, credential);
       setSourceMode(res.source);
-      setStatusMessage("Your personal dietary and alert preferences were updated.");
+      setStatusMessage(
+        "Your personal dietary and alert preferences were updated.",
+      );
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to save preferences");
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to save preferences",
+      );
     } finally {
       setBusyId(null);
     }
@@ -158,16 +182,21 @@ export default function StudentPage() {
     setErrorMessage(null);
     setStatusMessage(null);
     try {
-      const res = await checkInPresence({ building_code: presenceBuilding }, credential);
+      const res = await checkInPresence(
+        { building_code: presenceBuilding },
+        credential,
+      );
       setSourceMode(res.source);
       setPresenceValidUntil(res.data.valid_until);
       setStatusMessage(
         `Coarse campus check-in active near ${presenceBuilding} until ${formatEasternTime(
-          res.data.valid_until
-        )} (expires automatically after 2 hours).`
+          res.data.valid_until,
+        )} (expires automatically after 2 hours).`,
       );
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to check in");
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to check in",
+      );
     } finally {
       setBusyId(null);
     }
@@ -182,13 +211,18 @@ export default function StudentPage() {
         setFcmFeedback(tokenRes.message);
         return;
       }
-      const apiRes = await registerPushToken({ token: tokenRes.token }, credential);
+      const apiRes = await registerPushToken(
+        { token: tokenRes.token },
+        credential,
+      );
       setSourceMode(apiRes.source);
       setFcmFeedback(
-        "FCM web push token registered with backend. Lock screen notifications contain minimal drop reference only."
+        "FCM web push token registered with backend. Lock screen notifications contain minimal drop reference only.",
       );
     } catch (err) {
-      setFcmFeedback(err instanceof Error ? err.message : "FCM registration failed");
+      setFcmFeedback(
+        err instanceof Error ? err.message : "FCM registration failed",
+      );
     } finally {
       setBusyId(null);
     }
@@ -196,13 +230,13 @@ export default function StudentPage() {
 
   const toggleMyAllergen = (alg: Allergen) => {
     setMyAllergens((prev) =>
-      prev.includes(alg) ? prev.filter((a) => a !== alg) : [...prev, alg]
+      prev.includes(alg) ? prev.filter((a) => a !== alg) : [...prev, alg],
     );
   };
 
   const toggleMyDiet = (diet: Diet) => {
     setMyDiets((prev) =>
-      prev.includes(diet) ? prev.filter((d) => d !== diet) : [...prev, diet]
+      prev.includes(diet) ? prev.filter((d) => d !== diet) : [...prev, diet],
     );
   };
 
@@ -228,7 +262,7 @@ export default function StudentPage() {
                 <code className="rounded bg-owl-black px-1.5 py-0.5 text-owl-gold">
                   {credential}
                 </code>{" "}
-                (Simulated Demo Persona). No priority tiers or other students&apos; data are ever shown.
+                (Simulated Demo Persona). Hosts see serving counts.
               </p>
             </div>
             <button
@@ -301,9 +335,12 @@ export default function StudentPage() {
                 No active food invites for {credential} right now.
               </p>
               <p className="mt-1 text-xs text-zinc-400">
-                Owl Plate only pings nearby students whose dietary and allergen settings match the drop.
-                Allergen estimates always carry:{" "}
-                <strong className="text-amber-300">{ALLERGEN_WARNING_TEXT}</strong>.
+                Owl Plate only pings nearby students whose dietary and allergen
+                settings match the drop. Allergen estimates always carry:{" "}
+                <strong className="text-amber-300">
+                  {ALLERGEN_WARNING_TEXT}
+                </strong>
+                .
               </p>
             </div>
           ) : (
@@ -334,8 +371,9 @@ export default function StudentPage() {
                         {drop.room ? `, room ${drop.room}` : ""}
                       </h3>
                       <p className="text-xs text-zinc-300">
-                        About {drop.counts.available} of {drop.counts.total} servings available.
-                        Invite expires at {formatEasternTime(inv.expires_at)} (
+                        About {drop.counts.available} of {drop.counts.total}{" "}
+                        servings available. Invite expires at{" "}
+                        {formatEasternTime(inv.expires_at)} (
                         {formatRemainingTime(inv.expires_at)}).
                       </p>
                     </div>
@@ -343,7 +381,9 @@ export default function StudentPage() {
                     <div className="text-right text-xs text-zinc-400">
                       <div>Drop Status: {drop.status}</div>
                       {drop.expires_at && (
-                        <div>Drop Ends: {formatEasternTime(drop.expires_at)}</div>
+                        <div>
+                          Drop Ends: {formatEasternTime(drop.expires_at)}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -356,7 +396,8 @@ export default function StudentPage() {
                     <ul className="mt-1.5 space-y-1 text-sm text-zinc-100">
                       {drop.vision.items.map((item, idx) => (
                         <li key={`${item.name}-${idx}`}>
-                          • {item.name} (~{item.count_estimate} {item.portion_unit})
+                          • {item.name} (~{item.count_estimate}{" "}
+                          {item.portion_unit})
                         </li>
                       ))}
                     </ul>
@@ -393,8 +434,11 @@ export default function StudentPage() {
                       {isHeld && (
                         <p className="mt-1">
                           Your spot is held until{" "}
-                          <strong>{formatEasternTime(inv.claim.held_until)}</strong>.
-                          Head to {drop.building_code} {drop.room && `room ${drop.room}`}.
+                          <strong>
+                            {formatEasternTime(inv.claim.held_until)}
+                          </strong>
+                          . Head to {drop.building_code}{" "}
+                          {drop.room && `room ${drop.room}`}.
                         </p>
                       )}
                       {isPickedUp && (
@@ -416,7 +460,9 @@ export default function StudentPage() {
                           onClick={() => void handleClaim(inv.id)}
                           className="rounded-lg bg-owl-gold px-4 py-2 text-sm font-bold text-owl-black transition hover:bg-owl-goldDark disabled:opacity-50"
                         >
-                          {busyId === inv.id ? "Holding spot..." : "I'm coming (Hold 10m)"}
+                          {busyId === inv.id
+                            ? "Holding spot..."
+                            : "I'm coming (Hold 10m)"}
                         </button>
                         <button
                           type="button"
@@ -467,7 +513,8 @@ export default function StudentPage() {
               Your Dietary Filters &amp; Campus Check-In
             </h2>
             <p className="text-xs text-zinc-400">
-              Used strictly as a hard safety filter before invites are sent. Never visible to hosts or other students.
+              Used strictly as a hard safety filter before invites are sent.
+              Never visible to hosts or other students.
             </p>
 
             <form onSubmit={handleSavePreferences} className="space-y-3">
@@ -584,7 +631,9 @@ export default function StudentPage() {
                     : "bg-amber-500/20 text-amber-300"
                 }`}
               >
-                {fcmStatus.enabled ? "FCM Configured" : "FCM Disabled (Demo Log Mode)"}
+                {fcmStatus.enabled
+                  ? "FCM Configured"
+                  : "FCM Disabled (Demo Log Mode)"}
               </span>
             </div>
 
@@ -595,9 +644,10 @@ export default function StudentPage() {
                 iPhone / iOS Safari Setup (iOS 16.4+)
               </div>
               <p>
-                On iPhone, web push requires installing Owl Plate to your Home Screen first:
-                tap <strong>Share</strong> in Safari, choose <strong>Add to Home Screen</strong>,
-                open the installed app icon, and tap Enable Push Alerts below.
+                On iPhone, web push requires installing Owl Plate to your Home
+                Screen first: tap <strong>Share</strong> in Safari, choose{" "}
+                <strong>Add to Home Screen</strong>, open the installed app
+                icon, and tap Enable Push Alerts below.
               </p>
             </div>
 

@@ -4,7 +4,7 @@ Manager owns this document and `services/api/schemas/`. Request/response models 
 
 ## HTTP routes
 
-Base URL http://localhost:8000. `Authorization: Bearer demo-host`, `demo-projector`, or `demo-student-A` through E. These are explicit synthetic credentials, enabled only with AUTH_MODE=demo AND DEMO_MODE=true. No real auth bypass outside demo. No public list of students. GET /health unauthenticated returns status.
+Base URL http://localhost:8017. `Authorization: Bearer demo-host`, `demo-projector`, or `demo-student-A` through E. These are explicit synthetic credentials, enabled only with AUTH_MODE=demo AND DEMO_MODE=true. No real auth bypass outside demo. No public list of students. GET /health unauthenticated returns status.
 
 | Method | Route | Request | Response / access |
 |---|---|---|---|

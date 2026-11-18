@@ -18,6 +18,7 @@ dev:
 test:
 	$(PYTHON) -m pytest
 	$(PYTHON) -m unittest discover -s data/eval -p 'test_*.py'
+	cd apps/web && npm test
 
 lint:
 	$(RUFF) check services scripts data/eval
@@ -27,6 +28,7 @@ lint:
 types:
 	$(PYTHON) -m scripts.export_openapi
 	cd apps/web && npx --yes openapi-typescript@7.10.1 openapi.json -o lib/api.generated.ts
+	cd apps/web && npx prettier --write openapi.json lib/api.generated.ts
 
 eval:
 	$(PYTHON) data/eval/run.py --fixtures

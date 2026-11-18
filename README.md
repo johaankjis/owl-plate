@@ -1,81 +1,61 @@
 # Owl Plate
 
-Leftover food and spare meal swipes, sent to the KSU students who need them, not just the ones who happen to be fastest.
+A host photographs leftover event food, reviews estimated servings and allergens, and publishes. A deterministic Python engine invites nearby, opted-in students who match the food, then widens H3 search rings as invitations expire. Hosts see serving counts. Every allergen display says **may contain, confirm with host**.
 
-An event host takes one photo of leftover food. AI identifies the food, estimates servings and flags likely allergens. A dispatch engine then notifies only as many nearby, opted in students as there are servings, skipping anyone the food is unsafe for and quietly prioritizing students registered with CARE Services. If nobody claims a spot in time, it moves to the next student in a wider ring.
+Built for the KSU AI Club Hackathon 2026. Pitch and submission materials are local drafts under `submission/`; Johaan owns submission.
 
-Built for the KSU AI Club Hackathon 2026 (CampusOS), Nov 16 to 20, Marietta Campus.
-Tracks: AI Club (primary), Nudox (most organized codebase), it. track if it fits.
+## Current readiness
 
-## Why
+The integrated local demo uses synthetic accounts, 30 simulated students, arbitrary unverified coordinates, file-backed SQLite and clearly labeled cached vision. The web uses the API by default. Network errors remain errors; they never silently create fixture successes. Uploads are processed without storing photos.
 
-* KSU CARE Services runs a pantry on each campus, and demand keeps growing. See `docs/DOMAIN.md`.
-* Many universities run free food alerts, but they broadcast to everyone. Food goes to whoever is closest and quickest, hosts have to type details, and nothing matches servings, allergies or need.
-* Owl Plate fixes that with one photo and smart dispatch.
+Gemini and encrypted, allowlisted FCM demo adapters are implemented but require private configuration. No live credentials, real phone receipt, measured real-photo accuracy, campus policy approval, survey results or deployment are verified. Default log mode returns **503** for push-token registration. Entra/email-code auth, production deployment, S3 retention, Bedrock, SMS and meal swipes remain pending or deferred.
 
-## How it works
+## Run locally
 
-```
-Host snaps photo ──> Vision AI ──> {food, servings, allergens, confidence}
-                                         │
-Opted in students (diet, allergens,      v
-presence, priority) ────────────> Dispatch engine ──> Wave 1 pushes (just enough)
-                                         │                    │
-                                         │            "I'm coming" claims
-                                         v                    │
-                              Unclaimed after timeout ──> Wave 2, wider H3 ring
-```
-
-## Stack
-
-| Layer | Tech |
-|---|---|
-| Web app (PWA) | Next.js (App Router, TypeScript), Tailwind, deck.gl + h3-js |
-| Push | Firebase Cloud Messaging (web push), Twilio SMS fallback |
-| API | FastAPI (Python 3.11), SQLModel, Postgres (SQLite locally) |
-| Vision | Gemini (structured JSON output), Amazon Bedrock as fallback provider |
-| Geo | Uber H3 (Python `h3` v4 and `h3-js`) |
-| Sign in | Microsoft Entra ID (KSU accounts) with KSU email code fallback |
-| Hosting | Web on Vercel, API on AWS, photos in S3 with 24 hour deletion |
-
-## Quickstart
+Requires Python 3.11, Node 20.9+ (Node 24 used for integration), GNU Make and `uv`.
 
 ```bash
-cp .env.example .env          # fill in keys, see docs/ARCHITECTURE.md
-make setup                    # install Python and Node deps
-make seed                     # load demo campus, buildings and simulated students
-make dev                      # API on :8000, web on :3000
-make test                     # unit tests
+cp .env.example .env
+make setup
+make demo
+make dev
 ```
 
-Push notifications need HTTPS. Use the deployed web app, or a tunnel, when testing on phones.
+Open [host](http://localhost:3017/host), [student](http://localhost:3017/student) and [projector](http://localhost:3017/dispatch). API: http://localhost:8017, interactive schema: http://localhost:8017/docs. `make dev` loads root `.env` for both processes. Stop with Ctrl-C. Keep credentials private.
 
-## Repo layout
+Owl defaults are `API_PORT=8017` and `WEB_PORT=3017`, separate from DeckScout. Override ports in `.env` together with `NEXT_PUBLIC_API_URL` and `CORS_ORIGINS`. For a production web build, use `npm run start -- --port 3017`; `make dev` supplies the configured port automatically. Do not stop unrelated processes on ports 8000/3000.
 
+Select a real JPEG/PNG file on the host page. In default fixture vision mode, uploaded pixels receive a clearly labeled cached estimate. Review to **2 servings**, keep dairy/gluten, leave vegetarian unselected, and confirm the three safety checks. Publish invites A/C; A holds one; C expires; the next wave at ring 4 invites D. Use the demo clock button to advance time explicitly. The projector polls `/demo/active-drop` independently of the host phone/browser. Reset clears all drops, invites, holds, clock offset and encrypted push registrations; it seeds students only. See [the runbook](docs/RUNBOOK.md).
+
+`NEXT_PUBLIC_UI_FIXTURE_MODE=false` is the default. Set it to `true` only for a standalone UI showcase and rebuild/restart the web; a prominent banner identifies browser-only simulation, and no API requests or real push registration run. This is separate from API-backed cached **vision** and does not prove backend behavior.
+
+## Verify
+
+```bash
+make test       # API/provider tests, stdlib eval tests, sandboxed client tests
+make lint       # Ruff + ESLint + Prettier
+make types      # composed OpenAPI -> generated TypeScript; UI uses schema aliases
+make smoke      # isolated HTTP photo/review/publish/claim/expiry/widen/reset
+make eval       # synthetic known-answer scoring checks, never model accuracy
+cd apps/web && npm run typecheck && npm run build
 ```
-apps/web/            Next.js PWA: host flow, student flow, dispatch screen
-services/api/        FastAPI: drops, vision, dispatch, claims, push, auth
-services/api/dispatch/   The matching engine (pure Python, fully tested)
-services/api/vision/     Vision providers behind one interface
-data/seed/           Buildings, simulated students, demo personas
-data/eval/           Food photo set with hand counted servings (vision accuracy)
-docs/                Project docs (start with AGENTS.md at the root)
-```
 
-## Docs
+Python/Ruff executables can be overridden, e.g. `make test PYTHON=/path/to/python3.11`; run from this checkout with `PYTHONPATH=.` when reusing another checkout's environment. Do not install into a shared environment. PWA PNG icons can be regenerated with `python -m scripts.build_icons`.
 
-| Doc | What it covers |
+## Repository
+
+| Path | Responsibility |
 |---|---|
-| AGENTS.md | Rules and conventions for anyone (human or AI) writing code here |
-| docs/SOUL.md | Purpose, principles, voice |
-| docs/ARCHITECTURE.md | Components, data model, API, sponsor tech |
-| docs/DISPATCH.md | The matching engine spec |
-| docs/PRIVACY_SAFETY.md | Dignity, privacy and food safety rules |
-| docs/DATA.md | Seed data, demo personas, vision eval set, survey |
-| docs/DOMAIN.md | Verified KSU and market facts with sources |
-| docs/DEMO.md | Demo script, pitch, judge Q&A |
-| docs/ROADMAP.md | Build plan through Friday noon |
+| `apps/web/` | Next.js 15 PWA: host, student, synthetic projector; deck.gl/H3 map |
+| `services/api/routes/` | Thin authenticated HTTP adapters |
+| `services/api/application.py` | Transactional drops, claims, waves and reset |
+| `services/api/dispatch/` | Pure deterministic eligibility/ranking engine |
+| `services/api/providers/`, `vision/` | Replaceable Gemini/FCM/log boundaries and vision safety |
+| `services/api/db/`, `schemas/` | SQLModel persistence and Pydantic HTTP contracts |
+| `data/seed/` | Private synthetic server seed; never a public web asset |
+| `data/eval/` | Synthetic scoring fixtures and opt-in live runner; no real labeled-photo set yet |
+| `submission/` | Draft deck, survey copy, recording plan and live-demo note |
 
-## Team
+Start with [AGENTS.md](AGENTS.md), [purpose](docs/SOUL.md), [architecture](docs/ARCHITECTURE.md), [API contract](docs/API_CONTRACT.md) and [privacy/safety](docs/PRIVACY_SAFETY.md). [HANDOFF.md](docs/HANDOFF.md) records exact integration evidence and outstanding proof. Verified KSU facts belong in [DOMAIN.md](docs/DOMAIN.md).
 
-TODO(team): names and who owns what.
+TODO(team): names and contributions before final submission.
