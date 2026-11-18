@@ -19,6 +19,11 @@ container use `make present-zima` and tunnel port 3017 over SSH.
   shell); `GEMINI_MODEL` defaults to `gemini-3.8-flash`. Live failures show an
   error and never fall back to the saved estimate. Results are labeled
   **Live Gemini** or **Saved demo estimate**.
+- Live vision via OpenRouter: `make present-openrouter` (ZimaOS:
+  `PRESENT_HOST=0.0.0.0 .venv/bin/python -m scripts.present --vision openrouter`).
+  Needs `OPENROUTER_API_KEY=...` in the gitignored repo-root `.env`;
+  `OPENROUTER_VISION_MODEL` defaults to `google/gemini-3.8-flash`. Results are
+  labeled **Live Gemini via OpenRouter**; failures show an error, never the saved estimate.
 - Visitors open `/join` (or Home → Find food), pick a nickname, a simulated demo
   area and optional restrictions, then see only their own invites on `/student`.
 - The host uses Home → Share food: upload → review (safety checks) → publish.
