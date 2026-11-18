@@ -1,6 +1,53 @@
 # Owl Plate checkpoint
 
-## Latest checkpoint: local browser milestone verified, independent review next
+## Latest checkpoint: GLM findings fixed, exact-SHA recheck next (November 18)
+
+Canonical branch: `demo/owl-plate-ready`. Product/docs fix commit:
+`f0cceb9178ad06adaafd2081a523860130d15811`, based on reviewed
+`94773c9520fa9e4ec5b2ab3a53d75788f777b13e`. The manager thread records the
+exact subsequent checkpoint SHA supplied to the fresh recheck. Original `main`
+remains `d11c4be01bcbd375dafabf50c2f59c6daaf513ec`; no pushes, default-branch
+merges, deployment, distribution or submission occurred. Existing worktrees remain.
+
+Independent OpenCode `openrouter/z-ai/glm-5.3` review verified exact HEAD
+`94773c9520fa9e4ec5b2ab3a53d75788f777b13e` in clean worktree
+`/home/node/.t3/worktrees/owl-plate/t3-c912437d`, branch
+`t3/review-local-demo-milestone`. It passed 62 API tests, 116 eval tests, five
+client tests, Ruff and route smoke, plus concurrency, inventory and ownership
+probes. No blocking findings for the local milestone; it found one medium
+claim-time compatibility gap and two low configuration/documentation issues.
+Review record:
+<t3-thread://v2/214ef463-8ab8-4ced-aae2-db0dbf63011f/thread:delegated-task:command%3Amcp%3Abc385daf-2cbb-4ebd-8d99-5c263e1bcab1%3Adelegate-task%3Aowl-review-94773c9>.
+
+Manager resolved all three findings: new claims atomically recheck current
+allergens and required diet tags, returning 409 `allergen_conflict` or
+`diet_mismatch` without allocating inventory. Existing-held retries remain
+idempotent. The contract documents this addition. `.env.example` now documents
+fixed v1 timings rather than ineffective variables; uploads remain memory-only.
+Architecture diet enums and DATA seed documentation now match the implementation,
+and the public-facing internal persona table no longer identifies a private tier.
+New HTTP regressions prove both preference conflicts, successful claims after
+compatible preferences are restored, and unchanged existing-hold retries.
+
+Actual manager verification on the fix: **65 API tests passed**, Ruff check and
+format passed (49 files), `git diff --check` passed, and route smoke passed:
+30 students → photo/review/publish → A/C → A hold → C expiry → D ring 4 → reset.
+One known TestClient deprecation warning remains. No frontend/schema shape edits;
+previous lint/types/build and Full HD browser evidence below still applies to
+those unchanged files. A fresh GLM recheck of the final checkpoint is next;
+no approval of that new SHA is implied yet.
+
+Evidence remains offline: fixture vision, synthetic students, simulated log
+notifications. No physical Android/iPhone push receipt, live Gemini accuracy,
+survey responses (n=0), live Entra/Postgres/deployment or phone recording.
+Deadline risk: access, authorized phones and labeled photos are needed before
+Thursday evening rehearsal to collect real evidence. Submission remains Friday
+November 20 at noon Eastern (17:00 UTC); Johaan submits. The package and prioritized
+Questions for Johaan below remain current. Notification delivery currently holds
+the database transaction during sends; FCM latency and rate limiting are live
+readiness follow-ups alongside dependency advisories, not offline-demo evidence.
+
+## Previous checkpoint: local browser milestone verified, independent review next
 
 Manager verified the integrated code at `337af5cd081572d1fa555475b22b73735f58772e`, with a final browser-script change to use a standard Full HD projector (1920×1080). The canonical checkout is now on `demo/owl-plate-ready`; `integration/owl-plate-verified` preserves the integration worktree. The exact checkpoint HEAD is recorded in the T3 manager thread after this documentation commit. Original `main` remains `d11c4be01bcbd375dafabf50c2f59c6daaf513ec`. No pushes, default-branch merges, deployments, survey distribution or submission occurred.
 
