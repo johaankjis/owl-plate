@@ -49,12 +49,22 @@ export type InviteResponse = components["schemas"]["InviteResponse"];
 export type InvitesResponse = components["schemas"]["InvitesResponse"];
 export type WaveResponse = components["schemas"]["WaveResponse"];
 export type PersonaDecision = components["schemas"]["PersonaDecision"];
+export type VisitorDecision = components["schemas"]["VisitorDecision"];
 export type DispatchResponse = components["schemas"]["DispatchResponse"];
 export type DemoTick = components["schemas"]["DemoTick"];
 export type DemoTickResponse = components["schemas"]["DemoTickResponse"];
+export type DemoResetRequest = components["schemas"]["DemoResetRequest"];
 export type DemoResetResponse = components["schemas"]["DemoResetResponse"];
+export type DemoStatusResponse = components["schemas"]["DemoStatusResponse"];
 export type DemoActiveDropResponse =
   components["schemas"]["DemoActiveDropResponse"];
+export type DemoArea = components["schemas"]["DemoArea"];
+export type DemoAreaId = DemoArea["id"];
+export type DemoAreasResponse = components["schemas"]["DemoAreasResponse"];
+export type JoinRequest = components["schemas"]["JoinRequest"];
+export type JoinResponse = components["schemas"]["JoinResponse"];
+export type SessionStudent = components["schemas"]["SessionStudent"];
+export type SessionLeftResponse = components["schemas"]["SessionLeftResponse"];
 export type Preferences = components["schemas"]["Preferences"];
 export type PresenceRequest = components["schemas"]["PresenceRequest"];
 export type PresenceResponse = components["schemas"]["PresenceResponse"];
@@ -65,6 +75,9 @@ export type DropStatus = DropResponse["status"];
 export type VisionSource = DropResponse["vision_source"];
 export type ClaimStatus = ClaimResponse["status"];
 export type InviteStatus = InviteResponse["status"];
+export type DemoScenario = DemoStatusResponse["scenario"];
+
+export type SeededPersonaLabel = "A" | "B" | "C" | "D" | "E";
 
 export type DemoCredential =
   | "demo-host"
@@ -74,6 +87,17 @@ export type DemoCredential =
   | "demo-student-C"
   | "demo-student-D"
   | "demo-student-E";
+
+export type AuthToken = DemoCredential | string;
+
+export const SEEDED_PERSONA_TOKENS: Record<SeededPersonaLabel, DemoCredential> =
+  {
+    A: "demo-student-A",
+    B: "demo-student-B",
+    C: "demo-student-C",
+    D: "demo-student-D",
+    E: "demo-student-E",
+  };
 
 export const DEMO_CREDENTIALS: ReadonlyArray<{
   token: DemoCredential;

@@ -1,104 +1,107 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { hasSessionToken } from "../lib/session";
 import { ALLERGEN_WARNING_TEXT } from "../lib/types/api";
 
 export default function HomePage() {
+  const [hasActiveSession, setHasActiveSession] = useState(false);
+
+  useEffect(() => {
+    setHasActiveSession(hasSessionToken());
+  }, []);
+
+  const findFoodHref = hasActiveSession ? "/student" : "/join";
+
   return (
     <div className="min-h-screen bg-owl-black text-zinc-100">
-      <div className="mx-auto max-w-5xl px-4 py-12 space-y-8">
+      <div className="mx-auto max-w-3xl space-y-8 px-4 py-10 sm:py-14">
         <header className="space-y-3 border-b border-zinc-800 pb-6">
-          <div className="inline-flex items-center gap-2 rounded-full border border-owl-gold/40 bg-owl-gold/10 px-3 py-1 text-xs font-semibold text-owl-gold">
-            KSU AI Club Hackathon 2026 • Demo Mode Enabled
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              data-testid="fixture-label"
+              className="inline-flex items-center gap-2 rounded-full border border-owl-gold/40 bg-owl-gold/10 px-3 py-1 text-xs font-semibold text-owl-gold"
+            >
+              Demo mode: fixture vision, simulated notifications
+            </span>
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
             Owl Plate
           </h1>
-          <p className="max-w-2xl text-base text-zinc-300">
+          <p className="max-w-xl text-base text-zinc-300">
             One photo from an event host. AI estimates food, servings, and
-            allergens. Smart wave dispatch notifies just enough nearby students
-            who can safely eat it, widening H3 rings if spots go unclaimed.
+            allergens, then pings just enough nearby students who can safely eat
+            it.
           </p>
         </header>
 
-        <section className="grid gap-5 sm:grid-cols-3">
+        <section
+          aria-label="Primary actions"
+          className="grid gap-4 sm:grid-cols-2"
+        >
           <Link
             href="/host"
-            data-testid="nav-card-host"
-            className="group flex flex-col justify-between rounded-xl border border-zinc-800 bg-owl-slate p-6 transition hover:border-owl-gold"
+            data-testid="home-share-food"
+            className="group flex flex-col justify-between rounded-xl border border-zinc-800 bg-owl-slate p-6 transition hover:border-owl-gold focus:outline-none focus:ring-2 focus:ring-owl-gold"
           >
             <div>
               <span className="rounded bg-owl-gold/20 px-2.5 py-1 text-xs font-bold text-owl-gold">
-                Bearer demo-host
+                Event Host
               </span>
-              <h2 className="mt-3 text-xl font-bold text-white group-hover:text-owl-gold">
-                /host — Event Organizer
+              <h2 className="mt-3 text-2xl font-bold text-white group-hover:text-owl-gold">
+                Share food
               </h2>
               <p className="mt-2 text-sm text-zinc-300">
-                Upload food tray photo, review AI serving &amp; allergen
-                estimate, complete food safety checklist, publish Wave 1, or
-                reset/advance the demo clock.
+                Snap one photo of leftover trays, review the AI estimate and
+                safety checklist, and publish Wave 1.
               </p>
             </div>
-            <span className="mt-5 text-xs font-bold text-owl-gold">
-              Open Host Flow &rarr;
+            <span className="mt-6 inline-flex items-center text-sm font-bold text-owl-gold">
+              Post leftover food &rarr;
             </span>
           </Link>
 
           <Link
-            href="/student"
-            data-testid="nav-card-student"
-            className="group flex flex-col justify-between rounded-xl border border-zinc-800 bg-owl-slate p-6 transition hover:border-owl-gold"
+            href={findFoodHref}
+            data-testid="home-find-food"
+            className="group flex flex-col justify-between rounded-xl border border-zinc-800 bg-owl-slate p-6 transition hover:border-owl-gold focus:outline-none focus:ring-2 focus:ring-owl-gold"
           >
             <div>
               <span className="rounded bg-sky-500/20 px-2.5 py-1 text-xs font-bold text-sky-300">
-                Bearer demo-student-A..E
+                Student Visitor
               </span>
-              <h2 className="mt-3 text-xl font-bold text-white group-hover:text-owl-gold">
-                /student — Student Phone PWA
+              <h2 className="mt-3 text-2xl font-bold text-white group-hover:text-owl-gold">
+                Find food
               </h2>
               <p className="mt-2 text-sm text-zinc-300">
-                Switch between simulated personas A–E, view your own invites,
-                hold a serving for 10 minutes, decline to free the spot, or
-                configure dietary filters.
+                {hasActiveSession
+                  ? "Return to your active demo session to check invites and hold a serving for 10 minutes."
+                  : "Pick a nickname, simulated campus area, and dietary filters to receive nearby food invites."}
               </p>
             </div>
-            <span className="mt-5 text-xs font-bold text-owl-gold">
-              Open Student Flow &rarr;
-            </span>
-          </Link>
-
-          <Link
-            href="/dispatch"
-            data-testid="nav-card-dispatch"
-            className="group flex flex-col justify-between rounded-xl border border-zinc-800 bg-owl-slate p-6 transition hover:border-owl-gold"
-          >
-            <div>
-              <span className="rounded bg-purple-500/20 px-2.5 py-1 text-xs font-bold text-purple-300">
-                Bearer demo-projector
-              </span>
-              <h2 className="mt-3 text-xl font-bold text-white group-hover:text-owl-gold">
-                /dispatch — Big Screen Map
-              </h2>
-              <p className="mt-2 text-sm text-zinc-300">
-                Live 2-second polling projector view with deck.gl H3HexagonLayer
-                rings, distinct simulated persona markers, and generic dispatch
-                reasons.
-              </p>
-            </div>
-            <span className="mt-5 text-xs font-bold text-owl-gold">
-              Open Projector View &rarr;
+            <span className="mt-6 inline-flex items-center text-sm font-bold text-owl-gold">
+              {hasActiveSession
+                ? "Resume your session"
+                : "Join demo on your phone"}{" "}
+              &rarr;
             </span>
           </Link>
         </section>
 
-        <footer className="rounded-xl border border-zinc-800 bg-owl-slate/60 p-4 text-xs text-zinc-400 space-y-1">
+        <footer className="flex flex-col justify-between gap-3 rounded-xl border border-zinc-800 bg-owl-slate/60 p-4 text-xs text-zinc-400 sm:flex-row sm:items-center">
           <div>
-            <strong className="text-zinc-200">
-              Safety &amp; Dignity Principles:
-            </strong>{" "}
-            Allergens: &ldquo;{ALLERGEN_WARNING_TEXT}&rdquo;. Hosts see serving
-            counts. Simulated students are explicitly labeled.
+            <strong className="text-zinc-200">Safety &amp; Dignity:</strong>{" "}
+            Allergens always say &ldquo;{ALLERGEN_WARNING_TEXT}&rdquo;. Hosts
+            see counts only.
           </div>
+          <Link
+            href="/dispatch"
+            data-testid="home-projector-link"
+            className="shrink-0 font-semibold text-owl-gold underline-offset-4 hover:underline"
+          >
+            Open projector dispatch view (/dispatch) &rarr;
+          </Link>
         </footer>
       </div>
     </div>

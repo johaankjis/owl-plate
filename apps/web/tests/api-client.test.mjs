@@ -5,22 +5,49 @@ import test from "node:test";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 
-// Exercise the actual client in a sandbox; no browser, server, token or network is used.
-const source = readFileSync(
+// Exercise the actual client and session helpers in a sandbox; no browser, server, token or network is used.
+const apiClientSource = readFileSync(
   new URL("../lib/api-client.ts", import.meta.url),
   "utf8",
 );
-const compiled = ts.transpileModule(source, {
+const apiClientCompiled = ts.transpileModule(apiClientSource, {
   compilerOptions: {
     module: ts.ModuleKind.CommonJS,
     target: ts.ScriptTarget.ES2022,
   },
 }).outputText;
 
-function loadClient({ fixtureMode = false, fetch, fixtureResult = {} }) {
+const typesSource = readFileSync(
+  new URL("../lib/types/api.ts", import.meta.url),
+  "utf8",
+);
+const typesCompiled = ts.transpileModule(typesSource, {
+  compilerOptions: {
+    module: ts.ModuleKind.CommonJS,
+    target: ts.ScriptTarget.ES2022,
+  },
+}).outputText;
+
+const sessionSource = readFileSync(
+  new URL("../lib/session.ts", import.meta.url),
+  "utf8",
+);
+const sessionCompiled = ts.transpileModule(sessionSource, {
+  compilerOptions: {
+    module: ts.ModuleKind.CommonJS,
+    target: ts.ScriptTarget.ES2022,
+  },
+}).outputText;
+
+function loadClient({
+  fixtureMode = false,
+  fetch,
+  fixtureResult = {},
+  fixtureError = null,
+}) {
   const exports = {};
   const calls = { fixtures: 0, deadlines: [] };
-  runInNewContext(compiled, {
+  runInNewContext(apiClientCompiled, {
     exports,
     process: { env: { NEXT_PUBLIC_UI_FIXTURE_MODE: String(fixtureMode) } },
     require: () =>
@@ -29,6 +56,9 @@ function loadClient({ fixtureMode = false, fetch, fixtureResult = {} }) {
         {
           get: () => () => {
             calls.fixtures++;
+            if (fixtureError) {
+              throw fixtureError;
+            }
             return fixtureResult;
           },
         },
@@ -44,6 +74,33 @@ function loadClient({ fixtureMode = false, fetch, fixtureResult = {} }) {
     clearTimeout: () => {},
   });
   return { api: exports, calls };
+}
+
+function loadSessionModule() {
+  const typesExports = {};
+  runInNewContext(typesCompiled, {
+    exports: typesExports,
+    require: () => ({}),
+  });
+
+  const sessionExports = {};
+  const store = new Map();
+  const mockLocalStorage = {
+    getItem: (key) => (store.has(key) ? store.get(key) : null),
+    setItem: (key, value) => store.set(key, String(value)),
+    removeItem: (key) => store.delete(key),
+  };
+
+  runInNewContext(sessionCompiled, {
+    exports: sessionExports,
+    window: { localStorage: mockLocalStorage },
+    require: (id) => {
+      if (id === "./types/api") return typesExports;
+      return {};
+    },
+  });
+
+  return { session: sessionExports, store, mockLocalStorage };
 }
 
 test("API is default and failed mutations never become fixture successes", async () => {
@@ -119,4 +176,171 @@ test("standalone fixtures require explicit opt-in and make no API calls", async 
   assert.equal(result.source, "offline_fixture");
   assert.equal(result.data.students, 30);
   assert.equal(calls.fixtures, 1);
+});
+
+test("api-client session routes call GET /demo/areas, POST /sessions, GET /sessions/me, and DELETE /sessions/me", async () => {
+  const requests = [];
+  const { api } = loadClient({
+    fetch: async (url, options) => {
+      const parsedUrl = new URL(url);
+      requests.push({
+        method: options.method,
+        pathname: parsedUrl.pathname,
+        auth: options.headers.get("Authorization"),
+        body: options.body ? JSON.parse(options.body) : null,
+      });
+      if (parsedUrl.pathname === "/demo/areas") {
+        return Response.json({ areas: [{ id: "demo-venue" }] });
+      }
+      if (parsedUrl.pathname === "/sessions") {
+        return Response.json(
+          {
+            token: "demo-session-abc123",
+            student: {
+              id: "00000000-0000-4000-9000-000000000001",
+              nickname: "Scrappy",
+              area: "demo-venue",
+              allergens: ["peanut"],
+              diets: ["vegetarian"],
+              kind: "visitor",
+              valid_until: "2026-11-18T19:00:00Z",
+            },
+          },
+          { status: 201 },
+        );
+      }
+      if (parsedUrl.pathname === "/sessions/me" && options.method === "GET") {
+        return Response.json({
+          id: "00000000-0000-4000-9000-000000000001",
+          nickname: "Scrappy",
+          area: "demo-venue",
+          allergens: ["peanut"],
+          diets: ["vegetarian"],
+          kind: "visitor",
+          valid_until: "2026-11-18T19:00:00Z",
+        });
+      }
+      if (
+        parsedUrl.pathname === "/sessions/me" &&
+        options.method === "DELETE"
+      ) {
+        return Response.json({ status: "left" });
+      }
+      throw new Error(`Unexpected path: ${parsedUrl.pathname}`);
+    },
+  });
+
+  const areasRes = await api.getDemoAreas();
+  assert.equal(areasRes.data.areas[0].id, "demo-venue");
+
+  const joinRes = await api.joinDemoSession({
+    nickname: "Scrappy",
+    area: "demo-venue",
+    allergens: ["peanut"],
+    diets: ["vegetarian"],
+  });
+  assert.equal(joinRes.data.token, "demo-session-abc123");
+
+  const meRes = await api.getMySession("demo-session-abc123");
+  assert.equal(meRes.data.nickname, "Scrappy");
+
+  const leaveRes = await api.leaveDemoSession("demo-session-abc123");
+  assert.equal(leaveRes.data.status, "left");
+
+  assert.deepEqual(
+    requests.map((r) => ({
+      method: r.method,
+      pathname: r.pathname,
+      auth: r.auth,
+    })),
+    [
+      { method: "GET", pathname: "/demo/areas", auth: null },
+      { method: "POST", pathname: "/sessions", auth: null },
+      {
+        method: "GET",
+        pathname: "/sessions/me",
+        auth: "Bearer demo-session-abc123",
+      },
+      {
+        method: "DELETE",
+        pathname: "/sessions/me",
+        auth: "Bearer demo-session-abc123",
+      },
+    ],
+  );
+  assert.equal(requests[1].body.nickname, "Scrappy");
+  assert.equal(requests[1].body.area, "demo-venue");
+});
+
+test("joinDemoSession surfaces 409 nickname_taken error code and message", async () => {
+  const { api } = loadClient({
+    fetch: async () =>
+      Response.json(
+        {
+          detail: {
+            code: "nickname_taken",
+            message: "Nickname is already taken.",
+          },
+        },
+        { status: 409 },
+      ),
+  });
+
+  await assert.rejects(
+    api.joinDemoSession({ nickname: "Scrappy", area: "demo-venue" }),
+    (error) =>
+      error.status === 409 &&
+      error.code === "nickname_taken" &&
+      error.message === "Nickname is already taken.",
+  );
+});
+
+test("session storage persists under owl-plate.session and clears on 401 unauthorized", () => {
+  const { session, store } = loadSessionModule();
+
+  assert.equal(session.SESSION_STORAGE_KEY, "owl-plate.session");
+  assert.equal(session.getSessionToken(), null);
+  assert.equal(session.hasSessionToken(), false);
+
+  session.setSessionToken("  demo-session-xyz987  ");
+  assert.equal(store.get("owl-plate.session"), "demo-session-xyz987");
+  assert.equal(session.getSessionToken(), "demo-session-xyz987");
+  assert.equal(session.hasSessionToken(), true);
+
+  // Non-401 error preserves the session token
+  const nonAuth = session.handleUnauthorizedError({
+    status: 409,
+    code: "capacity",
+    message: "No servings left",
+  });
+  assert.equal(nonAuth.isUnauthorized, false);
+  assert.equal(session.getSessionToken(), "demo-session-xyz987");
+
+  // 401 error clears owl-plate.session and redirects to /join with "Session ended. Join again."
+  const authErr = session.handleUnauthorizedError({
+    status: 401,
+    code: "unauthorized",
+    message: "Session ended. Join again.",
+  });
+  assert.equal(authErr.isUnauthorized, true);
+  assert.equal(authErr.message, "Session ended. Join again.");
+  assert.equal(authErr.redirectTo, "/join?reason=session_ended");
+  assert.equal(session.getSessionToken(), null);
+  assert.equal(store.has("owl-plate.session"), false);
+});
+
+test("parseSeededPersonaParam resolves rehearsal query parameter ?persona=A..E", () => {
+  const { session } = loadSessionModule();
+
+  const resA = session.parseSeededPersonaParam("A");
+  assert.equal(resA?.label, "A");
+  assert.equal(resA?.token, "demo-student-A");
+
+  const resE = session.parseSeededPersonaParam("e");
+  assert.equal(resE?.label, "E");
+  assert.equal(resE?.token, "demo-student-E");
+
+  assert.equal(session.parseSeededPersonaParam("F"), null);
+  assert.equal(session.parseSeededPersonaParam(""), null);
+  assert.equal(session.parseSeededPersonaParam(null), null);
 });

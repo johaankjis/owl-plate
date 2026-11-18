@@ -1,305 +1,318 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { Suspense, useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { DemoHeader } from "../../components/DemoHeader";
 import { AllergenListDisplay } from "../../components/AllergenBadge";
 import {
-  ALLERGENS,
   ALLERGEN_WARNING_TEXT,
-  DIETS,
-  type Allergen,
-  type DemoCredential,
-  type Diet,
+  type DemoAreaId,
   type InviteResponse,
-  type Preferences,
+  type SeededPersonaLabel,
+  type SessionStudent,
 } from "../../lib/types/api";
 import {
-  checkInPresence,
   claimInvite,
   declineInvite,
   getMyInvites,
-  pickupClaim,
-  registerPushToken,
-  releaseClaim,
-  updateMyPreferences,
+  getMySession,
   INITIAL_DATA_SOURCE,
+  leaveDemoSession,
+  pickupClaim,
+  releaseClaim,
   type DataSourceMode,
 } from "../../lib/api-client";
-import { getFcmConfigStatus, requestFcmPushToken } from "../../lib/fcm";
+import { FIXTURE_DEMO_AREAS } from "../../lib/fixtures/demo-fixtures";
+import {
+  clearSessionToken,
+  getSessionToken,
+  handleUnauthorizedError,
+  parseSeededPersonaParam,
+} from "../../lib/session";
 import { formatEasternTime, formatRemainingTime } from "../../lib/time";
 
-export default function StudentPage() {
-  const [credential, setCredential] =
-    useState<DemoCredential>("demo-student-A");
+const AREA_LABELS: Record<DemoAreaId, string> = FIXTURE_DEMO_AREAS.reduce(
+  (acc, area) => {
+    acc[area.id] = area.label;
+    return acc;
+  },
+  {} as Record<DemoAreaId, string>,
+);
+
+const PERSONA_AREA_LABELS: Record<SeededPersonaLabel, string> = {
+  A: "Event venue (demo)",
+  B: "Event venue (demo)",
+  C: "Next building over (demo)",
+  D: "Across the quad (demo)",
+  E: "Event venue (demo)",
+};
+
+function StudentContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const personaParam = searchParams.get("persona");
+  const seededPersona = parseSeededPersonaParam(personaParam);
+
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [sessionStudent, setSessionStudent] = useState<SessionStudent | null>(
+    null,
+  );
   const [sourceMode, setSourceMode] =
     useState<DataSourceMode>(INITIAL_DATA_SOURCE);
   const [invites, setInvites] = useState<InviteResponse[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [nowTick, setNowTick] = useState<number>(() => Date.now());
 
-  // Own preferences & presence state (never other students')
-  const [myAllergens, setMyAllergens] = useState<Allergen[]>([]);
-  const [myDiets, setMyDiets] = useState<Diet[]>([]);
-  const [alertsPaused, setAlertsPaused] = useState<boolean>(false);
-  const [presenceBuilding, setPresenceBuilding] =
-    useState<string>("DEMO-ORIGIN");
-  const [presenceValidUntil, setPresenceValidUntil] = useState<string | null>(
-    null,
+  const onApiError = useCallback(
+    (err: unknown, fallbackMessage: string) => {
+      if (!seededPersona) {
+        const authResult = handleUnauthorizedError(err);
+        if (authResult.isUnauthorized) {
+          router.replace(authResult.redirectTo);
+          return;
+        }
+      }
+      setErrorMessage(err instanceof Error ? err.message : fallbackMessage);
+    },
+    [router, seededPersona],
   );
 
-  // Opt-in FCM status
-  const [fcmStatus] = useState(() => getFcmConfigStatus());
-  const [fcmFeedback, setFcmFeedback] = useState<string | null>(null);
+  // Resolve session token or rehearsal persona token on mount
+  useEffect(() => {
+    if (seededPersona) {
+      setAuthToken(seededPersona.token);
+      setSessionStudent(null);
+      setAuthChecked(true);
+      return;
+    }
+
+    const storedToken = getSessionToken();
+    if (!storedToken) {
+      router.replace("/join");
+      return;
+    }
+
+    setAuthToken(storedToken);
+    setAuthChecked(true);
+  }, [router, seededPersona]);
+
+  // Fetch visitor profile for active session
+  useEffect(() => {
+    if (!authChecked || !authToken || seededPersona) return;
+    let active = true;
+
+    getMySession(authToken)
+      .then((res) => {
+        if (!active) return;
+        setSessionStudent(res.data);
+        setSourceMode(res.source);
+      })
+      .catch((err) => {
+        if (!active) return;
+        onApiError(err, "Failed to verify session");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authChecked, authToken, onApiError, seededPersona]);
 
   const loadInvites = useCallback(async () => {
+    if (!authToken) return;
     try {
-      const res = await getMyInvites(credential);
+      const res = await getMyInvites(authToken);
       setInvites(res.data.invites);
       setSourceMode(res.source);
+      setNowTick(Date.now());
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to load invites",
-      );
+      onApiError(err, "Failed to load invites");
     }
-  }, [credential]);
+  }, [authToken, onApiError]);
 
+  // Poll GET /students/me/invites every 2s
   useEffect(() => {
-    setStatusMessage(null);
-    setErrorMessage(null);
+    if (!authChecked || !authToken) return;
     void loadInvites();
-    const timer = setInterval(() => {
+    const pollInterval = setInterval(() => {
       void loadInvites();
-    }, 3000);
+    }, 2000);
+    return () => clearInterval(pollInterval);
+  }, [authChecked, authToken, loadInvites]);
+
+  // 1s local tick to keep invite countdown responsive between 2s polls
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowTick(Date.now());
+    }, 1000);
     return () => clearInterval(timer);
-  }, [loadInvites]);
+  }, []);
 
   const handleClaim = async (inviteId: string) => {
+    if (!authToken) return;
     setBusyId(inviteId);
     setErrorMessage(null);
     setStatusMessage(null);
     try {
-      const res = await claimInvite(inviteId, credential);
+      const res = await claimInvite(inviteId, authToken);
       setSourceMode(res.source);
       setStatusMessage(
         `Your spot is held for 10 minutes (until ${formatEasternTime(res.data.held_until)}). No ID or proof needed at pickup.`,
       );
       await loadInvites();
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to claim serving",
-      );
+      onApiError(err, "Failed to claim serving");
     } finally {
       setBusyId(null);
     }
   };
 
   const handleDecline = async (inviteId: string) => {
+    if (!authToken) return;
     setBusyId(inviteId);
     setErrorMessage(null);
     setStatusMessage(null);
     try {
-      const res = await declineInvite(inviteId, credential);
+      const res = await declineInvite(inviteId, authToken);
       setSourceMode(res.source);
       setStatusMessage(
         "Invite declined. Your spot was freed for another student.",
       );
       await loadInvites();
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to decline invite",
-      );
+      onApiError(err, "Failed to decline invite");
     } finally {
       setBusyId(null);
     }
   };
 
   const handleReleaseClaim = async (claimId: string) => {
+    if (!authToken) return;
     setBusyId(claimId);
     setErrorMessage(null);
     setStatusMessage(null);
     try {
-      const res = await releaseClaim(claimId, credential);
+      const res = await releaseClaim(claimId, authToken);
       setSourceMode(res.source);
       setStatusMessage("Hold released back to available pool.");
       await loadInvites();
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to release claim",
-      );
+      onApiError(err, "Failed to release claim");
     } finally {
       setBusyId(null);
     }
   };
 
   const handlePickupClaim = async (claimId: string) => {
+    if (!authToken) return;
     setBusyId(claimId);
     setErrorMessage(null);
     setStatusMessage(null);
     try {
-      const res = await pickupClaim(claimId, credential);
+      const res = await pickupClaim(claimId, authToken);
       setSourceMode(res.source);
-      setStatusMessage(
-        "Marked as picked up (demo verification mode). Enjoy your meal.",
-      );
+      setStatusMessage("Marked as picked up (demo mode). Enjoy your meal.");
       await loadInvites();
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to mark picked up",
-      );
+      onApiError(err, "Failed to mark picked up");
     } finally {
       setBusyId(null);
     }
   };
 
-  const handleSavePreferences = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusyId("prefs");
+  const handleLeaveDemo = async () => {
+    setBusyId("leave");
     setErrorMessage(null);
     setStatusMessage(null);
     try {
-      const payload: Preferences = {
-        allergens: myAllergens,
-        diets: myDiets,
-        alerts_paused: alertsPaused,
-      };
-      const res = await updateMyPreferences(payload, credential);
-      setSourceMode(res.source);
-      setStatusMessage(
-        "Your personal dietary and alert preferences were updated.",
-      );
-    } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to save preferences",
-      );
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const handleCheckInPresence = async () => {
-    setBusyId("presence");
-    setErrorMessage(null);
-    setStatusMessage(null);
-    try {
-      const res = await checkInPresence(
-        { building_code: presenceBuilding },
-        credential,
-      );
-      setSourceMode(res.source);
-      setPresenceValidUntil(res.data.valid_until);
-      setStatusMessage(
-        `Coarse campus check-in active near ${presenceBuilding} until ${formatEasternTime(
-          res.data.valid_until,
-        )} (expires automatically after 2 hours).`,
-      );
-    } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to check in",
-      );
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const handleEnableFcm = async () => {
-    setBusyId("fcm");
-    setFcmFeedback(null);
-    try {
-      const tokenRes = await requestFcmPushToken();
-      if (!tokenRes.ok || !tokenRes.token) {
-        setFcmFeedback(tokenRes.message);
-        return;
+      if (authToken && !seededPersona) {
+        await leaveDemoSession(authToken);
       }
-      const apiRes = await registerPushToken(
-        { token: tokenRes.token },
-        credential,
-      );
-      setSourceMode(apiRes.source);
-      setFcmFeedback(
-        "FCM web push token registered with backend. Lock screen notifications contain minimal drop reference only.",
-      );
-    } catch (err) {
-      setFcmFeedback(
-        err instanceof Error ? err.message : "FCM registration failed",
-      );
+    } catch {
+      // Even if session was already cleared server-side, remove local token and redirect
     } finally {
+      clearSessionToken();
       setBusyId(null);
+      router.replace("/join");
     }
   };
 
-  const toggleMyAllergen = (alg: Allergen) => {
-    setMyAllergens((prev) =>
-      prev.includes(alg) ? prev.filter((a) => a !== alg) : [...prev, alg],
+  if (!authChecked || !authToken) {
+    return (
+      <div className="min-h-screen bg-owl-black p-6 text-sm text-zinc-400">
+        Checking your demo session...
+      </div>
     );
-  };
+  }
 
-  const toggleMyDiet = (diet: Diet) => {
-    setMyDiets((prev) =>
-      prev.includes(diet) ? prev.filter((d) => d !== diet) : [...prev, diet],
-    );
-  };
+  const displayNickname = seededPersona
+    ? `Persona ${seededPersona.label}`
+    : (sessionStudent?.nickname ?? "Visitor");
+
+  const displayArea = seededPersona
+    ? PERSONA_AREA_LABELS[seededPersona.label]
+    : sessionStudent
+      ? (AREA_LABELS[sessionStudent.area] ?? sessionStudent.area)
+      : "Simulated demo area";
+
+  const activeClaimInvite =
+    invites.find(
+      (inv) =>
+        inv.claim?.status === "held" || inv.claim?.status === "picked_up",
+    ) ?? null;
+
+  const nowIso = new Date(nowTick).toISOString();
 
   return (
     <div className="min-h-screen bg-owl-black text-zinc-100">
-      <DemoHeader
-        credential={credential}
-        onCredentialChange={setCredential}
-        sourceMode={sourceMode}
-        isDemo={true}
-      />
+      <DemoHeader sourceMode={sourceMode} isDemo={true} />
 
-      <main className="mx-auto max-w-4xl space-y-6 px-4 py-6">
-        {/* Student Persona Switcher Bar for Quick Demo Testing */}
-        <section className="rounded-xl border border-zinc-800 bg-owl-slate p-5">
-          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-white">
-                Student View — Invites &amp; 10-Minute Holds
-              </h1>
-              <p className="mt-1 text-sm text-zinc-300">
-                Viewing exclusively your own invites and claims for{" "}
-                <code className="rounded bg-owl-black px-1.5 py-0.5 text-owl-gold">
-                  {credential}
-                </code>{" "}
-                (Simulated Demo Persona). Hosts see serving counts.
-              </p>
-            </div>
-            <button
-              type="button"
-              data-testid="refresh-invites-button"
-              onClick={() => void loadInvites()}
-              className="self-start rounded-lg border border-zinc-700 bg-owl-black px-3.5 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-800 sm:self-auto"
-            >
-              Refresh Invites
-            </button>
+      <main className="mx-auto max-w-2xl space-y-6 px-4 py-6">
+        {seededPersona && (
+          <div
+            role="status"
+            data-testid="seeded-persona-banner"
+            className="rounded-xl border border-amber-500/40 bg-amber-950/30 px-4 py-3 text-xs font-semibold text-amber-200"
+          >
+            Seeded persona (simulated) — Rehearsal mode using synthetic token{" "}
+            <code>{seededPersona.token}</code>.
           </div>
+        )}
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            {(
-              [
-                "demo-student-A",
-                "demo-student-B",
-                "demo-student-C",
-                "demo-student-D",
-                "demo-student-E",
-              ] as const
-            ).map((token) => (
-              <button
-                key={token}
-                type="button"
-                data-testid={`switch-${token}`}
-                onClick={() => setCredential(token)}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
-                  credential === token
-                    ? "border-owl-gold bg-owl-gold text-owl-black"
-                    : "border-zinc-700 bg-owl-black text-zinc-300 hover:border-zinc-500"
-                }`}
+        {/* Visitor / Persona Identity Header */}
+        <section className="flex flex-col justify-between gap-4 rounded-xl border border-zinc-800 bg-owl-slate p-5 sm:flex-row sm:items-center">
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1
+                data-testid="student-nickname"
+                className="text-2xl font-bold text-white"
               >
-                {token.replace("demo-student-", "Phone ")} (Simulated)
-              </button>
-            ))}
+                {displayNickname}
+              </h1>
+              <span
+                data-testid="fixture-label"
+                className="rounded border border-sky-500/40 bg-sky-500/10 px-2 py-0.5 text-xs font-semibold text-sky-300"
+              >
+                {displayArea}
+              </span>
+            </div>
+            <p className="text-xs text-zinc-400">
+              Polling exclusively your own invites every 2s. Hosts see aggregate
+              counts only.
+            </p>
           </div>
+
+          <button
+            type="button"
+            data-testid="leave-demo-button"
+            disabled={busyId !== null}
+            onClick={() => void handleLeaveDemo()}
+            className="self-start rounded-lg border border-zinc-700 bg-owl-black px-3.5 py-2 text-xs font-semibold text-zinc-200 transition hover:border-rose-500/50 hover:text-rose-200 disabled:opacity-50 sm:self-auto"
+          >
+            {busyId === "leave" ? "Leaving..." : "Leave demo"}
+          </button>
         </section>
 
         {statusMessage && (
@@ -320,10 +333,87 @@ export default function StudentPage() {
           </div>
         )}
 
-        {/* Active Invites List */}
+        {/* Section 1: Your Claim */}
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold text-owl-gold">Your claim</h2>
+
+          {activeClaimInvite && activeClaimInvite.claim ? (
+            <div
+              data-testid="active-claim-banner"
+              className="space-y-3 rounded-xl border border-emerald-500/40 bg-emerald-950/30 p-5 text-sm text-emerald-100"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="rounded bg-emerald-500/20 px-2.5 py-0.5 text-xs font-bold uppercase text-emerald-300">
+                  {activeClaimInvite.claim.status === "held"
+                    ? "Spot Held (10 min)"
+                    : "Picked Up"}
+                </span>
+                {activeClaimInvite.claim.status === "held" && (
+                  <span className="text-xs font-semibold text-emerald-200">
+                    Hold expires at{" "}
+                    {formatEasternTime(activeClaimInvite.claim.held_until)} (
+                    {formatRemainingTime(
+                      activeClaimInvite.claim.held_until,
+                      nowIso,
+                    )}
+                    )
+                  </span>
+                )}
+              </div>
+
+              <div>
+                <div className="text-base font-bold text-white">
+                  {activeClaimInvite.drop.building_code}
+                  {activeClaimInvite.drop.room
+                    ? `, room ${activeClaimInvite.drop.room}`
+                    : ""}
+                </div>
+                <p className="mt-1 text-xs text-emerald-200">
+                  {activeClaimInvite.claim.status === "held"
+                    ? "Your spot is held for 10 minutes. Head over now — pickup needs no ID or proof."
+                    : "Serving marked picked up. Enjoy your meal."}
+                </p>
+              </div>
+
+              {activeClaimInvite.claim.status === "held" && (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    data-testid={`release-claim-button-${activeClaimInvite.claim.id}`}
+                    disabled={busyId !== null}
+                    onClick={() =>
+                      void handleReleaseClaim(activeClaimInvite.claim!.id)
+                    }
+                    className="rounded-lg border border-zinc-700 bg-owl-black px-3.5 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-800 disabled:opacity-50"
+                  >
+                    Release hold
+                  </button>
+                  <button
+                    type="button"
+                    data-testid={`pickup-claim-button-${activeClaimInvite.claim.id}`}
+                    disabled={busyId !== null}
+                    onClick={() =>
+                      void handlePickupClaim(activeClaimInvite.claim!.id)
+                    }
+                    className="rounded-lg bg-emerald-500 px-3.5 py-2 text-xs font-bold text-owl-black hover:bg-emerald-400 disabled:opacity-50"
+                  >
+                    Confirm picked up (demo)
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-zinc-800 bg-owl-slate/60 p-4 text-xs text-zinc-400">
+              You have no active 10-minute hold right now. Claim an invite below
+              when one arrives.
+            </div>
+          )}
+        </section>
+
+        {/* Section 2: Your Invites */}
         <section className="space-y-4">
           <h2 className="text-lg font-semibold text-owl-gold">
-            Your Invites ({invites.length})
+            Your invites ({invites.length})
           </h2>
 
           {invites.length === 0 ? (
@@ -332,11 +422,12 @@ export default function StudentPage() {
               className="rounded-xl border border-zinc-800 bg-owl-slate p-6 text-center"
             >
               <p className="text-sm font-medium text-zinc-200">
-                No active food invites for {credential} right now.
+                No active food invites for {displayNickname} yet.
               </p>
               <p className="mt-1 text-xs text-zinc-400">
-                Owl Plate only pings nearby students whose dietary and allergen
-                settings match the drop. Allergen estimates always carry:{" "}
+                When a host publishes a compatible drop within your wave ring,
+                your invite will appear here automatically. Allergens always
+                carry:{" "}
                 <strong className="text-amber-300">
                   {ALLERGEN_WARNING_TEXT}
                 </strong>
@@ -347,7 +438,8 @@ export default function StudentPage() {
             invites.map((inv) => {
               const drop = inv.drop;
               const isHeld = inv.claim?.status === "held";
-              const isPickedUp = inv.claim?.status === "picked_up";
+              const countdown = formatRemainingTime(inv.expires_at, nowIso);
+
               return (
                 <article
                   key={inv.id}
@@ -355,40 +447,44 @@ export default function StudentPage() {
                   className="space-y-4 rounded-xl border border-zinc-800 bg-owl-slate p-5"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
+                    <div className="space-y-1.5">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded bg-owl-gold/20 px-2.5 py-0.5 text-xs font-bold uppercase text-owl-gold">
-                          Invite Status: {inv.status}
+                        <span
+                          data-testid="simulated-notification-label"
+                          className="rounded border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 text-xs font-bold text-amber-300"
+                        >
+                          Simulated notification
                         </span>
-                        {drop.is_demo && (
-                          <span className="rounded border border-sky-500/40 bg-sky-500/10 px-2 py-0.5 text-[11px] font-semibold text-sky-300">
-                            Simulated Demo Drop ({drop.vision_source})
-                          </span>
-                        )}
+                        <span className="rounded bg-owl-gold/20 px-2.5 py-0.5 text-xs font-bold uppercase text-owl-gold">
+                          Status: {inv.status}
+                        </span>
                       </div>
-                      <h3 className="mt-2 text-lg font-bold text-white">
+
+                      <h3 className="text-lg font-bold text-white">
                         Free food nearby: {drop.building_code}
                         {drop.room ? `, room ${drop.room}` : ""}
                       </h3>
                       <p className="text-xs text-zinc-300">
                         About {drop.counts.available} of {drop.counts.total}{" "}
-                        servings available. Invite expires at{" "}
-                        {formatEasternTime(inv.expires_at)} (
-                        {formatRemainingTime(inv.expires_at)}).
+                        servings available.
                       </p>
                     </div>
 
-                    <div className="text-right text-xs text-zinc-400">
-                      <div>Drop Status: {drop.status}</div>
-                      {drop.expires_at && (
-                        <div>
-                          Drop Ends: {formatEasternTime(drop.expires_at)}
-                        </div>
-                      )}
+                    <div className="rounded-lg border border-zinc-700 bg-owl-black px-3 py-1.5 text-right text-xs">
+                      <div className="text-zinc-400">Invite countdown</div>
+                      <div
+                        data-testid={`invite-countdown-${inv.id}`}
+                        className="font-bold text-owl-gold"
+                      >
+                        {countdown}
+                      </div>
+                      <div className="text-[11px] text-zinc-400">
+                        Until {formatEasternTime(inv.expires_at)}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Food Items */}
+                  {/* Estimated Food Items */}
                   <div className="rounded-lg bg-owl-black/60 p-3">
                     <div className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
                       Estimated Items
@@ -415,41 +511,14 @@ export default function StudentPage() {
                     )}
                   </div>
 
-                  {/* Mandatory Allergen Warning Display */}
+                  {/* Mandatory Allergen Notice Display */}
                   <AllergenListDisplay
                     allergens={drop.allergens_final}
                     notice={drop.allergen_notice}
                     title="Allergens for This Drop"
                   />
 
-                  {/* Claim Details if Held or Picked Up */}
-                  {inv.claim && (
-                    <div
-                      data-testid="active-claim-banner"
-                      className="rounded-lg border border-emerald-500/40 bg-emerald-950/30 p-3 text-xs text-emerald-200"
-                    >
-                      <div className="font-bold uppercase">
-                        Claim Status: {inv.claim.status}
-                      </div>
-                      {isHeld && (
-                        <p className="mt-1">
-                          Your spot is held until{" "}
-                          <strong>
-                            {formatEasternTime(inv.claim.held_until)}
-                          </strong>
-                          . Head to {drop.building_code}{" "}
-                          {drop.room && `room ${drop.room}`}.
-                        </p>
-                      )}
-                      {isPickedUp && (
-                        <p className="mt-1">
-                          Serving marked picked up. Thank you!
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Invite Actions: Claim / Decline / Release / Pickup */}
+                  {/* Invite Actions */}
                   <div className="flex flex-wrap items-center gap-3 pt-1">
                     {inv.status === "sent" && (
                       <>
@@ -458,45 +527,34 @@ export default function StudentPage() {
                           data-testid={`claim-invite-button-${inv.id}`}
                           disabled={busyId !== null}
                           onClick={() => void handleClaim(inv.id)}
-                          className="rounded-lg bg-owl-gold px-4 py-2 text-sm font-bold text-owl-black transition hover:bg-owl-goldDark disabled:opacity-50"
+                          className="rounded-lg bg-owl-gold px-4 py-2.5 text-sm font-bold text-owl-black transition hover:bg-owl-goldDark disabled:opacity-50"
                         >
                           {busyId === inv.id
                             ? "Holding spot..."
-                            : "I'm coming (Hold 10m)"}
+                            : "I'm coming – hold 10 min"}
                         </button>
                         <button
                           type="button"
                           data-testid={`decline-invite-button-${inv.id}`}
                           disabled={busyId !== null}
                           onClick={() => void handleDecline(inv.id)}
-                          className="rounded-lg border border-zinc-700 bg-owl-black px-4 py-2 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800 disabled:opacity-50"
+                          className="rounded-lg border border-zinc-700 bg-owl-black px-4 py-2.5 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-800 disabled:opacity-50"
                         >
-                          Can&apos;t make it (Decline)
+                          Decline
                         </button>
                       </>
                     )}
 
                     {inv.claim && isHeld && (
-                      <>
-                        <button
-                          type="button"
-                          data-testid={`pickup-claim-button-${inv.claim.id}`}
-                          disabled={busyId !== null}
-                          onClick={() => void handlePickupClaim(inv.claim!.id)}
-                          className="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-bold text-owl-black transition hover:bg-emerald-400 disabled:opacity-50"
-                        >
-                          Confirm Picked Up (Demo)
-                        </button>
-                        <button
-                          type="button"
-                          data-testid={`release-claim-button-${inv.claim.id}`}
-                          disabled={busyId !== null}
-                          onClick={() => void handleReleaseClaim(inv.claim!.id)}
-                          className="rounded-lg border border-zinc-700 bg-owl-black px-3.5 py-2 text-xs font-semibold text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
-                        >
-                          Release Hold
-                        </button>
-                      </>
+                      <button
+                        type="button"
+                        data-testid={`invite-release-button-${inv.claim.id}`}
+                        disabled={busyId !== null}
+                        onClick={() => void handleReleaseClaim(inv.claim!.id)}
+                        className="rounded-lg border border-zinc-700 bg-owl-black px-3.5 py-2 text-xs font-semibold text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
+                      >
+                        Release hold
+                      </button>
                     )}
                   </div>
                 </article>
@@ -504,176 +562,21 @@ export default function StudentPage() {
             })
           )}
         </section>
-
-        {/* Student Self-Service Settings: Presence, Own Preferences & Opt-In Web Push */}
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Own Preferences & Coarse Presence */}
-          <section className="space-y-4 rounded-xl border border-zinc-800 bg-owl-slate p-5">
-            <h2 className="text-base font-semibold text-white">
-              Your Dietary Filters &amp; Campus Check-In
-            </h2>
-            <p className="text-xs text-zinc-400">
-              Used strictly as a hard safety filter before invites are sent.
-              Never visible to hosts or other students.
-            </p>
-
-            <form onSubmit={handleSavePreferences} className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-zinc-300">
-                  Allergens to Exclude ({ALLERGEN_WARNING_TEXT})
-                </label>
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {ALLERGENS.map((alg) => {
-                    const active = myAllergens.includes(alg);
-                    return (
-                      <button
-                        key={alg}
-                        type="button"
-                        onClick={() => toggleMyAllergen(alg)}
-                        className={`rounded border px-2 py-1 text-xs font-medium ${
-                          active
-                            ? "border-amber-400 bg-amber-500/20 text-amber-100"
-                            : "border-zinc-700 bg-owl-black text-zinc-400"
-                        }`}
-                      >
-                        {active ? "✓ " : ""}
-                        {alg.replace("_", " ")}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-zinc-300">
-                  Required Diets
-                </label>
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {DIETS.map((diet) => {
-                    const active = myDiets.includes(diet);
-                    return (
-                      <button
-                        key={diet}
-                        type="button"
-                        onClick={() => toggleMyDiet(diet)}
-                        className={`rounded border px-2 py-1 text-xs font-medium ${
-                          active
-                            ? "border-emerald-400 bg-emerald-500/20 text-emerald-100"
-                            : "border-zinc-700 bg-owl-black text-zinc-400"
-                        }`}
-                      >
-                        {active ? "✓ " : ""}
-                        {diet.replace("_", " ")}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <label className="flex items-center gap-2 text-xs text-zinc-300">
-                <input
-                  type="checkbox"
-                  checked={alertsPaused}
-                  onChange={(e) => setAlertsPaused(e.target.checked)}
-                  className="h-4 w-4 rounded border-zinc-600 accent-owl-gold"
-                />
-                <span>Pause food alerts for my account</span>
-              </label>
-
-              <button
-                type="submit"
-                disabled={busyId !== null}
-                className="rounded-lg border border-owl-gold/50 bg-owl-gold/15 px-3.5 py-2 text-xs font-semibold text-owl-gold hover:bg-owl-gold/25"
-              >
-                Save My Preferences
-              </button>
-            </form>
-
-            <div className="border-t border-zinc-800 pt-3">
-              <div className="text-xs font-semibold text-zinc-300">
-                Coarse Campus Check-In (2-Hour Window)
-              </div>
-              <div className="mt-2 flex gap-2">
-                <input
-                  type="text"
-                  value={presenceBuilding}
-                  onChange={(e) => setPresenceBuilding(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-700 bg-owl-black px-3 py-1.5 text-xs text-white"
-                />
-                <button
-                  type="button"
-                  onClick={() => void handleCheckInPresence()}
-                  disabled={busyId !== null}
-                  className="shrink-0 rounded-lg bg-zinc-800 px-3 py-1.5 text-xs font-semibold text-zinc-100 hover:bg-zinc-700"
-                >
-                  Check In
-                </button>
-              </div>
-              {presenceValidUntil && (
-                <p className="mt-1 text-[11px] text-emerald-300">
-                  Checked in until {formatEasternTime(presenceValidUntil)}.
-                </p>
-              )}
-            </div>
-          </section>
-
-          {/* Opt-In FCM Web Push & iOS Home Screen Guide */}
-          <section className="space-y-4 rounded-xl border border-zinc-800 bg-owl-slate p-5">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-base font-semibold text-white">
-                Opt-In Web Push Alerts (FCM)
-              </h2>
-              <span
-                data-testid="fcm-config-badge"
-                className={`rounded px-2 py-0.5 text-[11px] font-bold ${
-                  fcmStatus.enabled
-                    ? "bg-emerald-500/20 text-emerald-300"
-                    : "bg-amber-500/20 text-amber-300"
-                }`}
-              >
-                {fcmStatus.enabled
-                  ? "FCM Configured"
-                  : "FCM Disabled (Demo Log Mode)"}
-              </span>
-            </div>
-
-            <p className="text-xs text-zinc-300">{fcmStatus.reason}</p>
-
-            <div className="rounded-lg border border-zinc-800 bg-owl-black/60 p-3 text-xs text-zinc-300 space-y-1.5">
-              <div className="font-semibold text-owl-gold">
-                iPhone / iOS Safari Setup (iOS 16.4+)
-              </div>
-              <p>
-                On iPhone, web push requires installing Owl Plate to your Home
-                Screen first: tap <strong>Share</strong> in Safari, choose{" "}
-                <strong>Add to Home Screen</strong>, open the installed app
-                icon, and tap Enable Push Alerts below.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              data-testid="enable-fcm-button"
-              disabled={!fcmStatus.enabled || busyId === "fcm"}
-              onClick={() => void handleEnableFcm()}
-              className="w-full rounded-lg bg-owl-gold px-4 py-2.5 text-xs font-bold text-owl-black transition hover:bg-owl-goldDark disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {fcmStatus.enabled
-                ? "Enable Web Push Notifications (Opt-In)"
-                : "Real FCM Disabled (No Firebase Config Present)"}
-            </button>
-
-            {fcmFeedback && (
-              <div
-                data-testid="fcm-feedback-box"
-                className="rounded-lg border border-sky-500/40 bg-sky-950/30 p-3 text-xs text-sky-200"
-              >
-                {fcmFeedback}
-              </div>
-            )}
-          </section>
-        </div>
       </main>
     </div>
+  );
+}
+
+export default function StudentPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-owl-black p-6 text-sm text-zinc-400">
+          Loading student view...
+        </div>
+      }
+    >
+      <StudentContent />
+    </Suspense>
   );
 }

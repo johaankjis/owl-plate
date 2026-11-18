@@ -1,21 +1,28 @@
 /**
- * Deterministic offline API fixture state for Owl Plate web when the FastAPI backend
- * is offline or unreachable during independent frontend development/testing.
+ * Deterministic offline API fixture state for Owl Plate web when UI_FIXTURE_MODE=true.
  *
  * Privacy & Contract Rules:
  * - Never includes data/seed/demo.json or any priority tier / score fields.
  * - Explicitly marks vision_source = "fixture" and is_demo = true.
  * - Uses H3 resolution 11 cells computed dynamically from arbitrary placeholder origin (0.0, 0.0).
- * - Persona reason codes use generic safe codes only ("nearby", "diet_match", "fair_share", "allergen_conflict", "out_of_range", "diet_mismatch").
+ * - Persona and visitor reason codes use generic safe codes only.
+ * - Visitor sessions isolate invites and claims per token and throw 401 when unknown/revoked.
  */
 
 import { latLngToCell, gridDisk } from "h3-js";
 import type {
   Allergen,
+  AuthToken,
   ClaimResponse,
   Counts,
+  DemoArea,
+  DemoAreaId,
+  DemoAreasResponse,
   DemoCredential,
+  DemoResetRequest,
   DemoResetResponse,
+  DemoScenario,
+  DemoStatusResponse,
   DemoTick,
   DemoTickResponse,
   DispatchResponse,
@@ -23,13 +30,18 @@ import type {
   DropResponse,
   InviteResponse,
   InvitesResponse,
+  JoinRequest,
+  JoinResponse,
   PersonaDecision,
   Preferences,
   PresenceRequest,
   PresenceResponse,
   PushTokenRequest,
   PushTokenResponse,
+  SessionLeftResponse,
+  SessionStudent,
   VisionEstimate,
+  VisitorDecision,
   WaveResponse,
 } from "../types/api";
 import {
@@ -38,11 +50,54 @@ import {
   RELIGIOUS_DIETS,
 } from "../types/api";
 
-const STORAGE_KEY = "owl_plate_offline_fixture_state_v2";
+const STORAGE_KEY = "owl_plate_offline_fixture_state_v3";
 const H3_RESOLUTION = 11;
 
 // Arbitrary placeholder coordinates (0.0, 0.0) per API_CONTRACT.md
 const ORIGIN_CELL = latLngToCell(0.0, 0.0, H3_RESOLUTION);
+
+export const FIXTURE_DEMO_AREAS: ReadonlyArray<DemoArea> = [
+  {
+    id: "demo-venue",
+    label: "Event venue (demo)",
+    description:
+      "Simulated location at the event venue (ring 0 — first reached in Wave 1).",
+    ring_distance: 0,
+  },
+  {
+    id: "demo-next-door",
+    label: "Next building over (demo)",
+    description:
+      "Simulated location one building over (ring 1 — first reached in Wave 1).",
+    ring_distance: 1,
+  },
+  {
+    id: "demo-across-quad",
+    label: "Across the quad (demo)",
+    description:
+      "Simulated location across the campus quad (ring 4 — first reached in Wave 2).",
+    ring_distance: 4,
+  },
+  {
+    id: "demo-far-side",
+    label: "Far side of campus (demo)",
+    description:
+      "Simulated location on the far side of campus (ring 8 — first reached in Wave 4).",
+    ring_distance: 8,
+  },
+];
+
+export class FixtureContractError extends Error {
+  public readonly status: number;
+  public readonly code: string;
+
+  constructor(status: number, code: string, message: string) {
+    super(message);
+    this.name = "FixtureContractError";
+    this.status = status;
+    this.code = code;
+  }
+}
 
 function getCellAtDistance(
   origin: string,
@@ -65,10 +120,21 @@ interface InternalPersonaConfig {
   preferences: Preferences;
 }
 
+interface InternalVisitorSession {
+  token: string;
+  student: SessionStudent;
+  ringDistance: number;
+  h3Cell: string;
+  alertsPaused: boolean;
+  joinedAtIso: string;
+}
+
 interface InternalInvite {
   id: string;
   dropId: string;
-  personaLabel: "A" | "B" | "C" | "D" | "E";
+  recipientKey: string; // "persona:A" | "visitor:<token>"
+  personaLabel: "A" | "B" | "C" | "D" | "E" | null;
+  visitorToken: string | null;
   waveNumber: number;
   status: "sent" | "claimed" | "declined" | "expired";
   reasonCodes: string[];
@@ -81,55 +147,62 @@ interface InternalClaim {
   id: string;
   inviteId: string;
   dropId: string;
-  personaLabel: "A" | "B" | "C" | "D" | "E";
+  recipientKey: string;
+  personaLabel: "A" | "B" | "C" | "D" | "E" | null;
+  visitorToken: string | null;
   status: "held" | "picked_up" | "released" | "expired";
   heldUntil: string;
 }
 
 interface OfflineFixtureStore {
   serverTimeIso: string;
+  clockOffsetSeconds: number;
+  scenario: DemoScenario;
   activeDropId: string;
   drops: Record<string, DropResponse>;
   wavesByDrop: Record<string, WaveResponse[]>;
   invites: Record<string, InternalInvite>;
   claims: Record<string, InternalClaim>;
   personas: Record<"A" | "B" | "C" | "D" | "E", InternalPersonaConfig>;
+  visitorsByToken: Record<string, InternalVisitorSession>;
   presenceUntilByToken: Record<string, string>;
   pushRegisteredByToken: Record<string, boolean>;
 }
 
-function createInitialPersonas(): Record<
-  "A" | "B" | "C" | "D" | "E",
-  InternalPersonaConfig
-> {
+let memoryStore: OfflineFixtureStore | null = null;
+
+function createInitialPersonas(
+  scenario: DemoScenario = "seeded",
+): Record<"A" | "B" | "C" | "D" | "E", InternalPersonaConfig> {
+  const paused = scenario === "visitors";
   return {
     A: {
       token: "demo-student-A",
       label: "A",
       ringDistance: 0,
       h3Cell: getCellAtDistance(ORIGIN_CELL, 0, 0),
-      preferences: { allergens: [], diets: [], alerts_paused: false },
+      preferences: { allergens: [], diets: [], alerts_paused: paused },
     },
     B: {
       token: "demo-student-B",
       label: "B",
       ringDistance: 0,
       h3Cell: getCellAtDistance(ORIGIN_CELL, 0, 1),
-      preferences: { allergens: ["dairy"], diets: [], alerts_paused: false },
+      preferences: { allergens: ["dairy"], diets: [], alerts_paused: paused },
     },
     C: {
       token: "demo-student-C",
       label: "C",
       ringDistance: 1,
       h3Cell: getCellAtDistance(ORIGIN_CELL, 1, 1),
-      preferences: { allergens: [], diets: [], alerts_paused: false },
+      preferences: { allergens: [], diets: [], alerts_paused: paused },
     },
     D: {
       token: "demo-student-D",
       label: "D",
       ringDistance: 4,
       h3Cell: getCellAtDistance(ORIGIN_CELL, 4, 2),
-      preferences: { allergens: [], diets: [], alerts_paused: false },
+      preferences: { allergens: [], diets: [], alerts_paused: paused },
     },
     E: {
       token: "demo-student-E",
@@ -139,7 +212,7 @@ function createInitialPersonas(): Record<
       preferences: {
         allergens: [],
         diets: ["vegetarian"],
-        alerts_paused: false,
+        alerts_paused: paused,
       },
     },
   };
@@ -179,24 +252,32 @@ function createDefaultVision(note?: string): VisionEstimate {
   };
 }
 
-function createInitialStore(): OfflineFixtureStore {
+function createInitialStore(
+  scenario: DemoScenario = "seeded",
+): OfflineFixtureStore {
   const now = new Date("2026-11-18T17:00:00Z");
   return {
     serverTimeIso: now.toISOString(),
+    clockOffsetSeconds: 0,
+    scenario,
     activeDropId: "",
     drops: {},
     wavesByDrop: {},
     invites: {},
     claims: {},
-    personas: createInitialPersonas(),
+    personas: createInitialPersonas(scenario),
+    visitorsByToken: {},
     presenceUntilByToken: {},
     pushRegisteredByToken: {},
   };
 }
 
 function loadStore(): OfflineFixtureStore {
-  if (typeof window === "undefined") {
-    return createInitialStore();
+  if (typeof window === "undefined" || !window.localStorage) {
+    if (!memoryStore) {
+      memoryStore = createInitialStore();
+    }
+    return memoryStore;
   }
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -205,19 +286,61 @@ function loadStore(): OfflineFixtureStore {
       saveStore(fresh);
       return fresh;
     }
-    return JSON.parse(raw) as OfflineFixtureStore;
+    const parsed = JSON.parse(raw) as OfflineFixtureStore;
+    if (!parsed.visitorsByToken) {
+      parsed.visitorsByToken = {};
+    }
+    if (!parsed.scenario) {
+      parsed.scenario = "seeded";
+    }
+    if (typeof parsed.clockOffsetSeconds !== "number") {
+      parsed.clockOffsetSeconds = 0;
+    }
+    return parsed;
   } catch {
     return createInitialStore();
   }
 }
 
 function saveStore(store: OfflineFixtureStore): void {
-  if (typeof window === "undefined") return;
+  memoryStore = store;
+  if (typeof window === "undefined" || !window.localStorage) return;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
   } catch {
     // ignore storage quota errors
   }
+}
+
+function resolveStudentIdentity(
+  store: OfflineFixtureStore,
+  credential: AuthToken,
+):
+  | { kind: "persona"; persona: InternalPersonaConfig; recipientKey: string }
+  | { kind: "visitor"; visitor: InternalVisitorSession; recipientKey: string } {
+  const personaEntry = Object.values(store.personas).find(
+    (p) => p.token === credential,
+  );
+  if (personaEntry) {
+    return {
+      kind: "persona",
+      persona: personaEntry,
+      recipientKey: `persona:${personaEntry.label}`,
+    };
+  }
+  const visitorEntry = store.visitorsByToken[credential];
+  if (visitorEntry) {
+    return {
+      kind: "visitor",
+      visitor: visitorEntry,
+      recipientKey: `visitor:${visitorEntry.token}`,
+    };
+  }
+  throw new FixtureContractError(
+    401,
+    "unauthorized",
+    "Session ended. Join again.",
+  );
 }
 
 function recomputeCounts(store: OfflineFixtureStore, dropId: string): Counts {
@@ -247,6 +370,16 @@ function recomputeCounts(store: OfflineFixtureStore, dropId: string): Counts {
   return counts;
 }
 
+interface CandidateRecipient {
+  recipientKey: string;
+  personaLabel: "A" | "B" | "C" | "D" | "E" | null;
+  visitorToken: string | null;
+  ringDistance: number;
+  allergens: Allergen[];
+  diets: ("vegetarian" | "vegan" | "halal" | "kosher" | "pork_free")[];
+  alertsPaused: boolean;
+}
+
 function planWaveForDrop(
   store: OfflineFixtureStore,
   drop: DropResponse,
@@ -257,49 +390,90 @@ function planWaveForDrop(
   const counts = recomputeCounts(store, drop.id);
   if (counts.available <= 0) return;
 
-  const alreadyInvitedLabels = new Set(
+  const alreadyInvitedKeys = new Set(
     Object.values(store.invites)
       .filter((inv) => inv.dropId === drop.id)
-      .map((inv) => inv.personaLabel),
+      .map((inv) => inv.recipientKey),
   );
 
-  const eligible: InternalPersonaConfig[] = [];
+  const activeClaimKeys = new Set(
+    Object.values(store.claims)
+      .filter((c) => c.status === "held")
+      .map((c) => c.recipientKey),
+  );
+
+  const candidates: CandidateRecipient[] = [];
+
+  // Joined visitors first so live interactive testers receive invites seamlessly
+  const visitors = Object.values(store.visitorsByToken).sort((a, b) =>
+    a.joinedAtIso.localeCompare(b.joinedAtIso),
+  );
+  for (const v of visitors) {
+    candidates.push({
+      recipientKey: `visitor:${v.token}`,
+      personaLabel: null,
+      visitorToken: v.token,
+      ringDistance: v.ringDistance,
+      allergens: v.student.allergens,
+      diets: v.student.diets,
+      alertsPaused: v.alertsPaused,
+    });
+  }
+
   for (const label of ["A", "B", "C", "D", "E"] as const) {
     const p = store.personas[label];
-    if (alreadyInvitedLabels.has(label)) continue;
-    if (p.preferences.alerts_paused) continue;
-    // Allergen hard filter
-    const hasAllergenConflict = p.preferences.allergens.some((a) =>
+    candidates.push({
+      recipientKey: `persona:${p.label}`,
+      personaLabel: p.label,
+      visitorToken: null,
+      ringDistance: p.ringDistance,
+      allergens: p.preferences.allergens,
+      diets: p.preferences.diets,
+      alertsPaused: p.preferences.alerts_paused,
+    });
+  }
+
+  const eligible: CandidateRecipient[] = [];
+  for (const c of candidates) {
+    if (alreadyInvitedKeys.has(c.recipientKey)) continue;
+    if (activeClaimKeys.has(c.recipientKey)) continue;
+    if (c.alertsPaused) continue;
+    const hasAllergenConflict = c.allergens.some((a) =>
       drop.allergens_final.includes(a),
     );
     if (hasAllergenConflict) continue;
-    // Diet hard filter
-    const missingDiet = p.preferences.diets.some(
-      (d) => !drop.diet_tags_final.includes(d),
-    );
+    const missingDiet = c.diets.some((d) => !drop.diet_tags_final.includes(d));
     if (missingDiet) continue;
-    // Ring filter
-    if (p.ringDistance > ringK) continue;
+    if (c.ringDistance > ringK) continue;
 
-    eligible.push(p);
+    eligible.push(c);
   }
 
-  // Match API smoke behavior: 2 available servings -> wave 1 invites A and C; 1 available -> wave 2 invites D
-  const targetCount = Math.min(eligible.length, counts.available);
+  const targetCount = Math.min(
+    eligible.length,
+    Math.max(counts.available, Math.ceil(counts.available / 0.8)),
+  );
   const selected = eligible.slice(0, targetCount);
   const nowMs = new Date(store.serverTimeIso).getTime();
   const expiresIso = new Date(nowMs + 60 * 1000).toISOString();
 
-  for (const p of selected) {
-    const inviteId = `inv-${drop.id.slice(0, 8)}-w${nextWaveNumber}-${p.label}`;
-    const reasonCodes: string[] = ["nearby", "fair_share"];
-    if (p.preferences.diets.length > 0) {
-      reasonCodes.push("diet_match");
-    }
+  for (const c of selected) {
+    const suffix = c.personaLabel
+      ? c.personaLabel
+      : (c.visitorToken?.slice(-6) ?? "vis");
+    const inviteId = `inv-${drop.id.slice(0, 8)}-w${nextWaveNumber}-${suffix}`;
+    const reasonCodes: string[] = c.visitorToken
+      ? ["nearby", "diet_match", "fair_share"]
+      : c.diets.length > 0
+        ? ["nearby", "fair_share", "diet_match"]
+        : ["nearby", "fair_share"];
+
     store.invites[inviteId] = {
       id: inviteId,
       dropId: drop.id,
-      personaLabel: p.label,
+      recipientKey: c.recipientKey,
+      personaLabel: c.personaLabel,
+      visitorToken: c.visitorToken,
       waveNumber: nextWaveNumber,
       status: "sent",
       reasonCodes,
@@ -321,6 +495,186 @@ function planWaveForDrop(
 export function getActiveFixtureDropId(): string {
   const store = loadStore();
   return store.activeDropId;
+}
+
+export function fixtureGetDemoAreas(): DemoAreasResponse {
+  return {
+    areas: FIXTURE_DEMO_AREAS.map((a) => ({ ...a })),
+  };
+}
+
+export function fixtureJoinSession(req: JoinRequest): JoinResponse {
+  const store = loadStore();
+  const nickname = req.nickname.trim();
+  if (!nickname) {
+    throw new FixtureContractError(
+      422,
+      "validation_error",
+      "Nickname is required.",
+    );
+  }
+
+  const existingVisitors = Object.values(store.visitorsByToken);
+  if (existingVisitors.length >= 40) {
+    throw new FixtureContractError(
+      409,
+      "session_limit",
+      "The demo has reached the 40-visitor session limit.",
+    );
+  }
+
+  const taken = existingVisitors.some(
+    (v) => v.student.nickname.toLowerCase() === nickname.toLowerCase(),
+  );
+  if (taken) {
+    throw new FixtureContractError(
+      409,
+      "nickname_taken",
+      `Nickname "${nickname}" is already taken in this demo session.`,
+    );
+  }
+
+  const areaInfo =
+    FIXTURE_DEMO_AREAS.find((a) => a.id === req.area) ?? FIXTURE_DEMO_AREAS[0]!;
+  const areaId: DemoAreaId = areaInfo.id;
+
+  const visitorIndex = existingVisitors.length + 1;
+  const randomPart = Math.random().toString(36).slice(2, 12);
+  const token = `demo-session-${Date.now().toString(36)}-${randomPart}`;
+  const validUntil = new Date(
+    new Date(store.serverTimeIso).getTime() + 2 * 60 * 60 * 1000,
+  ).toISOString();
+
+  const student: SessionStudent = {
+    id: `00000000-0000-4000-9000-${String(visitorIndex).padStart(12, "0")}`,
+    nickname,
+    area: areaId,
+    allergens: [...(req.allergens ?? [])],
+    diets: [...(req.diets ?? [])],
+    kind: "visitor",
+    valid_until: validUntil,
+  };
+
+  const session: InternalVisitorSession = {
+    token,
+    student,
+    ringDistance: areaInfo.ring_distance,
+    h3Cell: getCellAtDistance(
+      ORIGIN_CELL,
+      areaInfo.ring_distance,
+      visitorIndex + 3,
+    ),
+    alertsPaused: false,
+    joinedAtIso: new Date().toISOString(),
+  };
+
+  store.visitorsByToken[token] = session;
+
+  // If there is already a live drop in fixture mode and this visitor is eligible in current ring,
+  // create an immediate wave invite so standalone fixture mode feels responsive right after joining.
+  const activeDrop = store.drops[store.activeDropId];
+  if (activeDrop && activeDrop.status === "live") {
+    const waves = store.wavesByDrop[activeDrop.id] ?? [];
+    const currentRingK = waves.length > 0 ? waves[waves.length - 1]!.ring_k : 2;
+    const counts = recomputeCounts(store, activeDrop.id);
+    const hasAllergen = student.allergens.some((a) =>
+      activeDrop.allergens_final.includes(a),
+    );
+    const missingDiet = student.diets.some(
+      (d) => !activeDrop.diet_tags_final.includes(d),
+    );
+    if (
+      counts.available > 0 &&
+      !hasAllergen &&
+      !missingDiet &&
+      session.ringDistance <= currentRingK
+    ) {
+      const waveNum = waves.length > 0 ? waves[waves.length - 1]!.number : 1;
+      const inviteId = `inv-${activeDrop.id.slice(0, 8)}-w${waveNum}-${token.slice(-6)}`;
+      const nowMs = new Date(store.serverTimeIso).getTime();
+      store.invites[inviteId] = {
+        id: inviteId,
+        dropId: activeDrop.id,
+        recipientKey: `visitor:${token}`,
+        personaLabel: null,
+        visitorToken: token,
+        waveNumber: waveNum,
+        status: "sent",
+        reasonCodes: ["nearby", "diet_match", "fair_share"],
+        sentAt: store.serverTimeIso,
+        expiresAt: new Date(nowMs + 60 * 1000).toISOString(),
+        claimId: null,
+      };
+    }
+  }
+
+  saveStore(store);
+  return { token, student };
+}
+
+export function fixtureGetMySession(credential: AuthToken): SessionStudent {
+  const store = loadStore();
+  const isPersona = Object.values(store.personas).some(
+    (p) => p.token === credential,
+  );
+  if (isPersona) {
+    throw new FixtureContractError(
+      404,
+      "not_a_session",
+      "Seeded persona tokens are not visitor sessions.",
+    );
+  }
+  const session = store.visitorsByToken[credential];
+  if (!session) {
+    throw new FixtureContractError(
+      401,
+      "unauthorized",
+      "Session ended. Join again.",
+    );
+  }
+  return { ...session.student };
+}
+
+export function fixtureLeaveSession(
+  credential: AuthToken,
+): SessionLeftResponse {
+  const store = loadStore();
+  const session = store.visitorsByToken[credential];
+  if (!session) {
+    throw new FixtureContractError(
+      401,
+      "unauthorized",
+      "Session ended. Join again.",
+    );
+  }
+
+  const recipientKey = `visitor:${credential}`;
+  for (const inv of Object.values(store.invites)) {
+    if (inv.recipientKey === recipientKey && inv.status === "sent") {
+      inv.status = "declined";
+    }
+  }
+  for (const claim of Object.values(store.claims)) {
+    if (claim.recipientKey === recipientKey && claim.status === "held") {
+      claim.status = "released";
+      recomputeCounts(store, claim.dropId);
+    }
+  }
+
+  delete store.visitorsByToken[credential];
+  saveStore(store);
+  return { status: "left" };
+}
+
+export function fixtureGetDemoStatus(): DemoStatusResponse {
+  const store = loadStore();
+  return {
+    scenario: store.scenario,
+    visitors: Object.keys(store.visitorsByToken).length,
+    active_drop_id: store.activeDropId || null,
+    server_time: store.serverTimeIso,
+    clock_offset_seconds: store.clockOffsetSeconds,
+  };
 }
 
 export function fixtureCreateDrop(hostNote?: string): DropResponse {
@@ -370,11 +724,13 @@ export function fixtureUpdateDrop(
   const store = loadStore();
   const drop = store.drops[dropId];
   if (!drop) {
-    throw new Error("Drop not found in fixture store");
+    throw new FixtureContractError(
+      404,
+      "not_found",
+      "Drop not found in fixture store",
+    );
   }
 
-  // Enforce contract safety rules:
-  // 1. Removing any estimated allergen requires ingredient_information_checked
   const removedEstimatedAllergen = drop.vision.allergens_likely.some(
     (alg) => !edit.allergens_final.includes(alg),
   );
@@ -382,18 +738,21 @@ export function fixtureUpdateDrop(
     removedEstimatedAllergen &&
     !edit.safety_review.ingredient_information_checked
   ) {
-    throw new Error(
-      "safety_review_required: Removing an AI-estimated allergen requires checking ingredient information.",
+    throw new FixtureContractError(
+      409,
+      "safety_review_required",
+      "Removing an AI-estimated allergen requires checking ingredient information.",
     );
   }
 
-  // 2. Religious tags require religious_diets_confirmed
   const hasReligiousTag = edit.diet_tags_final.some((d) =>
     RELIGIOUS_DIETS.includes(d),
   );
   if (hasReligiousTag && !edit.safety_review.religious_diets_confirmed) {
-    throw new Error(
-      "safety_review_required: Adding halal, kosher, or pork_free tags requires confirming religious diet compliance.",
+    throw new FixtureContractError(
+      409,
+      "safety_review_required",
+      "Adding halal, kosher, or pork_free tags requires confirming religious diet compliance.",
     );
   }
 
@@ -416,7 +775,11 @@ export function fixturePublishDrop(dropId: string): DropResponse {
   const store = loadStore();
   const drop = store.drops[dropId];
   if (!drop) {
-    throw new Error("Drop not found in fixture store");
+    throw new FixtureContractError(
+      404,
+      "not_found",
+      "Drop not found in fixture store",
+    );
   }
   const sr = drop.safety_review;
   if (
@@ -425,8 +788,10 @@ export function fixturePublishDrop(dropId: string): DropResponse {
     !sr.served_within_two_hours ||
     !sr.untouched
   ) {
-    throw new Error(
-      "safety_review_required: Host must confirm all three food safety checks before publishing.",
+    throw new FixtureContractError(
+      409,
+      "safety_review_required",
+      "Host must confirm all three food safety checks before publishing.",
     );
   }
 
@@ -434,8 +799,10 @@ export function fixturePublishDrop(dropId: string): DropResponse {
     (alg) => !drop.allergens_final.includes(alg),
   );
   if (removedEstimatedAllergen && !sr.ingredient_information_checked) {
-    throw new Error(
-      "safety_review_required: Ingredient information check is required when clearing estimated allergens.",
+    throw new FixtureContractError(
+      409,
+      "safety_review_required",
+      "Ingredient information check is required when clearing estimated allergens.",
     );
   }
 
@@ -443,8 +810,10 @@ export function fixturePublishDrop(dropId: string): DropResponse {
     RELIGIOUS_DIETS.includes(d),
   );
   if (hasReligiousTag && !sr.religious_diets_confirmed) {
-    throw new Error(
-      "safety_review_required: Religious diet compliance confirmation is required for halal/kosher/pork_free.",
+    throw new FixtureContractError(
+      409,
+      "safety_review_required",
+      "Religious diet compliance confirmation is required for halal/kosher/pork_free.",
     );
   }
 
@@ -462,7 +831,7 @@ export function fixtureGetDrop(dropId: string): DropResponse {
   const store = loadStore();
   const drop = store.drops[dropId] ?? store.drops[store.activeDropId];
   if (!drop) {
-    throw new Error("Drop not found");
+    throw new FixtureContractError(404, "not_found", "Drop not found");
   }
   recomputeCounts(store, drop.id);
   return drop;
@@ -493,36 +862,24 @@ function buildInviteResponse(
   };
 }
 
-export function fixtureGetMyInvites(
-  credential: DemoCredential,
-): InvitesResponse {
+export function fixtureGetMyInvites(credential: AuthToken): InvitesResponse {
   const store = loadStore();
-  const personaEntry = Object.values(store.personas).find(
-    (p) => p.token === credential,
-  );
-  if (!personaEntry) {
-    return { invites: [] };
-  }
+  const resolved = resolveStudentIdentity(store, credential);
   const myInvites = Object.values(store.invites)
-    .filter((inv) => inv.personaLabel === personaEntry.label)
+    .filter((inv) => inv.recipientKey === resolved.recipientKey)
     .map((inv) => buildInviteResponse(store, inv));
   return { invites: myInvites };
 }
 
 export function fixtureClaimInvite(
   inviteId: string,
-  credential: DemoCredential,
+  credential: AuthToken,
 ): ClaimResponse {
   const store = loadStore();
+  const resolved = resolveStudentIdentity(store, credential);
   const inv = store.invites[inviteId];
-  if (!inv) {
-    throw new Error("Invite not found");
-  }
-  const personaEntry = Object.values(store.personas).find(
-    (p) => p.token === credential,
-  );
-  if (personaEntry && personaEntry.label !== inv.personaLabel) {
-    throw new Error("403: Invite belongs to another student persona");
+  if (!inv || inv.recipientKey !== resolved.recipientKey) {
+    throw new FixtureContractError(404, "not_found", "Invite not found");
   }
 
   if (inv.claimId && store.claims[inv.claimId]?.status === "held") {
@@ -537,12 +894,20 @@ export function fixtureClaimInvite(
   }
 
   if (inv.status === "expired") {
-    throw new Error("invite_expired: This invite has expired.");
+    throw new FixtureContractError(
+      409,
+      "invite_expired",
+      "This invite has expired.",
+    );
   }
 
   const counts = recomputeCounts(store, inv.dropId);
   if (counts.available <= 0) {
-    throw new Error("capacity: All servings are currently held or claimed.");
+    throw new FixtureContractError(
+      409,
+      "capacity",
+      "All servings are currently held or claimed.",
+    );
   }
 
   const nowMs = new Date(store.serverTimeIso).getTime();
@@ -552,7 +917,9 @@ export function fixtureClaimInvite(
     id: claimId,
     inviteId: inv.id,
     dropId: inv.dropId,
+    recipientKey: inv.recipientKey,
     personaLabel: inv.personaLabel,
+    visitorToken: inv.visitorToken,
     status: "held",
     heldUntil,
   };
@@ -573,18 +940,13 @@ export function fixtureClaimInvite(
 
 export function fixtureDeclineInvite(
   inviteId: string,
-  credential: DemoCredential,
+  credential: AuthToken,
 ): InviteResponse {
   const store = loadStore();
+  const resolved = resolveStudentIdentity(store, credential);
   const inv = store.invites[inviteId];
-  if (!inv) {
-    throw new Error("Invite not found");
-  }
-  const personaEntry = Object.values(store.personas).find(
-    (p) => p.token === credential,
-  );
-  if (personaEntry && personaEntry.label !== inv.personaLabel) {
-    throw new Error("403: Invite belongs to another student persona");
+  if (!inv || inv.recipientKey !== resolved.recipientKey) {
+    throw new FixtureContractError(404, "not_found", "Invite not found");
   }
   inv.status = "declined";
   if (inv.claimId && store.claims[inv.claimId]) {
@@ -595,11 +957,20 @@ export function fixtureDeclineInvite(
   return buildInviteResponse(store, inv);
 }
 
-export function fixtureReleaseClaim(claimId: string): ClaimResponse {
+export function fixtureReleaseClaim(
+  claimId: string,
+  credential?: AuthToken,
+): ClaimResponse {
   const store = loadStore();
   const claim = store.claims[claimId];
   if (!claim) {
-    throw new Error("Claim not found");
+    throw new FixtureContractError(404, "not_found", "Claim not found");
+  }
+  if (credential) {
+    const resolved = resolveStudentIdentity(store, credential);
+    if (claim.recipientKey !== resolved.recipientKey) {
+      throw new FixtureContractError(404, "not_found", "Claim not found");
+    }
   }
   claim.status = "released";
   recomputeCounts(store, claim.dropId);
@@ -613,11 +984,20 @@ export function fixtureReleaseClaim(claimId: string): ClaimResponse {
   };
 }
 
-export function fixturePickupClaim(claimId: string): ClaimResponse {
+export function fixturePickupClaim(
+  claimId: string,
+  credential?: AuthToken,
+): ClaimResponse {
   const store = loadStore();
   const claim = store.claims[claimId];
   if (!claim) {
-    throw new Error("Claim not found");
+    throw new FixtureContractError(404, "not_found", "Claim not found");
+  }
+  if (credential) {
+    const resolved = resolveStudentIdentity(store, credential);
+    if (claim.recipientKey !== resolved.recipientKey) {
+      throw new FixtureContractError(404, "not_found", "Claim not found");
+    }
   }
   claim.status = "picked_up";
   recomputeCounts(store, claim.dropId);
@@ -635,86 +1015,167 @@ export function fixtureGetDispatch(dropId: string): DispatchResponse {
   const store = loadStore();
   const drop = store.drops[dropId] ?? store.drops[store.activeDropId];
   if (!drop) {
-    throw new Error("Drop not found");
+    throw new FixtureContractError(404, "not_found", "Drop not found");
   }
   const waves = store.wavesByDrop[drop.id] ?? [];
   const currentRingK = waves.length > 0 ? waves[waves.length - 1]!.ring_k : 2;
   const counts = recomputeCounts(store, drop.id);
 
-  const personas: PersonaDecision[] = (["A", "B", "C", "D", "E"] as const).map(
-    (label) => {
-      const p = store.personas[label];
+  const personas: PersonaDecision[] =
+    store.scenario === "visitors"
+      ? []
+      : (["A", "B", "C", "D", "E"] as const).map((label) => {
+          const p = store.personas[label];
+          const invite = Object.values(store.invites).find(
+            (inv) => inv.dropId === drop.id && inv.personaLabel === label,
+          );
+          if (invite) {
+            const claim = invite.claimId
+              ? store.claims[invite.claimId]
+              : undefined;
+            const effectiveStatus =
+              claim?.status === "picked_up"
+                ? "picked_up"
+                : claim?.status === "held"
+                  ? "claimed"
+                  : invite.status;
+            return {
+              label: p.label,
+              is_simulated: true,
+              ring_distance: p.ringDistance,
+              status: effectiveStatus,
+              reason_codes: invite.reasonCodes,
+              h3_cell: p.h3Cell,
+              wave_number: invite.waveNumber,
+            };
+          }
+
+          const hasAllergen = p.preferences.allergens.some((a) =>
+            drop.allergens_final.includes(a),
+          );
+          if (hasAllergen) {
+            return {
+              label: p.label,
+              is_simulated: true,
+              ring_distance: p.ringDistance,
+              status: "excluded",
+              reason_codes: ["allergen_conflict"],
+              h3_cell: p.h3Cell,
+              wave_number: null,
+            };
+          }
+
+          const missingDiet = p.preferences.diets.some(
+            (d) => !drop.diet_tags_final.includes(d),
+          );
+          if (missingDiet) {
+            return {
+              label: p.label,
+              is_simulated: true,
+              ring_distance: p.ringDistance,
+              status: "excluded",
+              reason_codes: ["diet_mismatch"],
+              h3_cell: p.h3Cell,
+              wave_number: null,
+            };
+          }
+
+          if (p.ringDistance > currentRingK) {
+            return {
+              label: p.label,
+              is_simulated: true,
+              ring_distance: p.ringDistance,
+              status: "outside_ring",
+              reason_codes: ["out_of_range"],
+              h3_cell: p.h3Cell,
+              wave_number: null,
+            };
+          }
+
+          return {
+            label: p.label,
+            is_simulated: true,
+            ring_distance: p.ringDistance,
+            status: drop.status === "draft" ? "standby" : "eligible_queued",
+            reason_codes: ["nearby", "fair_share"],
+            h3_cell: p.h3Cell,
+            wave_number: null,
+          };
+        });
+
+  const visitors: VisitorDecision[] = Object.values(store.visitorsByToken)
+    .sort((a, b) => a.joinedAtIso.localeCompare(b.joinedAtIso))
+    .map((v) => {
       const invite = Object.values(store.invites).find(
-        (inv) => inv.dropId === drop.id && inv.personaLabel === label,
+        (inv) => inv.dropId === drop.id && inv.visitorToken === v.token,
       );
       if (invite) {
         const claim = invite.claimId ? store.claims[invite.claimId] : undefined;
         const effectiveStatus =
-          claim?.status === "picked_up"
-            ? "picked_up"
-            : claim?.status === "held"
-              ? "claimed"
-              : invite.status;
+          claim?.status === "held" || claim?.status === "picked_up"
+            ? "claimed"
+            : invite.status;
         return {
-          label: p.label,
-          is_simulated: true,
-          ring_distance: p.ringDistance,
+          nickname: v.student.nickname,
+          area: v.student.area,
+          ring_distance: v.ringDistance,
           status: effectiveStatus,
-          reason_codes: invite.reasonCodes,
-          h3_cell: p.h3Cell,
+          reason_codes: ["nearby", "diet_match", "fair_share"],
+          h3_cell: v.h3Cell,
+          wave_number: invite.waveNumber,
         };
       }
 
-      // Determine generic exclusion or pending status
-      const hasAllergen = p.preferences.allergens.some((a) =>
-        drop.allergens_final.includes(a),
-      );
-      if (hasAllergen) {
+      if (drop.status === "draft") {
         return {
-          label: p.label,
-          is_simulated: true,
-          ring_distance: p.ringDistance,
+          nickname: v.student.nickname,
+          area: v.student.area,
+          ring_distance: v.ringDistance,
+          status: "waiting",
+          reason_codes: ["not_published"],
+          h3_cell: v.h3Cell,
+          wave_number: null,
+        };
+      }
+
+      const hasDietaryConflict =
+        v.student.allergens.some((a) => drop.allergens_final.includes(a)) ||
+        v.student.diets.some((d) => !drop.diet_tags_final.includes(d));
+
+      if (hasDietaryConflict) {
+        return {
+          nickname: v.student.nickname,
+          area: v.student.area,
+          ring_distance: v.ringDistance,
           status: "excluded",
-          reason_codes: ["allergen_conflict"],
-          h3_cell: p.h3Cell,
+          reason_codes: ["dietary_filter"],
+          h3_cell: v.h3Cell,
+          wave_number: null,
         };
       }
 
-      const missingDiet = p.preferences.diets.some(
-        (d) => !drop.diet_tags_final.includes(d),
-      );
-      if (missingDiet) {
+      if (v.ringDistance > currentRingK) {
         return {
-          label: p.label,
-          is_simulated: true,
-          ring_distance: p.ringDistance,
+          nickname: v.student.nickname,
+          area: v.student.area,
+          ring_distance: v.ringDistance,
           status: "excluded",
-          reason_codes: ["diet_mismatch"],
-          h3_cell: p.h3Cell,
-        };
-      }
-
-      if (p.ringDistance > currentRingK) {
-        return {
-          label: p.label,
-          is_simulated: true,
-          ring_distance: p.ringDistance,
-          status: "outside_ring",
           reason_codes: ["out_of_range"],
-          h3_cell: p.h3Cell,
+          h3_cell: v.h3Cell,
+          wave_number: null,
         };
       }
 
       return {
-        label: p.label,
-        is_simulated: true,
-        ring_distance: p.ringDistance,
-        status: drop.status === "draft" ? "standby" : "eligible_queued",
-        reason_codes: ["nearby", "fair_share"],
-        h3_cell: p.h3Cell,
+        nickname: v.student.nickname,
+        area: v.student.area,
+        ring_distance: v.ringDistance,
+        status: "excluded",
+        reason_codes: ["not_selected"],
+        h3_cell: v.h3Cell,
+        wave_number: null,
       };
-    },
-  );
+    });
 
   const activeSentInvites = Object.values(store.invites).filter(
     (inv) => inv.dropId === drop.id && inv.status === "sent",
@@ -730,21 +1191,22 @@ export function fixtureGetDispatch(dropId: string): DispatchResponse {
     counts,
     waves,
     personas,
-    visitors: [],
-    scenario: "seeded",
+    visitors,
+    scenario: store.scenario,
     next_wave_at: nextWaveAt,
     server_time: store.serverTimeIso,
     is_demo: true,
   };
 }
 
-export function fixtureDemoReset(): DemoResetResponse {
-  const fresh = createInitialStore();
+export function fixtureDemoReset(req?: DemoResetRequest): DemoResetResponse {
+  const scenario: DemoScenario = req?.scenario ?? "seeded";
+  const fresh = createInitialStore(scenario);
   saveStore(fresh);
 
   return {
     status: "reset",
-    scenario: "seeded",
+    scenario,
     students: 30,
     personas: {
       A: "00000000-0000-4000-8000-00000000000a",
@@ -758,13 +1220,14 @@ export function fixtureDemoReset(): DemoResetResponse {
 
 export function fixtureDemoTick(tick: DemoTick): DemoTickResponse {
   const store = loadStore();
-  const advanceMs = (tick.advance_seconds ?? 60) * 1000;
+  const advanceSec = tick.advance_seconds ?? 60;
+  const advanceMs = advanceSec * 1000;
   const nextTimeMs = new Date(store.serverTimeIso).getTime() + advanceMs;
   store.serverTimeIso = new Date(nextTimeMs).toISOString();
+  store.clockOffsetSeconds += advanceSec;
 
   const drop = store.drops[store.activeDropId];
   if (drop && drop.status === "live") {
-    // Expire sent invites past deadline
     for (const inv of Object.values(store.invites)) {
       if (inv.dropId === drop.id && inv.status === "sent") {
         if (nextTimeMs >= new Date(inv.expiresAt).getTime()) {
@@ -772,7 +1235,6 @@ export function fixtureDemoTick(tick: DemoTick): DemoTickResponse {
         }
       }
     }
-    // Release held claims past heldUntil
     for (const claim of Object.values(store.claims)) {
       if (claim.dropId === drop.id && claim.status === "held") {
         if (nextTimeMs >= new Date(claim.heldUntil).getTime()) {
@@ -799,29 +1261,32 @@ export function fixtureDemoTick(tick: DemoTick): DemoTickResponse {
 }
 
 export function fixtureUpdatePreferences(
-  credential: DemoCredential,
+  credential: AuthToken,
   prefs: Preferences,
 ): Preferences {
   const store = loadStore();
-  const personaEntry = Object.values(store.personas).find(
-    (p) => p.token === credential,
-  );
-  if (personaEntry) {
-    personaEntry.preferences = {
+  const resolved = resolveStudentIdentity(store, credential);
+  if (resolved.kind === "persona") {
+    resolved.persona.preferences = {
       allergens: [...prefs.allergens],
       diets: [...prefs.diets],
       alerts_paused: prefs.alerts_paused,
     };
-    saveStore(store);
+  } else {
+    resolved.visitor.student.allergens = [...prefs.allergens];
+    resolved.visitor.student.diets = [...prefs.diets];
+    resolved.visitor.alertsPaused = prefs.alerts_paused;
   }
+  saveStore(store);
   return prefs;
 }
 
 export function fixtureUpdatePresence(
-  credential: DemoCredential,
+  credential: AuthToken,
   req: PresenceRequest,
 ): PresenceResponse {
   const store = loadStore();
+  resolveStudentIdentity(store, credential);
   const validUntil = new Date(
     new Date(store.serverTimeIso).getTime() + 2 * 60 * 60 * 1000,
   ).toISOString();
@@ -831,10 +1296,11 @@ export function fixtureUpdatePresence(
 }
 
 export function fixtureRegisterPushToken(
-  credential: DemoCredential,
+  credential: AuthToken,
   req: PushTokenRequest,
 ): PushTokenResponse {
   const store = loadStore();
+  resolveStudentIdentity(store, credential);
   store.pushRegisteredByToken[credential] = req.token.length > 0;
   saveStore(store);
   return { registered: true };
