@@ -22,14 +22,14 @@ import {
 import { formatEasternTime, formatRemainingTime } from "../../lib/time";
 
 const ALLOWED_GENERIC_REASON_CODES: Record<string, string> = {
-  nearby: "nearby (within current H3 wave ring)",
-  diet_match: "diet_match (matches required diet tags)",
-  fair_share: "fair_share (balanced campus distribution)",
-  allergen_conflict: "allergen_conflict (hard safety filter exclusion)",
-  diet_mismatch: "diet_mismatch (hard diet filter exclusion)",
-  out_of_range: "out_of_range (outside current H3 ring k)",
-  alerts_paused: "alerts_paused (student paused alerts)",
-  active_claim: "active_claim (already holding a serving)",
+  nearby: "nearby",
+  diet_match: "diet_match",
+  fair_share: "fair_share",
+  allergen_conflict: "allergen_conflict",
+  diet_mismatch: "diet_mismatch",
+  out_of_range: "out_of_range",
+  alerts_paused: "alerts_paused",
+  active_claim: "active_claim",
 };
 
 function sanitizeReasonCode(code: string): string {
@@ -40,7 +40,7 @@ function sanitizeReasonCode(code: string): string {
     normalized.includes("care") ||
     normalized.includes("score")
   ) {
-    return "fair_share (balanced campus distribution)";
+    return "fair_share";
   }
   return ALLOWED_GENERIC_REASON_CODES[code] ?? "not selected for this wave";
 }
@@ -357,73 +357,70 @@ export default function DispatchProjectorPage() {
                   </div>
 
                   <div className="mt-3 space-y-2.5">
-                    {dispatchData.personas.map((p) => (
-                      <div
-                        key={p.label}
-                        data-testid={`persona-row-${p.label}`}
-                        className="rounded-lg border border-zinc-800 bg-owl-black/70 p-3 text-xs"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-owl-gold font-extrabold text-owl-black">
-                              {p.label}
-                            </span>
-                            <span className="font-bold text-white">
-                              Persona {p.label}
-                            </span>
+                    {dispatchData.personas
+                      .filter((p) => p.is_simulated && /^[A-E]$/.test(p.label))
+                      .map((p) => (
+                        <div
+                          key={p.label}
+                          data-testid={`persona-row-${p.label}`}
+                          className="rounded-lg border border-zinc-800 bg-owl-black/70 p-2 text-xs"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-owl-gold font-extrabold text-owl-black">
+                                {p.label}
+                              </span>
+                              <span className="font-bold text-white">
+                                Persona {p.label}
+                              </span>
+                              <span
+                                data-testid={`simulated-marker-${p.label}`}
+                                className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-owl-gold"
+                              >
+                                SIMULATED
+                              </span>
+                            </div>
+
                             <span
-                              data-testid={`simulated-marker-${p.label}`}
-                              className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-owl-gold"
+                              data-testid={`persona-status-${p.label}`}
+                              className={`rounded px-2 py-0.5 font-bold uppercase ${
+                                p.status === "claimed" ||
+                                p.status === "picked_up"
+                                  ? "bg-emerald-500/20 text-emerald-300"
+                                  : p.status === "sent"
+                                    ? "bg-owl-gold/20 text-owl-gold"
+                                    : p.status === "excluded" ||
+                                        p.status === "expired"
+                                      ? "bg-rose-500/20 text-rose-300"
+                                      : "bg-zinc-800 text-zinc-300"
+                              }`}
                             >
-                              SIMULATED (is_simulated=true)
+                              {p.status}
                             </span>
                           </div>
 
-                          <span
-                            data-testid={`persona-status-${p.label}`}
-                            className={`rounded px-2 py-0.5 font-bold uppercase ${
-                              p.status === "claimed" || p.status === "picked_up"
-                                ? "bg-emerald-500/20 text-emerald-300"
-                                : p.status === "sent"
-                                  ? "bg-owl-gold/20 text-owl-gold"
-                                  : p.status === "excluded" ||
-                                      p.status === "expired"
-                                    ? "bg-rose-500/20 text-rose-300"
-                                    : "bg-zinc-800 text-zinc-300"
-                            }`}
-                          >
-                            {p.status}
-                          </span>
-                        </div>
-
-                        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-zinc-400">
-                          <span>
-                            H3 Ring Distance:{" "}
-                            <strong className="text-zinc-200">
-                              {p.ring_distance ?? "—"}
-                            </strong>
-                          </span>
-                          {p.h3_cell && (
+                          <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-[11px] text-zinc-400">
                             <span>
-                              Cell:{" "}
-                              <code className="text-zinc-300">{p.h3_cell}</code>
+                              H3 Ring Distance:{" "}
+                              <strong className="text-zinc-200">
+                                {p.ring_distance ?? "—"}
+                              </strong>
                             </span>
-                          )}
-                        </div>
+                          </div>
 
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {p.reason_codes.map((rc) => (
-                            <span
-                              key={rc}
-                              data-testid={`persona-reason-${p.label}-${rc}`}
-                              className="rounded border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[11px] text-zinc-200"
-                            >
-                              {sanitizeReasonCode(rc)}
-                            </span>
-                          ))}
+                          <div className="mt-1 flex flex-wrap gap-1.5">
+                            {p.reason_codes.map((rc) => (
+                              <span
+                                key={rc}
+                                data-testid={`persona-reason-${p.label}-${rc}`}
+                                className="rounded border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[11px] text-zinc-200"
+                              >
+                                {sanitizeReasonCode(rc)}
+                              </span>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 </section>
               </div>
