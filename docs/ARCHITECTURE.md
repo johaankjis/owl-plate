@@ -1,5 +1,13 @@
 # ARCHITECTURE.md
 
+## Milestone v1 implementation contract
+
+`docs/API_CONTRACT.md` is the frozen implementation reference for the current milestone and resolves the scheduling ambiguities below. In particular: invites do not reserve servings; declining an invite changes its opportunity, not inventory. A tick widens only after the current wave has no outstanding sent invitations. At max ring, remaining food is not marked consumed. Holds and pickups drive inventory counts transactionally.
+
+Initial local composition is deliberately demo-only: synthetic auth, SQLModel SQLite, in-memory photo processing (no retained uploads), cached fixture or explicitly configured Gemini, and simulated notification adapter. Real Entra/email-code auth, encrypted token storage, production push composition, Vercel/AWS/Postgres deployment and S3 lifecycle are pending access/integration. No live readiness or physical-device delivery claim is implied by these target architecture sections.
+
+H3 fixture origin is an arbitrary coordinate labeled unverified, not a campus building. Only synthetic persona decisions may appear on the projector; production host responses contain counts. The full attached project brief was unavailable; accepted user instructions and repository docs supplied this milestone.
+
 How Owl Plate fits together. Update this file when the shape of the system changes.
 
 ## System overview

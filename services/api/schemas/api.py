@@ -6,7 +6,9 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-Allergen = Literal["dairy", "egg", "gluten", "peanut", "tree_nut", "soy", "fish", "shellfish", "sesame"]
+Allergen = Literal[
+    "dairy", "egg", "gluten", "peanut", "tree_nut", "soy", "fish", "shellfish", "sesame"
+]
 Diet = Literal["vegetarian", "vegan", "halal", "kosher", "pork_free"]
 
 

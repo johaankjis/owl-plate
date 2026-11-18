@@ -4,6 +4,8 @@ The only source of KSU facts, statistics and competitor facts for code, UI and s
 
 Last checked: Nov 18, 2026.
 
+Manager source check, Nov 18: the KSU News URL below returned HTTP 200 and explicitly says CARE supports students who experienced homelessness, food insecurity and/or foster care. This verifies that narrow program-description claim. It does not verify current pantry demand, redistribution policy, partnership access, campus prevalence or building coordinates. Those claims remain out of the local pitch draft.
+
 ## KSU
 
 | Fact | Source |
