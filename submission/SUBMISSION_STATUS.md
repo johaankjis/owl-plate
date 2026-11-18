@@ -70,3 +70,12 @@ At Johaan's final review before Friday noon Eastern, if evidence is still missin
 
 Do not wait for missing evidence beyond the deadline. The honest fallback is the
 prepared candidate; the final acceptability/submission decision belongs to Johaan.
+
+## Independent approval review
+
+OpenCode GLM 5.3 passed exact application SHA
+`98e5074e86139500127b2b96c51c4de5af56fed6` as a local approval candidate.
+Collection remains off. A verified abuse limit is required before public survey
+collection; see `DEPLOYMENT_APPROVAL.md`. This documentation checkpoint preserves
+all application code, checked slides and fallback video. No public URL, physical
+push receipt, live vision metric or survey response has been added.

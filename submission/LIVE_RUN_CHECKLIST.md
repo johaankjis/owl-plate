@@ -112,3 +112,17 @@ The slot is a proposal, not a claimed appointment. No authorized testers, shared
 availability, private configuration or real labels exist in the current checkout.
 If an input is still missing, continue independent checks and retain the labeled
 fallback; do not call the corresponding item verified.
+
+## Survey opening gate — pending approval and abuse control
+
+- **pending:** Johaan approves the final form, KSU student audience, direct in-person
+  channel and distribution owner together. Proposed owner: Johaan; name any delegate.
+- **pending:** assigned public HTTPS origin, HTTP-to-HTTPS redirect, secure-context
+  form, decoded final QR and physical-phone opening verified. Do not share localhost QR.
+- **pending:** gateway rate limit covering direct API access, or application row
+  ceiling, implemented and tested; operator named to close collection. Until then
+  keep `SURVEY_ENABLED=false`, including on a published preview.
+- **pending:** Johaan approves collection and sharing after those checks.
+- **verified:** no distribution or real collection occurred; actual n=0. Run operator
+  count/export from repo root against the intended private `DATABASE_URL`; the
+  default SQLite path is relative to the working directory.

@@ -60,10 +60,33 @@ origin with an invented or unreserved domain.
    any provisioning cost before creation. No paid service is provisioned now.
 3. Approve the final form and direct in-person sharing owner. Publishing the
    preview does not itself approve enabling collection or distributing the QR.
-4. After actual HTTPS checks, approve opening `SURVEY_ENABLED=true` and direct
+4. After actual HTTPS checks and the collection safeguards below, approve opening `SURVEY_ENABLED=true` and direct
    sharing. Count only real persisted responses; current n=0.
 
 Public review remains fixture vision + simulated notifications, synthetic demo
 auth. Live Gemini/FCM requires separate private configuration and explicitly
 approved testers. Deployment and hackathon submission are Johaan's approval/action.
 Deadline remains Friday November 20, 2026, noon Eastern / 17:00 UTC.
+
+## Public collection gate — independent review condition
+
+The independent GLM review passed the local candidate at
+`98e5074e86139500127b2b96c51c4de5af56fed6`. It did not approve public collection.
+Distinct anonymous UUIDs can currently create unlimited submissions once the gate
+opens. Retry deduplication does not establish unique people or prevent abuse.
+
+Before enabling collection, implement a gateway rate limit or an application row
+ceiling, verify it on the selected API service, and name the operator who can
+close the gate. Controls must cover the direct API origin as well as the Vercel
+proxy; CORS alone is insufficient. Do not store IP addresses in survey rows.
+Keep `SURVEY_ENABLED=false` until the control is demonstrated and Johaan approves
+collection/distribution. Preview deployment may stay gate-off. The control is
+pending, not implemented or verified by this document.
+
+Serve the form only over trusted HTTPS: its anonymous retry ID uses secure-context
+`crypto.randomUUID()`. Verify HTTP redirects to HTTPS and the assigned origin on
+both physical phones. Local emulation is not physical-device evidence.
+
+Run operator count/export from the repository root with the intended private
+`DATABASE_URL`. Its fallback SQLite path is CWD-relative; verify the selected
+database before reporting n. Counts mean submissions, not verified unique people.

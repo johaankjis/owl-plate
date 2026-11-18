@@ -7,7 +7,8 @@ implemented at `/survey` in the existing web app, with no login or demo-persona
 controls. Proposed audience: KSU students invited directly in person by Johaan
 or a teammate he names, using a dedicated link/QR after approval. **Discord and
 group-channel distribution are removed.** Collection remains off in preview;
-actual n=0. Final questions and exact invitation: `submission/SURVEY.md`.
+actual n=0. Public collection also requires the verified abuse-control gate in
+`submission/DEPLOYMENT_APPROVAL.md`. Final questions and exact invitation: `submission/SURVEY.md`.
 Public survey/demo origins are not yet assigned; web target is Vercel, API host
 is still to be selected. Local HTTPS/QR samples are not public phone-share links.
 
@@ -29,6 +30,45 @@ Deployment, survey distribution and submission remain Johaan's approval/action.
 No paid services provisioned, notifications sent to real phones, or secrets
 requested in chat. The live checklist has empty receipt/eval fields ready for
 actual evidence once access exists.
+
+## Latest checkpoint: independent approval review accepted
+
+Canonical branch `demo/owl-plate-ready`; independently reviewed application SHA
+`98e5074e86139500127b2b96c51c4de5af56fed6`. Reviewer: OpenCode,
+`openrouter/z-ai/glm-5.3`, isolated worktree
+`/home/node/.t3/worktrees/owl-plate/t3-34f17ffa`, branch
+`t3/review-survey-approval`, clean and exact-SHA bound. Completed report accepted;
+no new worker launched. This checkpoint changes only approval/checklist documents
+and hashes. Application code remains unchanged.
+
+Verdict: **PASS for local approval candidate only**. Reviewer reproduced 73 passing
+API tests, 116 eval calculation tests, Ruff/format, 49/49 artifact hashes,
+schema/path parity and isolated survey gate/consent/10-way retry/reset probes.
+No deployment, browser run, live database, phone or model evidence was produced
+by that review. Prior Chromium emulation evidence stands with Safari and physical
+phone limitations. Manager reverified all 49 package hashes after this docs update.
+
+Medium conditional finding: public collection currently permits unlimited distinct
+UUIDs. Implement and test a gateway rate limit covering direct API access, or an
+application row ceiling, before opening collection. This is now an explicit gate
+in `submission/DEPLOYMENT_APPROVAL.md` and the live checklist. **Control pending;
+collection stays off**. Preview publication does not approve collection. The low
+503 error-envelope inconsistency is deferred (sanitized string detail); it has
+no runtime effect on the reviewed demo. Secure HTTPS and operator database checks
+are documented. Count/export must run from repo root against the intended private
+`DATABASE_URL` because its fallback SQLite path is CWD-relative.
+
+Actual survey n=0; live evaluated photo n=0; physical Android/iPhone receipts
+pending. Checked deck/PDF and 96.6-second captioned video unchanged. Public URLs
+and phone-share QR codes await hosting access and approval. Deadline risk: time
+for real survey responses, both phone receipts and live-photo evaluation is
+narrowing before Thursday evening rehearsal and Friday November 20, 2026, noon
+Eastern. At cutoff retain simulation labels and unverified evidence explicitly.
+
+Johaan's queue remains survey first, then hosting/API account and database,
+testers, private provider setup, labeled photos, and human team rehearsal.
+No deployment, distribution or submission occurred. Exact documentation checkpoint
+SHA appears in the manager reply; code review stays bound to `98e5074e...`.
 
 ## Latest checkpoint: Vercel HTTPS candidate and standalone direct-share survey
 
