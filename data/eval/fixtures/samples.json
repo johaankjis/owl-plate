@@ -1,0 +1,50 @@
+{
+  "synthetic": true,
+  "notes": "Synthetic known-answer fixture. There are no photos and no real food: these hand-written labels exist only to validate the scoring harness. Never present fixture numbers as measured model accuracy.",
+  "samples": [
+    {
+      "sample_id": "synthetic-pizza-tray",
+      "labels": {
+        "source": "synthetic",
+        "labeled_by": "eval-harness-fixture",
+        "labeled_at": "2026-11-18T00:00:00Z",
+        "servings": 8,
+        "allergens_present": ["dairy", "gluten"],
+        "items": [{"name": "cheese pizza", "portion_unit": "slice", "count": 14}]
+      }
+    },
+    {
+      "sample_id": "synthetic-wrap-platter",
+      "labels": {
+        "source": "synthetic",
+        "labeled_by": "eval-harness-fixture",
+        "labeled_at": "2026-11-18T00:00:00Z",
+        "servings": 12,
+        "allergens_present": ["egg", "gluten"],
+        "items": [{"name": "veggie wrap", "portion_unit": "wrap", "count": 12}]
+      }
+    },
+    {
+      "sample_id": "synthetic-cookie-tray",
+      "labels": {
+        "source": "synthetic",
+        "labeled_by": "eval-harness-fixture",
+        "labeled_at": "2026-11-18T00:00:00Z",
+        "servings": 18,
+        "allergens_present": ["dairy", "gluten"],
+        "items": [{"name": "chocolate chip cookie", "portion_unit": "cookie", "count": 24}]
+      }
+    },
+    {
+      "sample_id": "synthetic-fruit-tray",
+      "labels": {
+        "source": "synthetic",
+        "labeled_by": "eval-harness-fixture",
+        "labeled_at": "2026-11-18T00:00:00Z",
+        "servings": 10,
+        "allergens_present": [],
+        "items": [{"name": "mixed fruit cup", "portion_unit": "cup", "count": 10}]
+      }
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "source": "fixture",
+  "synthetic": true,
+  "generated_at": "2026-11-18T00:00:00Z",
+  "predictions": [
+    {
+      "sample_id": "synthetic-pizza-tray",
+      "vision": {
+        "items": [{"name": "cheese pizza", "portion_unit": "slice", "count_estimate": 13}],
+        "servings_estimate": 7,
+        "servings_low": 6,
+        "servings_high": 9,
+        "allergens_likely": ["dairy", "gluten"],
+        "diet_tags": ["vegetarian"],
+        "confidence": 0.82,
+        "notes": "one mostly full tray of cheese pizza"
+      }
+    },
+    {
+      "sample_id": "synthetic-wrap-platter",
+      "vision": {
+        "items": [{"name": "veggie wrap", "portion_unit": "wrap", "count_estimate": 15}],
+        "servings_estimate": 15,
+        "servings_low": 12,
+        "servings_high": 18,
+        "allergens_likely": ["gluten"],
+        "diet_tags": ["vegetarian"],
+        "confidence": 0.66,
+        "notes": "platter of wraps, a few taken"
+      }
+    },
+    {
+      "sample_id": "synthetic-cookie-tray",
+      "vision": {
+        "items": [{"name": "chocolate chip cookie", "portion_unit": "cookie", "count_estimate": 24}],
+        "servings_estimate": 18,
+        "servings_low": 14,
+        "servings_high": 22,
+        "allergens_likely": ["dairy", "gluten", "peanut"],
+        "diet_tags": ["vegetarian"],
+        "confidence": 0.71,
+        "notes": "two trays of chocolate chip cookies"
+      }
+    },
+    {
+      "sample_id": "synthetic-fruit-tray",
+      "vision": {
+        "items": [{"name": "mixed fruit cup", "portion_unit": "cup", "count_estimate": 9}],
+        "servings_estimate": 9,
+        "servings_low": 8,
+        "servings_high": 11,
+        "allergens_likely": [],
+        "diet_tags": ["vegan"],
+        "confidence": 0.9,
+        "notes": "fruit tray with a few cups taken"
+      }
+    }
+  ]
+}
