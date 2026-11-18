@@ -11,7 +11,10 @@ from services.api.application import Actor, Backend, DomainError
 from services.api.schemas.api import (
     ClaimResponse,
     DemoActiveDropResponse,
+    DemoAreasResponse,
+    DemoResetRequest,
     DemoResetResponse,
+    DemoStatusResponse,
     DemoTick,
     DemoTickResponse,
     DispatchResponse,
@@ -20,11 +23,15 @@ from services.api.schemas.api import (
     ErrorResponse,
     InviteResponse,
     InvitesResponse,
+    JoinRequest,
+    JoinResponse,
     Preferences,
     PresenceRequest,
     PresenceResponse,
     PushTokenRequest,
     PushTokenResponse,
+    SessionLeftResponse,
+    SessionStudent,
 )
 
 P = ParamSpec("P")
@@ -158,14 +165,39 @@ def build_router(
         return invoke(backend.active_drop, actor)
 
     @router.post("/demo/reset", response_model=DemoResetResponse)
-    def reset(actor: Identity) -> DemoResetResponse:
-        """Make reset a single host-authorized demo transaction."""
-        return invoke(backend.reset, actor)
+    def reset(actor: Identity, request: DemoResetRequest | None = None) -> DemoResetResponse:
+        """Make reset a single presenter-authorized demo transaction."""
+        return invoke(backend.reset, actor, (request or DemoResetRequest()).scenario)
 
     @router.post("/demo/tick", response_model=DemoTickResponse)
     def tick(tick: DemoTick, actor: Identity) -> DemoTickResponse:
         """Advance only the demo clock while reusing production scheduling logic."""
-        invoke(backend.require, actor, "host", demo=True)
+        invoke(backend.require_presenter, actor)
         return DemoTickResponse(server_time=invoke(backend.tick, tick.advance_seconds))
+
+    @router.get("/demo/status", response_model=DemoStatusResponse)
+    def status(actor: Identity) -> DemoStatusResponse:
+        """Give presenter controls a projector-safe overview."""
+        return invoke(backend.demo_status, actor)
+
+    @router.get("/demo/areas", response_model=DemoAreasResponse)
+    def areas() -> DemoAreasResponse:
+        """List the fixed, unverified demo areas a visitor may join from."""
+        return invoke(backend.areas)
+
+    @router.post("/sessions", response_model=JoinResponse, status_code=201)
+    def join(request: JoinRequest) -> JoinResponse:
+        """Create a distinct visitor session; the token is the only credential."""
+        return invoke(backend.join, request)
+
+    @router.get("/sessions/me", response_model=SessionStudent)
+    def session_me(actor: Identity) -> SessionStudent:
+        """Let a returning browser confirm its session survived resets."""
+        return invoke(backend.session_me, actor)
+
+    @router.delete("/sessions/me", response_model=SessionLeftResponse)
+    def leave(actor: Identity) -> SessionLeftResponse:
+        """Remove the visitor, release holds and revoke the token."""
+        return invoke(backend.leave, actor)
 
     return router

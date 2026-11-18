@@ -68,7 +68,8 @@ def test_ownership_and_private_response_fields(client, backend):
     assert client.get(f"/drops/{drop.id}/dispatch", headers=headers()).status_code == 403
     assert client.get("/students/me/invites", headers=headers()).status_code == 403
     assert client.post("/demo/reset", headers=headers("demo-student-A")).status_code == 403
-    assert client.post("/demo/tick", headers=headers("demo-projector"), json={}).status_code == 403
+    assert client.post("/demo/tick", headers=headers("demo-projector"), json={}).status_code == 200
+    assert client.post("/demo/tick", headers=headers("demo-student-A"), json={}).status_code == 403
     other_host = Actor("host", "other")
     with pytest.raises(DomainError) as exc:
         backend.publish(other_host, str(drop.id))

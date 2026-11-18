@@ -69,3 +69,102 @@ to the configured API origin; mobile production builds use
   There is no public listing/count/export route. Raw responses, including free
   text, remain private; only aggregate actual counts may reach slides.
 - Validation errors are 422. Network/database failure is not a saved response.
+
+# Revamp contract v2: Join Demo sessions and presenter controls (frozen 2026-11-18)
+
+Additive to v1; every v1 route and shape above still holds unless changed here.
+Shapes live in `services/api/schemas/api.py`; frontend types are regenerated in
+`apps/web/lib/api.generated.ts`. Manager owns this section. Changes need manager sign-off.
+
+## New and changed routes
+
+| Method | Route | Auth | Request | Response |
+|---|---|---|---|---|
+| GET | /demo/areas | none (demo gates) | – | DemoAreasResponse |
+| POST | /sessions | none (demo gates) | JoinRequest | 201 JoinResponse; 409 `nickname_taken`, 409 `session_limit` (40 visitors) |
+| GET | /sessions/me | visitor token | – | SessionStudent; seeded persona tokens get 404 `not_a_session` |
+| DELETE | /sessions/me | visitor token | – | SessionLeftResponse; holds released, sent invites declined, token revoked |
+| POST | /demo/reset | demo-host **or demo-projector** | optional DemoResetRequest `{scenario}` (default `seeded`) | DemoResetResponse incl. `scenario` |
+| POST | /demo/tick | demo-host **or demo-projector** | DemoTick | DemoTickResponse |
+| GET | /demo/status | demo-host or demo-projector | – | DemoStatusResponse |
+| GET | /drops/{id}/dispatch | demo-projector | – | DispatchResponse now adds `visitors` and `scenario` |
+
+"Demo gates" = `DEMO_MODE=true` and `AUTH_MODE=demo`; otherwise these routes return 403 `forbidden`.
+
+## Demo areas (fixed, simulated, unverified locations)
+
+| id | label | ring_distance | first reached by |
+|---|---|---|---|
+| demo-venue | Event venue (demo) | 0 | wave 1 (ring 2) |
+| demo-next-door | Next building over (demo) | 1 | wave 1 (ring 2) |
+| demo-across-quad | Across the quad (demo) | 4 | wave 2 (ring 4) |
+| demo-far-side | Far side of campus (demo) | 8 | wave 4 (ring 8) |
+
+Descriptions must say the location is simulated. Server maps each area to an H3 res-11
+cell at exactly that ring distance from the demo origin (visitors in one area may be spread
+across cells of that ring for map readability; distance is what matters).
+
+## Visitor sessions
+
+- `POST /sessions` creates a new Student row per call: `is_simulated=false`,
+  `data.kind="visitor"`, nickname, area cell, allergens, diets, `alerts_paused=false`,
+  `priority=false` always, presence valid 2 hours from join.
+- Token = `demo-session-` + `secrets.token_urlsafe(32)`. Store only its SHA-256; return the
+  raw token once. Clients keep it in `localStorage` key `owl-plate.session`.
+- Nicknames are unique case-insensitively among current visitors (409 `nickname_taken`).
+- A visitor token resolves to `Actor("student", <visitor id>)`, so every v1 student route
+  (`/students/me/invites`, claim, decline, release, pickup, preferences) works unchanged.
+- **Isolation:** a visitor only ever sees and mutates their own invites and claims. Another
+  student's invite or claim id returns 404 `not_found` (never 403, never data). `GET /drops/{id}`
+  for a student requires an invite to that drop.
+- Unknown, revoked or pre-reset tokens return 401 `unauthorized` ("Session ended. Join again.").
+  Clients clear the stored token and return to Join on any 401.
+- Seeded tokens `demo-student-A`…`E` still work for presenter rehearsal links.
+
+## Scenarios and reset
+
+- `seeded` (default, v1 behavior): 30 simulated students; A–E active, other 25 paused.
+- `visitors`: the same 30 simulated rows exist but **all** are `alerts_paused`, so only joined
+  visitors are matched. `personas` in DispatchResponse is `[]` in this scenario.
+- Any reset deletes all visitor sessions (their tokens then 401), drops, waves, invites,
+  claims, and the clock offset. Store the scenario in a **new table** (do not add columns to
+  existing tables; `create_all` does not migrate existing SQLite files).
+- Visitors may join in either scenario; in `seeded` they compete with A–E normally.
+- The launcher resets to `visitors` on start.
+
+## Matching
+
+Visitors go through the existing pure `plan_wave` with the same hard filters, ranking,
+capacity (`ceil(available / SHOW_RATE)`), 60 s demo invite TTL, 600 s holds and wave widening
+(ring 2, +2 per wave) as seeded students. No new matching rules.
+
+## Dispatch visitors rows (projector-safe)
+
+`VisitorDecision`: nickname, area, ring_distance, status (`sent` | `claimed` | `declined` |
+`expired` | `excluded` | `waiting`), reason_codes, h3_cell, wave_number (wave that invited them,
+else null). Reason codes for visitors: invited → `["nearby","diet_match","fair_share"]`;
+otherwise one of `dietary_filter` (covers both allergen and diet conflicts; never name the
+allergen or diet), `out_of_range`, `not_selected`, `active_claim`, `already_invited`,
+`not_published`. `waiting` = joined, no drop published yet. Never expose tokens, ids, priority,
+or the visitor's allergen/diet lists. Rows ordered by join time. `PersonaDecision` and
+`VisitorDecision` both carry `wave_number`.
+
+## DemoStatusResponse
+
+`{scenario, visitors (count of current visitor sessions), active_drop_id, server_time,
+clock_offset_seconds}`.
+
+## Ownership for the revamp (disjoint files)
+
+- **Manager (Claude Opus):** `services/api/schemas/`, `services/api/routes/`, `services/api/main.py`,
+  this document, `apps/web/lib/api.generated.ts`, `apps/web/openapi.json`, `apps/web/app/dispatch/**`,
+  `apps/web/components/DispatchMap.tsx`, new `apps/web/components/presenter/**`,
+  new `apps/web/lib/presenter-api.ts`, `scripts/`, `Makefile`, `data/seed/`, integration.
+- **Backend worker (OpenCode GLM 5.3):** `services/api/application.py`, `services/api/db/**`,
+  `services/api/dispatch/**`, new `services/api/sessions/**`, `services/api/tests/**`
+  (excluding `tests/providers/` and `tests/vision/`).
+- **Web worker (Antigravity Argon):** `apps/web/app/page.tsx`, `apps/web/app/layout.tsx`,
+  `apps/web/app/globals.css`, `apps/web/app/host/**`, `apps/web/app/student/**`, new
+  `apps/web/app/join/**`, `apps/web/components/**` except `DispatchMap.tsx` and `presenter/**`,
+  `apps/web/lib/api-client.ts`, `apps/web/lib/fixtures/**`, `apps/web/lib/types/**`,
+  `apps/web/lib/time.ts`, new `apps/web/lib/session.ts`, `apps/web/tests/**`.

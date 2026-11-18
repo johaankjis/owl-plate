@@ -119,6 +119,66 @@ class PersonaDecision(ContractModel):
     status: str
     reason_codes: list[str]
     h3_cell: str | None
+    wave_number: int | None = None
+
+
+DemoAreaId = Literal["demo-venue", "demo-next-door", "demo-across-quad", "demo-far-side"]
+Scenario = Literal["visitors", "seeded"]
+
+
+class DemoArea(ContractModel):
+    """A labeled, unverified demo location mapped server-side to an H3 ring."""
+
+    id: DemoAreaId
+    label: str
+    description: str
+    ring_distance: int
+
+
+class DemoAreasResponse(ContractModel):
+    areas: list[DemoArea]
+
+
+class JoinRequest(ContractModel):
+    """Everything a visitor shares to join; no contact details or real identity."""
+
+    nickname: str = Field(min_length=1, max_length=24, pattern=r"^[A-Za-z0-9 _.-]+$")
+    area: DemoAreaId
+    allergens: list[Allergen] = Field(default_factory=list)
+    diets: list[Diet] = Field(default_factory=list)
+
+
+class SessionStudent(ContractModel):
+    id: UUID
+    nickname: str
+    area: DemoAreaId
+    allergens: list[Allergen]
+    diets: list[Diet]
+    kind: Literal["visitor"] = "visitor"
+    valid_until: datetime
+
+
+class JoinResponse(ContractModel):
+    """The bearer token is shown once; the client keeps it in local storage."""
+
+    token: str
+    student: SessionStudent
+
+
+class SessionLeftResponse(ContractModel):
+    status: Literal["left"] = "left"
+
+
+class VisitorDecision(ContractModel):
+    """Projector row for a joined visitor; never includes which allergen or diet applied."""
+
+    nickname: str
+    area: DemoAreaId
+    ring_distance: int | None
+    status: str
+    reason_codes: list[str]
+    h3_cell: str | None
+    wave_number: int | None = None
 
 
 class DispatchResponse(ContractModel):
@@ -129,6 +189,8 @@ class DispatchResponse(ContractModel):
     counts: Counts
     waves: list[WaveResponse]
     personas: list[PersonaDecision]
+    visitors: list[VisitorDecision] = Field(default_factory=list)
+    scenario: Scenario = "seeded"
     next_wave_at: datetime | None
     server_time: datetime
     is_demo: bool
@@ -138,10 +200,25 @@ class DemoTick(ContractModel):
     advance_seconds: int = Field(default=10, ge=0, le=7200)
 
 
+class DemoResetRequest(ContractModel):
+    scenario: Scenario = "seeded"
+
+
 class DemoResetResponse(ContractModel):
     status: Literal["reset"] = "reset"
     students: int
     personas: dict[str, UUID]
+    scenario: Scenario = "seeded"
+
+
+class DemoStatusResponse(ContractModel):
+    """Presenter overview that is safe to show on a projector."""
+
+    scenario: Scenario
+    visitors: int
+    active_drop_id: UUID | None
+    server_time: datetime
+    clock_offset_seconds: int
 
 
 class DemoActiveDropResponse(ContractModel):

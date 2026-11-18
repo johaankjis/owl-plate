@@ -1634,7 +1634,7 @@
     "/demo/reset": {
       "post": {
         "summary": "Reset",
-        "description": "Make reset a single host-authorized demo transaction.",
+        "description": "Make reset a single presenter-authorized demo transaction.",
         "operationId": "reset_demo_reset_post",
         "parameters": [
           {
@@ -1654,6 +1654,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DemoResetRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Request"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1778,6 +1795,503 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DemoTickResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/demo/status": {
+      "get": {
+        "summary": "Status",
+        "description": "Give presenter controls a projector-safe overview.",
+        "operationId": "status_demo_status_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoStatusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/demo/areas": {
+      "get": {
+        "summary": "Areas",
+        "description": "List the fixed, unverified demo areas a visitor may join from.",
+        "operationId": "areas_demo_areas_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoAreasResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request Entity Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions": {
+      "post": {
+        "summary": "Join",
+        "description": "Create a distinct visitor session; the token is the only credential.",
+        "operationId": "join_sessions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request Entity Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/me": {
+      "get": {
+        "summary": "Session Me",
+        "description": "Let a returning browser confirm its session survived resets.",
+        "operationId": "session_me_sessions_me_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionStudent"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Leave",
+        "description": "Remove the visitor, release holds and revoke the token.",
+        "operationId": "leave_sessions_me_delete",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionLeftResponse"
                 }
               }
             }
@@ -2044,6 +2558,65 @@
         "title": "DemoActiveDropResponse",
         "description": "Let the synthetic projector find a host's drop across devices."
       },
+      "DemoArea": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "demo-venue",
+              "demo-next-door",
+              "demo-across-quad",
+              "demo-far-side"
+            ],
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "ring_distance": {
+            "type": "integer",
+            "title": "Ring Distance"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["id", "label", "description", "ring_distance"],
+        "title": "DemoArea",
+        "description": "A labeled, unverified demo location mapped server-side to an H3 ring."
+      },
+      "DemoAreasResponse": {
+        "properties": {
+          "areas": {
+            "items": {
+              "$ref": "#/components/schemas/DemoArea"
+            },
+            "type": "array",
+            "title": "Areas"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["areas"],
+        "title": "DemoAreasResponse"
+      },
+      "DemoResetRequest": {
+        "properties": {
+          "scenario": {
+            "type": "string",
+            "enum": ["visitors", "seeded"],
+            "title": "Scenario",
+            "default": "seeded"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DemoResetRequest"
+      },
       "DemoResetResponse": {
         "properties": {
           "status": {
@@ -2063,12 +2636,63 @@
             },
             "type": "object",
             "title": "Personas"
+          },
+          "scenario": {
+            "type": "string",
+            "enum": ["visitors", "seeded"],
+            "title": "Scenario",
+            "default": "seeded"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": ["students", "personas"],
         "title": "DemoResetResponse"
+      },
+      "DemoStatusResponse": {
+        "properties": {
+          "scenario": {
+            "type": "string",
+            "enum": ["visitors", "seeded"],
+            "title": "Scenario"
+          },
+          "visitors": {
+            "type": "integer",
+            "title": "Visitors"
+          },
+          "active_drop_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Drop Id"
+          },
+          "server_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Server Time"
+          },
+          "clock_offset_seconds": {
+            "type": "integer",
+            "title": "Clock Offset Seconds"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scenario",
+          "visitors",
+          "active_drop_id",
+          "server_time",
+          "clock_offset_seconds"
+        ],
+        "title": "DemoStatusResponse",
+        "description": "Presenter overview that is safe to show on a projector."
       },
       "DemoTick": {
         "properties": {
@@ -2132,6 +2756,19 @@
             },
             "type": "array",
             "title": "Personas"
+          },
+          "visitors": {
+            "items": {
+              "$ref": "#/components/schemas/VisitorDecision"
+            },
+            "type": "array",
+            "title": "Visitors"
+          },
+          "scenario": {
+            "type": "string",
+            "enum": ["visitors", "seeded"],
+            "title": "Scenario",
+            "default": "seeded"
           },
           "next_wave_at": {
             "anyOf": [
@@ -2474,6 +3111,74 @@
         "required": ["invites"],
         "title": "InvitesResponse"
       },
+      "JoinRequest": {
+        "properties": {
+          "nickname": {
+            "type": "string",
+            "maxLength": 24,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9 _.-]+$",
+            "title": "Nickname"
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "demo-venue",
+              "demo-next-door",
+              "demo-across-quad",
+              "demo-far-side"
+            ],
+            "title": "Area"
+          },
+          "allergens": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "dairy",
+                "egg",
+                "gluten",
+                "peanut",
+                "tree_nut",
+                "soy",
+                "fish",
+                "shellfish",
+                "sesame"
+              ]
+            },
+            "type": "array",
+            "title": "Allergens"
+          },
+          "diets": {
+            "items": {
+              "type": "string",
+              "enum": ["vegetarian", "vegan", "halal", "kosher", "pork_free"]
+            },
+            "type": "array",
+            "title": "Diets"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["nickname", "area"],
+        "title": "JoinRequest",
+        "description": "Everything a visitor shares to join; no contact details or real identity."
+      },
+      "JoinResponse": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "student": {
+            "$ref": "#/components/schemas/SessionStudent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["token", "student"],
+        "title": "JoinResponse",
+        "description": "The bearer token is shown once; the client keeps it in local storage."
+      },
       "PersonaDecision": {
         "properties": {
           "label": {
@@ -2518,6 +3223,17 @@
               }
             ],
             "title": "H3 Cell"
+          },
+          "wave_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wave Number"
           }
         },
         "additionalProperties": false,
@@ -2654,6 +3370,90 @@
           "untouched"
         ],
         "title": "SafetyReview"
+      },
+      "SessionLeftResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "left",
+            "title": "Status",
+            "default": "left"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SessionLeftResponse"
+      },
+      "SessionStudent": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "nickname": {
+            "type": "string",
+            "title": "Nickname"
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "demo-venue",
+              "demo-next-door",
+              "demo-across-quad",
+              "demo-far-side"
+            ],
+            "title": "Area"
+          },
+          "allergens": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "dairy",
+                "egg",
+                "gluten",
+                "peanut",
+                "tree_nut",
+                "soy",
+                "fish",
+                "shellfish",
+                "sesame"
+              ]
+            },
+            "type": "array",
+            "title": "Allergens"
+          },
+          "diets": {
+            "items": {
+              "type": "string",
+              "enum": ["vegetarian", "vegan", "halal", "kosher", "pork_free"]
+            },
+            "type": "array",
+            "title": "Diets"
+          },
+          "kind": {
+            "type": "string",
+            "const": "visitor",
+            "title": "Kind",
+            "default": "visitor"
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Valid Until"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "nickname",
+          "area",
+          "allergens",
+          "diets",
+          "valid_until"
+        ],
+        "title": "SessionStudent"
       },
       "SurveyAnswers": {
         "properties": {
@@ -2936,6 +3736,80 @@
           "notes"
         ],
         "title": "VisionEstimate"
+      },
+      "VisitorDecision": {
+        "properties": {
+          "nickname": {
+            "type": "string",
+            "title": "Nickname"
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "demo-venue",
+              "demo-next-door",
+              "demo-across-quad",
+              "demo-far-side"
+            ],
+            "title": "Area"
+          },
+          "ring_distance": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ring Distance"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reason Codes"
+          },
+          "h3_cell": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "H3 Cell"
+          },
+          "wave_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wave Number"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "nickname",
+          "area",
+          "ring_distance",
+          "status",
+          "reason_codes",
+          "h3_cell"
+        ],
+        "title": "VisitorDecision",
+        "description": "Projector row for a joined visitor; never includes which allergen or diet applied."
       },
       "WaveResponse": {
         "properties": {

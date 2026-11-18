@@ -279,7 +279,7 @@ export interface paths {
     put?: never;
     /**
      * Reset
-     * @description Make reset a single host-authorized demo transaction.
+     * @description Make reset a single presenter-authorized demo transaction.
      */
     post: operations["reset_demo_reset_post"];
     delete?: never;
@@ -303,6 +303,90 @@ export interface paths {
      */
     post: operations["tick_demo_tick_post"];
     delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/demo/status": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Status
+     * @description Give presenter controls a projector-safe overview.
+     */
+    get: operations["status_demo_status_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/demo/areas": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Areas
+     * @description List the fixed, unverified demo areas a visitor may join from.
+     */
+    get: operations["areas_demo_areas_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/sessions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Join
+     * @description Create a distinct visitor session; the token is the only credential.
+     */
+    post: operations["join_sessions_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/sessions/me": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Session Me
+     * @description Let a returning browser confirm its session survived resets.
+     */
+    get: operations["session_me_sessions_me_get"];
+    put?: never;
+    post?: never;
+    /**
+     * Leave
+     * @description Remove the visitor, release holds and revoke the token.
+     */
+    delete: operations["leave_sessions_me_delete"];
     options?: never;
     head?: never;
     patch?: never;
@@ -429,6 +513,38 @@ export interface components {
       /** Drop Id */
       drop_id: string | null;
     };
+    /**
+     * DemoArea
+     * @description A labeled, unverified demo location mapped server-side to an H3 ring.
+     */
+    DemoArea: {
+      /**
+       * Id
+       * @enum {string}
+       */
+      id:
+        "demo-venue" | "demo-next-door" | "demo-across-quad" | "demo-far-side";
+      /** Label */
+      label: string;
+      /** Description */
+      description: string;
+      /** Ring Distance */
+      ring_distance: number;
+    };
+    /** DemoAreasResponse */
+    DemoAreasResponse: {
+      /** Areas */
+      areas: components["schemas"]["DemoArea"][];
+    };
+    /** DemoResetRequest */
+    DemoResetRequest: {
+      /**
+       * Scenario
+       * @default seeded
+       * @enum {string}
+       */
+      scenario: "visitors" | "seeded";
+    };
     /** DemoResetResponse */
     DemoResetResponse: {
       /**
@@ -443,6 +559,34 @@ export interface components {
       personas: {
         [key: string]: string;
       };
+      /**
+       * Scenario
+       * @default seeded
+       * @enum {string}
+       */
+      scenario: "visitors" | "seeded";
+    };
+    /**
+     * DemoStatusResponse
+     * @description Presenter overview that is safe to show on a projector.
+     */
+    DemoStatusResponse: {
+      /**
+       * Scenario
+       * @enum {string}
+       */
+      scenario: "visitors" | "seeded";
+      /** Visitors */
+      visitors: number;
+      /** Active Drop Id */
+      active_drop_id: string | null;
+      /**
+       * Server Time
+       * Format: date-time
+       */
+      server_time: string;
+      /** Clock Offset Seconds */
+      clock_offset_seconds: number;
     };
     /** DemoTick */
     DemoTick: {
@@ -478,6 +622,14 @@ export interface components {
       waves: components["schemas"]["WaveResponse"][];
       /** Personas */
       personas: components["schemas"]["PersonaDecision"][];
+      /** Visitors */
+      visitors?: components["schemas"]["VisitorDecision"][];
+      /**
+       * Scenario
+       * @default seeded
+       * @enum {string}
+       */
+      scenario: "visitors" | "seeded";
       /** Next Wave At */
       next_wave_at: string | null;
       /**
@@ -629,6 +781,43 @@ export interface components {
       /** Invites */
       invites: components["schemas"]["InviteResponse"][];
     };
+    /**
+     * JoinRequest
+     * @description Everything a visitor shares to join; no contact details or real identity.
+     */
+    JoinRequest: {
+      /** Nickname */
+      nickname: string;
+      /**
+       * Area
+       * @enum {string}
+       */
+      area:
+        "demo-venue" | "demo-next-door" | "demo-across-quad" | "demo-far-side";
+      /** Allergens */
+      allergens?: (
+        | "dairy"
+        | "egg"
+        | "gluten"
+        | "peanut"
+        | "tree_nut"
+        | "soy"
+        | "fish"
+        | "shellfish"
+        | "sesame"
+      )[];
+      /** Diets */
+      diets?: ("vegetarian" | "vegan" | "halal" | "kosher" | "pork_free")[];
+    };
+    /**
+     * JoinResponse
+     * @description The bearer token is shown once; the client keeps it in local storage.
+     */
+    JoinResponse: {
+      /** Token */
+      token: string;
+      student: components["schemas"]["SessionStudent"];
+    };
     /** PersonaDecision */
     PersonaDecision: {
       /** Label */
@@ -647,6 +836,8 @@ export interface components {
       reason_codes: string[];
       /** H3 Cell */
       h3_cell: string | null;
+      /** Wave Number */
+      wave_number?: number | null;
     };
     /** Preferences */
     Preferences: {
@@ -711,6 +902,56 @@ export interface components {
        * @default false
        */
       religious_diets_confirmed: boolean;
+    };
+    /** SessionLeftResponse */
+    SessionLeftResponse: {
+      /**
+       * Status
+       * @default left
+       * @constant
+       */
+      status: "left";
+    };
+    /** SessionStudent */
+    SessionStudent: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Nickname */
+      nickname: string;
+      /**
+       * Area
+       * @enum {string}
+       */
+      area:
+        "demo-venue" | "demo-next-door" | "demo-across-quad" | "demo-far-side";
+      /** Allergens */
+      allergens: (
+        | "dairy"
+        | "egg"
+        | "gluten"
+        | "peanut"
+        | "tree_nut"
+        | "soy"
+        | "fish"
+        | "shellfish"
+        | "sesame"
+      )[];
+      /** Diets */
+      diets: ("vegetarian" | "vegan" | "halal" | "kosher" | "pork_free")[];
+      /**
+       * Kind
+       * @default visitor
+       * @constant
+       */
+      kind: "visitor";
+      /**
+       * Valid Until
+       * Format: date-time
+       */
+      valid_until: string;
     };
     /**
      * SurveyAnswers
@@ -834,6 +1075,30 @@ export interface components {
       confidence: number;
       /** Notes */
       notes: string;
+    };
+    /**
+     * VisitorDecision
+     * @description Projector row for a joined visitor; never includes which allergen or diet applied.
+     */
+    VisitorDecision: {
+      /** Nickname */
+      nickname: string;
+      /**
+       * Area
+       * @enum {string}
+       */
+      area:
+        "demo-venue" | "demo-next-door" | "demo-across-quad" | "demo-far-side";
+      /** Ring Distance */
+      ring_distance: number | null;
+      /** Status */
+      status: string;
+      /** Reason Codes */
+      reason_codes: string[];
+      /** H3 Cell */
+      h3_cell: string | null;
+      /** Wave Number */
+      wave_number?: number | null;
     };
     /** WaveResponse */
     WaveResponse: {
@@ -2093,7 +2358,11 @@ export interface operations {
       path?: never;
       cookie?: never;
     };
-    requestBody?: never;
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["DemoResetRequest"] | null;
+      };
+    };
     responses: {
       /** @description Successful Response */
       200: {
@@ -2191,6 +2460,422 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["DemoTickResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  status_demo_status_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DemoStatusResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  areas_demo_areas_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DemoAreasResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  join_sessions_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["JoinRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["JoinResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  session_me_sessions_me_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SessionStudent"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  leave_sessions_me_delete: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SessionLeftResponse"];
         };
       };
       /** @description Unauthorized */

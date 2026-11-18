@@ -21,15 +21,22 @@ from services.api.schemas.api import (
     ClaimResponse,
     Counts,
     DemoActiveDropResponse,
+    DemoAreasResponse,
     DemoResetResponse,
+    DemoStatusResponse,
     DispatchResponse,
     DropEdit,
     DropResponse,
     InviteResponse,
     InvitesResponse,
+    JoinRequest,
+    JoinResponse,
     PersonaDecision,
     Preferences,
     SafetyReview,
+    Scenario,
+    SessionLeftResponse,
+    SessionStudent,
     VisionEstimate,
     WaveResponse,
 )
@@ -138,6 +145,33 @@ class Backend:
         """Centralize role and demo gates so service callers get the same protection."""
         if actor.role != role or (demo and not (self.demo_mode and self.auth_mode == "demo")):
             raise DomainError("forbidden", "Access denied.", 403)
+
+    def require_presenter(self, actor: Actor) -> None:
+        """Presenter controls run from the host screen or the projector, demo only."""
+        if actor.role not in {"host", "projector"} or not (
+            self.demo_mode and self.auth_mode == "demo"
+        ):
+            raise DomainError("forbidden", "Access denied.", 403)
+
+    def areas(self) -> DemoAreasResponse:
+        """TODO(backend): return the four contract demo areas (demo gates only)."""
+        raise DomainError("not_implemented", "Not implemented yet.", 501)
+
+    def join(self, request: JoinRequest) -> JoinResponse:
+        """TODO(backend): create a distinct visitor session per docs/API_CONTRACT.md v2."""
+        raise DomainError("not_implemented", "Not implemented yet.", 501)
+
+    def session_me(self, actor: Actor) -> SessionStudent:
+        """TODO(backend): return the caller's own visitor session."""
+        raise DomainError("not_implemented", "Not implemented yet.", 501)
+
+    def leave(self, actor: Actor) -> SessionLeftResponse:
+        """TODO(backend): delete the visitor session and release its holds."""
+        raise DomainError("not_implemented", "Not implemented yet.", 501)
+
+    def demo_status(self, actor: Actor) -> DemoStatusResponse:
+        """TODO(backend): presenter overview per docs/API_CONTRACT.md v2."""
+        raise DomainError("not_implemented", "Not implemented yet.", 501)
 
     def _now(self, session: Session) -> datetime:
         now = self.clock()
@@ -626,7 +660,7 @@ class Backend:
 
         return self._run(operation)
 
-    def reset(self, actor: Actor) -> DemoResetResponse:
+    def reset(self, actor: Actor, scenario: Scenario = "seeded") -> DemoResetResponse:
         """Replace demo state atomically with the private thirty-student fixture."""
         self.require(actor, "host", demo=True)
         with transaction(self.engine) as session:

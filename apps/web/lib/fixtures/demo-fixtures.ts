@@ -730,6 +730,8 @@ export function fixtureGetDispatch(dropId: string): DispatchResponse {
     counts,
     waves,
     personas,
+    visitors: [],
+    scenario: "seeded",
     next_wave_at: nextWaveAt,
     server_time: store.serverTimeIso,
     is_demo: true,
@@ -742,6 +744,7 @@ export function fixtureDemoReset(): DemoResetResponse {
 
   return {
     status: "reset",
+    scenario: "seeded",
     students: 30,
     personas: {
       A: "00000000-0000-4000-8000-00000000000a",
