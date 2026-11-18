@@ -1,6 +1,98 @@
 # Owl Plate checkpoint
 
-## Latest checkpoint: local demo milestone independently passed (November 18)
+## Questions for Johaan — return queue (survey first)
+
+**1. Approve survey copy, audience and named distribution owner.** Proposed
+audience: KSU student members of AI Club Discord and team-accessible class/club
+channels, with each channel owner's permission. Proposed owner: **Johaan**, or
+one teammate he explicitly names. Create/approve the form link, copy and channels
+before sending. Nothing has been distributed; **survey n=0**. Full questionnaire:
+`submission/SURVEY.md`. Approval is useful on Wednesday so collection can close
+Thursday evening; safe interim is unsent copy and no results on the deck.
+
+Copy ready for approval (not sent):
+
+> We’re building Owl Plate for the AI Club hackathon: a host photographs leftover event food, reviews an estimate, and invites nearby students who can eat it. Help us understand campus needs with a voluntary two-minute anonymous survey: [FORM LINK]. Skip any question; please don’t enter names or personal details. We’ll report aggregate counts with the number of responses. This is a student prototype, not an official KSU service.
+
+| Priority | Decision / action | What it blocks | Safe interim | Latest useful decision |
+|---|---|---|---|---|
+| 2 | Name an authorized Android owner and Home Screen iPhone owner, approve recording, and arrange a reachable trusted HTTPS origin. Proposed synthetic mapping: Android A, iPhone C; D receipt can use a separately labeled authorized run. | Physical push receipts and phone recording | Browser/log demo only; no real sends or endpoint deployment | Wednesday evening, before Thursday rehearsal |
+| 3 | Supply Gemini exact model/private access and Firebase config via private secret cards/existing environment; approve only nominated synthetic UUID recipients. No secrets in chat. | Live vision and FCM | Explicit fixture vision and log notifications | Wednesday evening / Thursday early afternoon latest |
+| 4 | Provide tray JPEG/PNG photos, hand-counted serving units and ingredient/menu allergen evidence with human label provenance. | Real-photo vision evaluation | No measured accuracy; known-answer fixtures only | Thursday afternoon |
+| 5 | Confirm campus food policy/contact and sourced building coordinates. | Campus policy claims and geographic realism | Arbitrary labeled H3 origin, no partnership/approval claims | Before physical rehearsal and pitch |
+| 6 | Confirm speaker roles/team contributions and native PowerPoint/venue playback; review final deck/video/note. | Human pitch rehearsal and final package approval | Prepared cue sheet and rendered PDF fallback | Thursday evening |
+| 7 | Clarify exact Claude model intended by “Uber’s Wi-Fi” if future work needs it. | Optional routing only | Claude remains idle; backend already implemented | Before reassignment |
+
+Deployment, survey distribution and submission remain Johaan's approval/action.
+No paid services provisioned, notifications sent to real phones, or secrets
+requested in chat. The live checklist has empty receipt/eval fields ready for
+actual evidence once access exists.
+
+## Latest checkpoint: slides reviewed, timed rehearsal and labeled fallback complete
+
+Continued from canonical `demo/owl-plate-ready` at
+`684e20b8a6d145be27fe5eadcc0be5b6fadbb761`. **Reviewed application code is unchanged**
+from GLM-passed `f025edd224fe06d2dadd94ae699dd393e8adf8da`. Only rehearsal tooling,
+submission materials and docs changed; original main and all worker worktrees
+remain intact. No new workers were launched. Exact final rehearsal commit is
+recorded in the manager thread after committing this checkpoint.
+
+All seven PowerPoint slides rendered with isolated LibreOffice 7.4.7 to PDF and
+1600×901 PNGs and were visually inspected individually: readable, no clipping,
+no footer collisions. Aptos substituted with embedded DejaVu Sans; native
+PowerPoint/venue playback still needs a check. Changes: every footer now states
+FIXTURE VISION / SIMULATED ALERTS / LIVE EVIDENCE PENDING (12pt); slide 4 says
+“B is skipped” rather than promising “B stays safe.” No evidence values invented.
+`submission/SLIDE_REVIEW.md` records the slide-by-slide results. PPTX seven-slide,
+speaker-note, shape-bound and archive-integrity checks passed.
+
+Two complete natural-expiry browser rehearsals passed, through actual HTTP routes
+with independent host/projector/student contexts: **109.823s** first run;
+**97.027s** selected capture, both including clean reset. Selected run: fixture
+estimate 3.245s; A/C wave 1 at 11.010s; C own invite 16.211s; B no invite 21.362s;
+A held 30.943s; C expired/D ring 4 at 80.630s; D own invite 86.767s; final reset
+92.979s. No clock advance was used. The 60-second invite timeout plus 10-second
+scheduler and browser polling explains the observed widening delay. Counts
+remained total 2 / available 1 / held 1 / picked up 0; no repeated A/C invites,
+no uncaught page errors or private projector fields. Reset returned no drop/invites.
+
+`submission/Owl_Plate_Fallback.mp4`: **96.6 seconds**, 1920×1080, 25fps, silent
+with burned-in simulation labels and action captions. Actual host/projector/mobile
+browser capture; no physical phone or live Gemini implied. Full decode passed,
+and nine scene frames/transitions were visually inspected. Screenshot and timing
+evidence in `submission/evidence/`; raw WebM captures preserved locally under
+ignored `test-results/rehearsal/raw/`. `scripts/rehearse_demo.cjs` reproduces
+capture with Playwright/Chromium; `scripts/build_fallback_recording.py` assembles
+captions using Pillow/FFmpeg. See submission README for commands and artifact map.
+
+Five-minute cue sheet: `submission/PITCH_SCRIPT.md`, exact 1m problem / 1m solution /
+2m demo / 1m architecture-next allocation. Spoken sections are 100/102/105 words,
+approximately 52/53/55s at 115 wpm. The 97s demo leaves 23s of its slot; narration
+overlaps actions/wait. **Human spoken timing, speaker handoffs and physical-device
+rehearsal remain pending.** Three human runs are reserved for Thursday evening.
+
+Single live checklist/receipt register: `submission/LIVE_RUN_CHECKLIST.md`.
+Status is explicit per check: verified, simulated or pending. Private-access
+presence check found no root .env and incomplete Gemini/Firebase configuration;
+no values printed. No real photos evaluated, no live model accuracy, no phone
+receipts, survey n=0. Do not substitute browser invites, transport IDs or fixture
+metrics for these missing results. Access/phones/labels are the deadline risk;
+Friday November 20 noon Eastern (17:00 UTC) remains the submission deadline.
+
+Verification this turn: unchanged app production build passed; timed browser flow
+and MP4 decode passed; script syntax/Prettier and Ruff check/format passed; final
+diff and package hashes recorded after packaging. Earlier reviewed 65 API tests,
+116 eval tests and five client tests stand; no app code changed to warrant reruns.
+Shared preview failed twice with missing host libraries; used isolated Playwright
+fallback. LibreOffice/dependencies downloaded/extracted under /tmp only, no system
+packages installed. Capture-tool failures before the selected take were not used
+as proof; one attempt was interrupted when temporary servers stopped. All owned
+servers/capture browsers were stopped after the successful take; DeckScout port
+8000 was never contacted, reused or signaled. No push, merge, deploy, distribution
+or submission occurred. Entra, meal swipes, Bedrock/Twilio and deployment remain
+outside this rehearsal slice; live-readiness limits below still apply.
+
+## Previous checkpoint: local demo milestone independently passed (November 18)
 
 **Reviewed application/checkpoint SHA: `f025edd224fe06d2dadd94ae699dd393e8adf8da`.**
 Fresh OpenCode `openrouter/z-ai/glm-5.3` verified that exact SHA in clean isolated
@@ -111,16 +203,11 @@ Canonical root `/home/node/projects/owl-plate`, T3 Owl Plate project `093405f7-8
 
 Confirmed capabilities: Codex `codex/gpt-6.1-sol`; Antigravity `antigravity/gemini-4-argon`; OpenCode `opencode/openrouter/z-ai/glm-5.3`. Claude instance `claudeAgent` exists, but “Uber’s Wi-Fi” resolves to no intended model. Claude idle; Codex fallback owns backend implementation until clarified. Worktrees must start from committed contract baseline, startFromOrigin=false. See API_CONTRACT.md for boundaries and accepted scheduling clarifications. Thread links, exact SHAs and check outputs will be appended as runs start/finish.
 
-## Questions for Johaan
+## Initial decision queue (superseded)
 
-| Priority | Decision needed | Blocks | Safe interim choice | Latest useful time |
-|---|---|---|---|---|
-| 1 | Which Android and Home Screen iPhone are authorized demo recipients, and when can owners participate? | Physical push proof and recording | Synthetic log only; no real notifications | Wednesday evening; Thursday rehearsal latest |
-| 2 | Provide access via private secret cards/existing environment for Gemini model/key and Firebase configuration when ready. Do not put secrets in chat. | Live vision and push verification | Explicit cached fixture and log adapter; encrypted FCM path ready for configuration | Wednesday evening to collect evidence |
-| 3 | Supply tray photo(s), hand-counted servings and ingredient/menu allergen labels. | Measured vision accuracy and known-photo cache | Clearly labeled offline fixtures; no accuracy claims | Thursday afternoon |
-| 4 | Approve survey distribution/channel and nominate owner; real results needed with n. | Campus impact evidence | Copy prepared locally, no distribution | Wednesday to allow Thursday close |
-| 5 | Confirm KSU food redistribution policy/contact and verified building coordinates. | Campus policy claims and real map | Synthetic origin; no approval claims | Before physical rehearsal/pitch |
-| 6 | Which exact Claude model did “Uber’s Wi-Fi” mean? T3 lists Opus 5.5, Sonnet 5.5, Fable 5.2, Haiku 5.5; none matches that label. | Optional future Claude routing; backend is completed by Codex | Leave Claude idle | Before any reassignment |
+Use the consolidated **Questions for Johaan — return queue** at the top of this
+handoff; survey approval is now first. Historical worker/checkpoint entries below
+remain for traceability.
 
 Entra and deployment access will be queued only when needed. Meal swipes, Bedrock, Twilio, live Entra and learned show rate are deferred in that order to protect the demo loop.
 

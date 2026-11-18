@@ -14,4 +14,4 @@ Capture sequence:
 
 Run full five-minute pitch three times, Thursday evening. Timing: problem 0:00–1:00, solution 1:00–2:00, demo 2:00–4:00, architecture/next 4:00–5:00. If over time, shorten spoken architecture, preserve full claim/widen flow.
 
-Backups: local clip on both laptops; cached estimate; deterministic route script; hotspot. Record failures and actual device/OS/time in HANDOFF.md. No video exists yet; physical device rehearsal pending.
+Backups: local clip on both laptops; cached estimate; deterministic route script; hotspot. Record failures and actual device/OS/time in HANDOFF.md. A 96.6-second silent captioned browser fallback now exists at `submission/Owl_Plate_Fallback.mp4`, with fixture vision and simulated notifications burned into every scene. It uses natural 60-second invite expiry and no clock advance. Physical-device rehearsal and recording remain pending. See `submission/LIVE_RUN_CHECKLIST.md` for the single active checklist and receipt register.

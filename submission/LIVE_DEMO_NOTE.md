@@ -4,7 +4,7 @@ Owl Plate will be demonstrated live. The demo shows a host photograph food, revi
 
 This note is a draft and has not been submitted. Replace the status below with verified final evidence before sending:
 
-- Demo recording: pending Thursday rehearsal.
+- Local fallback recording: prepared and decoded, `Owl_Plate_Fallback.mp4` (96.6 seconds, silent captioned real browser capture; synthetic image/students, fixture vision, simulated notifications). Physical-device recording remains pending Thursday rehearsal.
 - Physical Android/iPhone push receipt: not verified.
 - Vision mode and measured accuracy: live test pending; offline cached fixture available.
 - Survey: not distributed, n = 0.

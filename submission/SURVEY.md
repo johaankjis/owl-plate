@@ -1,5 +1,7 @@
 # Two-minute survey: food after campus events
 
+**Approval needed first:** audience = KSU student members of AI Club Discord and team-accessible class/club channels (subject to each channel owner's permission). Proposed distribution owner = Johaan, or one teammate Johaan explicitly names. Approve the copy, channels, named owner and form link before sending. Nothing has been distributed; **n=0**.
+
 Draft for Johaan to create in a form tool and approve for distribution. Participation is voluntary; do not collect names, emails, IDs, CARE status, phone numbers or precise locations. Skip any question. Do not publish raw free text. This survey is project research, not a KSU service or promise of food.
 
 1. Which campus are you usually on? Kennesaw / Marietta / Both / Prefer not to say

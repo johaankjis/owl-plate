@@ -1,0 +1,120 @@
+{
+  "recorded_at": "2026-11-18T15:43:35.131Z",
+  "application_sha": "684e20b8a6d145be27fe5eadcc0be5b6fadbb761",
+  "evidence": "SIMULATED: synthetic image, fixture vision, simulated notifications; no physical push receipt",
+  "natural_expiry": true,
+  "events": [
+    {
+      "name": "clean_reset",
+      "seconds": 0.062,
+      "students": 30
+    },
+    {
+      "name": "fixture_estimate_visible",
+      "seconds": 3.245
+    },
+    {
+      "name": "wave1_observed",
+      "seconds": 11.01,
+      "ring_k": 2
+    },
+    {
+      "name": "C_browser_invite_visible",
+      "seconds": 16.211
+    },
+    {
+      "name": "B_exclusion_verified",
+      "seconds": 21.362
+    },
+    {
+      "name": "A_hold_observed",
+      "seconds": 30.943
+    },
+    {
+      "name": "wave2_observed",
+      "seconds": 80.63,
+      "ring_k": 4
+    },
+    {
+      "name": "D_browser_invite_visible",
+      "seconds": 86.767
+    },
+    {
+      "name": "final_reset_verified",
+      "seconds": 92.979
+    }
+  ],
+  "scenes": [
+    {
+      "actor": "host",
+      "title": "1. Photograph and review",
+      "caption": "Synthetic orange image uploaded; the estimate is a cached fixture, not live Gemini.",
+      "seconds": 0.489
+    },
+    {
+      "actor": "projector",
+      "title": "2. Wave one: A and C invited",
+      "caption": "B is excluded for dairy. D is outside ring 2. All students and alerts are simulated.",
+      "seconds": 11.01
+    },
+    {
+      "actor": "student",
+      "title": "3. C sees an invitation",
+      "caption": "This is C's own browser invite. No physical phone or push receipt is being shown.",
+      "seconds": 16.126
+    },
+    {
+      "actor": "student",
+      "title": "4. B has no invitation",
+      "caption": "The dairy hard filter excludes B before ranking; B receives no simulated invite.",
+      "seconds": 21.298
+    },
+    {
+      "actor": "student",
+      "title": "5. A holds one serving",
+      "caption": "The claim uses the real application route. Two available becomes one available plus one held.",
+      "seconds": 26.43
+    },
+    {
+      "actor": "projector",
+      "title": "6. Wait for C's 60-second invite to expire",
+      "caption": "Real elapsed waiting: no demo clock advance. Scheduler checks every 10 seconds.",
+      "seconds": 36.006
+    },
+    {
+      "actor": "projector",
+      "title": "7. Wave two widens to ring 4",
+      "caption": "C expired; D is invited. A remains held. Earlier invitees are not contacted again.",
+      "seconds": 80.63
+    },
+    {
+      "actor": "student",
+      "title": "8. D sees the second-wave invitation",
+      "caption": "A separate synthetic identity sees only its own invite. Physical push verification remains pending.",
+      "seconds": 86.731
+    },
+    {
+      "actor": "host",
+      "title": "9. Reset for the next run",
+      "caption": "Reset clears drops, invites and holds; 30 synthetic students are seeded again.",
+      "seconds": 92.84
+    }
+  ],
+  "videos": {
+    "host": {
+      "path": "test-results/rehearsal/raw/60a4e3358fb97aaeb3481df1b7b14243.webm",
+      "origin_seconds": 0.138
+    },
+    "projector": {
+      "path": "test-results/rehearsal/raw/4e47d8ba75425438e8dff38a159a3730.webm",
+      "origin_seconds": 0.172
+    },
+    "student": {
+      "path": "test-results/rehearsal/raw/86d7c0d9c4d9df51d0730800908de794.webm",
+      "origin_seconds": 0.198
+    }
+  },
+  "status": "PASS",
+  "duration_seconds": 97.027,
+  "artifact_note": "Raw camera-free browser captures are preserved locally under gitignored test-results/rehearsal/raw; final captioned MP4 and screenshots are bundled in submission. App code matches application_sha; capture tooling and deck were uncommitted rehearsal changes."
+}

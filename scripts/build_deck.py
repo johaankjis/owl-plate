@@ -48,7 +48,7 @@ def build_deck() -> Path:
         ),
         (
             "The first wave",
-            "A and C are invited. B stays safe. D waits for a wider ring.",
+            "A and C are invited. B is skipped. D waits for a wider ring.",
             [
                 "A: nearby · invite",
                 "B: dairy conflict · excluded",
@@ -127,8 +127,8 @@ def build_deck() -> Path:
             7,
             12,
             0.3,
-            f"OWL PLATE  /  LOCAL REHEARSAL DRAFT  /  {index + 1:02d}",
-            10,
+            f"FIXTURE VISION  /  SIMULATED ALERTS  /  LIVE EVIDENCE PENDING  /  {index + 1:02d}",
+            12,
             "A8C2B5",
         )
         slide.notes_slide.notes_text_frame.text = notes
