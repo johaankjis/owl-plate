@@ -10,11 +10,11 @@ import anyio
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from services.api.application import Backend
 from services.api.db.session import create_database
-from services.api.routes.api import build_router
-
 from services.api.providers.notifications import SimulatedNotifications
+from services.api.routes.api import build_router
 from services.api.vision.service import build_vision_provider, validate_photo
 
 logger = logging.getLogger(__name__)
