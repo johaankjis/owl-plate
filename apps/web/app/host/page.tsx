@@ -271,11 +271,7 @@ export default function HostPage() {
 
   return (
     <div className="min-h-screen bg-owl-black text-zinc-100">
-      <DemoHeader
-        sourceMode={sourceMode}
-        visionSource={drop?.vision_source}
-        isDemo={drop?.is_demo ?? true}
-      />
+      <DemoHeader sourceMode={sourceMode} isDemo={drop?.is_demo ?? true} />
 
       <main className="mx-auto max-w-md space-y-5 px-4 pb-10 pt-5 sm:max-w-2xl">
         {/* Step Header */}
