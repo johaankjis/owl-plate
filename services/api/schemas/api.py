@@ -73,7 +73,7 @@ class DropResponse(ContractModel):
     building_code: str
     room: str
     vision: VisionEstimate
-    vision_source: Literal["fixture", "gemini"]
+    vision_source: Literal["fixture", "gemini", "openrouter"]
     servings_final: int
     allergens_final: list[Allergen]
     diet_tags_final: list[Diet]

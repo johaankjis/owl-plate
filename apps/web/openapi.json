@@ -2901,7 +2901,7 @@
           },
           "vision_source": {
             "type": "string",
-            "enum": ["fixture", "gemini"],
+            "enum": ["fixture", "gemini", "openrouter"],
             "title": "Vision Source"
           },
           "servings_final": {

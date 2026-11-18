@@ -123,6 +123,10 @@ def create_app(database_url: str | None = None) -> FastAPI:
         build_survey_router(SurveyService(engine, os.getenv("SURVEY_ENABLED", "false") == "true"))
     )
 
+    vision_mode = os.getenv("VISION_PROVIDER", "fixture")
+    if vision_mode not in {"gemini", "openrouter"}:
+        vision_mode = "fixture"
+
     @app.get("/health")
     def health() -> dict[str, str | bool]:
         """Expose honest readiness without internal configuration or recipient information."""
@@ -130,9 +134,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
             "status": "ok",
             "is_demo": demo,
             "notifications": "simulated" if notification_mode == "log" else "fcm",
-            "vision": "gemini"
-            if os.getenv("VISION_PROVIDER", "fixture") == "gemini"
-            else "fixture",
+            "vision": vision_mode,
         }
 
     return app

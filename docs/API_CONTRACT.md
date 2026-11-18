@@ -210,3 +210,26 @@ No new routes or response models. Manager owns this section.
 - Web worker (Argon): `apps/web/app/host/**`, `apps/web/lib/api-client.ts`,
   `apps/web/lib/fixtures/**`, `apps/web/lib/types/**`, `apps/web/tests/**`,
   `apps/web/components/**` except `DispatchMap.tsx` and `presenter/**`.
+
+# Contract v2.2: live vision via OpenRouter (frozen 2026-11-18)
+
+- `DropResponse.vision_source` is `"fixture" | "gemini" | "openrouter"`; `GET /health` `vision`
+  reports the configured mode with the same values. `"openrouter"` means a Gemini model reached
+  through OpenRouter produced this drop's estimate. UI label on success: **Live Gemini via
+  OpenRouter**. `fixture` stays **Saved demo estimate**; direct `gemini` stays **Live Gemini**.
+- `VISION_PROVIDER=openrouter` reads `OPENROUTER_API_KEY` (server-side only: gitignored repo-root
+  `.env` or the launching shell) and `OPENROUTER_VISION_MODEL` (a Gemini model on OpenRouter whose
+  model listing supports image input and structured outputs; launcher provides a verified default).
+- The actual uploaded photo (after `validate_photo` re-encode) is sent. The reply is validated
+  against `VisionEstimate`; the existing `SafeVision` policies still apply.
+- Any failure (missing key, HTTP error, timeout, refusal, invalid JSON, schema mismatch) →
+  `POST /drops` 503 `vision_unavailable` with a human message containing no key, URL or body,
+  no drop created, never a fixture fallback. Fixture mode remains for offline rehearsal.
+
+Ownership: backend worker (GLM 5.3) owns `services/api/providers/openrouter.py` (new),
+`services/api/vision/**`, `create_drop` source handling in `services/api/application.py`,
+`scripts/present.py`, `Makefile`, `services/api/tests/**`. Web worker (Argon) owns
+`apps/web/app/host/**`, `apps/web/components/**` except DispatchMap and presenter,
+`apps/web/lib/api-client.ts`, `apps/web/lib/fixtures/**`, `apps/web/lib/types/**`,
+`apps/web/tests/**`. Manager owns schemas, main.py, this doc, generated types,
+`apps/web/lib/vision-mode.ts`, `apps/web/app/dispatch/**`, and integration.

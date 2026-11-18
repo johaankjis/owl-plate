@@ -695,7 +695,7 @@ export interface components {
        * Vision Source
        * @enum {string}
        */
-      vision_source: "fixture" | "gemini";
+      vision_source: "fixture" | "gemini" | "openrouter";
       /** Servings Final */
       servings_final: number;
       /** Allergens Final */

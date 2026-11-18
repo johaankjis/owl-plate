@@ -11,7 +11,7 @@ interface DemoHeaderProps {
   credential?: DemoCredential;
   onCredentialChange?: (cred: DemoCredential) => void;
   sourceMode: DataSourceMode;
-  visionSource?: "fixture" | "gemini";
+  visionSource?: "fixture" | "gemini" | "openrouter";
   isDemo?: boolean;
   allowedRoles?: Array<"host" | "projector" | "student">;
   showCredentialSelector?: boolean;
