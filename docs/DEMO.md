@@ -8,6 +8,12 @@ Those records supersede early aspirational demo notes.
 
 ## Run the local demo
 
+Milestone 1 adds the reviewed Marietta building directory as the default
+host/join location selector. Use `docs/CAMPUS_HANDOFF.md` for the isolated
+3027/8027 startup command, Library→Academic acceptance, actual campus browser
+evidence and provenance limits. Explicit synthetic rehearsal remains separate;
+the existing fallback recording still uses unverified synthetic geography.
+
 `make present` builds the web app when its sources change, starts API and web
 together on one browser port (3017; the API stays on loopback behind `/backend`)
 and resets to the live-visitor scenario. Fixture vision and simulated
