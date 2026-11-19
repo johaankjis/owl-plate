@@ -98,7 +98,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     async function text(id, value) {
       await pages.projector
         .getByTestId(id)
-        .filter({ hasText: value })
+        .filter({ hasText: new RegExp(`^${value}$`) })
         .waitFor({ timeout: 90000 });
     }
     await Promise.all(
@@ -136,6 +136,8 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const { drop_id: dropId } = await request("/demo/active-drop");
     const drop = await request(`/drops/${dropId}`);
     assert.equal(drop.vision_source, "fixture");
+    assert.equal(drop.building_code, "DEMO-ORIGIN");
+    assert.equal(drop.building, null);
     mark("wave1_observed", { ring_k: 2 });
     await scene(
       "projector",
@@ -159,6 +161,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     );
     await student.goto(`${web}/student?persona=C`);
     await student.locator('[data-testid^="invite-card-"]').waitFor();
+    assert.equal(await student.getByTestId("get-directions-link").count(), 0);
     await student
       .locator('[data-testid^="invite-card-"]')
       .evaluate((el) => el.scrollIntoView({ block: "center" }));

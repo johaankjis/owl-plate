@@ -153,7 +153,7 @@ async function call(path, token, method = "GET") {
     const status = (name, label) =>
       projector
         .getByTestId(`visitor-status-${name}`)
-        .filter({ hasText: label })
+        .filter({ hasText: new RegExp(`^${label}$`) })
         .waitFor({ timeout: 90000 });
     await status("Ava", "Invited");
     await status("Ben", "Invited");

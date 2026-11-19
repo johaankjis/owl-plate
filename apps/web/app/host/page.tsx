@@ -290,9 +290,7 @@ export default function HostPage() {
     servings_final: servingsFinal,
     allergens_final: allergensFinal,
     diet_tags_final: dietTagsFinal,
-    building_code:
-      resolveDefaultHostBuildingId(buildingCode, buildings) ||
-      HOST_REHEARSAL_CODE,
+    building_code: buildingCode.trim() || HOST_REHEARSAL_CODE,
     room: room.trim(),
     pickup_instructions: pickupInstructions.trim(),
     expires_in_minutes: expiresInMinutes,
