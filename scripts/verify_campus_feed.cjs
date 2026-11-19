@@ -146,6 +146,10 @@ function privateSafe(value) {
       await page.getByTestId("join-submit").click();
       await page.waitForURL(/\/student/);
       await page.getByTestId("student-nickname").waitFor();
+      await page
+        .getByTestId("student-vision-mode-label")
+        .filter({ hasText: "Saved demo estimates" })
+        .waitFor();
       await noStudentLocation(page);
       await page.getByTestId("student-menu-button").click();
       await noStudentLocation(page);

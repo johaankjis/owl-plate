@@ -55,6 +55,14 @@ export function DemoHeader({ isDemo = true, subtitle }: DemoHeaderProps) {
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-1.5">
+          {isDemo && isStudentScreen && (
+            <span
+              data-testid="student-vision-mode-label"
+              className="rounded-full border border-purple-400/30 bg-purple-500/10 px-2.5 py-1 text-[11px] font-semibold text-purple-200"
+            >
+              {visionModeLabel(visionMode)}
+            </span>
+          )}
           {isDemo && (
             <span
               data-testid={

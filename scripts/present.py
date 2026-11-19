@@ -270,7 +270,9 @@ def run(args: argparse.Namespace) -> None:
             f"  Host       {base}/host\n"
             f"  Join       {base}/join\n"
             f"  Dispatch   {base}/dispatch   (presenter controls at the bottom)\n\n"
-            "  Reset anytime: Presenter controls on /dispatch, or `make demo-reset`.\n"
+            "  Reset anytime: Presenter controls on /dispatch, or:\n"
+            f"    {sys.executable} -m scripts.present --reset-only "
+            f"--api-port {args.api_port} --scenario {args.scenario}\n"
             "  Stop: Ctrl+C\n",
             flush=True,
         )

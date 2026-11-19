@@ -125,6 +125,10 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       ),
     );
     const { host, projector, student } = pages;
+    await student
+      .getByTestId("student-vision-mode-label")
+      .filter({ hasText: "Saved demo estimates" })
+      .waitFor();
     await student.getByTestId("student-menu-button").click();
     assert.equal(
       await student

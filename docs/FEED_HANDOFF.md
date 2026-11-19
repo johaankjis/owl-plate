@@ -1,7 +1,7 @@
 # Campus feed integration handoff
 
-Status: both source commits integrated; final browser acceptance in progress.
-Do not treat pending browser checks as passing acceptance results.
+Status: source integration and both browser flows passed; final label/reset
+polish and verification are being finalized.
 
 ## Baseline and ownership
 
@@ -51,7 +51,7 @@ for exact-drop link checks (the browser harness never clicks that link):
 ```bash
 NEXT_PUBLIC_IT_COMPANION_BASE_URL=http://127.0.0.1:9 \
   /home/node/projects/owl-plate/.venv/bin/python -m scripts.present \
-  --port 3027 --api-port 8027 --vision fixture --notifications simulated
+  --port 3027 --api-port 8027 --vision fixture --notifications simulated --rebuild
 ```
 
 The launcher uses this worktree's `build/present.db`; survey collection is off.
@@ -84,7 +84,22 @@ mock deduplication; neither proves physical notification receipt.
 wave rehearsal, dairy exclusion, natural 60-second invite expiry and ring 4.
 It does not use the feed's clock advance. Run it after the feed harness because
 both intentionally reset the isolated database. Stop the launcher with Ctrl+C
-when finished; its process groups belong only to this candidate.
+when finished; its process groups belong only to this candidate. The launcher
+prints a reset command containing the actual candidate API port and scenario.
+
+Candidate URLs: `http://127.0.0.1:3027/host`, `/join`, `/student` and `/dispatch`.
+The reset endpoint is **only** `http://127.0.0.1:3027/backend/demo/reset`
+(direct API equivalent `http://127.0.0.1:8027/demo/reset`). For example:
+
+```bash
+curl --fail-with-body -X POST http://127.0.0.1:3027/backend/demo/reset \
+  -H 'Authorization: Bearer demo-projector' -H 'Content-Type: application/json' \
+  -d '{"scenario":"visitors"}'
+```
+
+Use `{"scenario":"seeded"}` only for the explicit A–E wave rehearsal. Reset
+revokes joined sessions and device registrations. Do not use a default/live reset
+command while verifying this candidate.
 
 ## Harness compatibility
 
@@ -95,7 +110,7 @@ superseded by `CAMPUS_FEED_CONTRACT.md`. The seeded rehearsal remains in
 
 ## Evidence and pending work
 
-- Draft Node syntax checks: passed. Script Ruff check/format: passed.
+- Node syntax checks: passed. Script Ruff check/format: passed.
 - Candidate guard checks: 5 passed; live ports/remote hosts rejected before
   HTTP/reset (`test-results/candidate-guards.json`).
 - Launcher unit tests: 14 passed after honoring explicit startup scenario.
@@ -106,16 +121,25 @@ superseded by `CAMPUS_FEED_CONTRACT.md`. The seeded rehearsal remains in
 - Campus units: 4 passed; registry validator: 43 verified buildings, 1,591 checks,
   zero failures.
 - It companion units: 6 passed; stand-ins only, no paired device tap.
-- OpenAPI/types generation: passed from composed backend; alias cleanup and
-  generated aliases simplified. Frontend 39 units, ESLint/Prettier, Next
+- OpenAPI/types generation: passed from composed backend, repeat generation has
+  zero drift; handwritten feed/join/drop/distribution overrides replaced with
+  generated aliases. Frontend 39 units, ESLint/Prettier, Next
   route types/TypeScript and production build passed. Build rewrite points to
   `http://127.0.0.1:8027/:path*`.
 - Composed backend smoke: passed with actual 43-building registry, late
   location-free join, two buildings, reserve/global hold/release and aggregate;
   `test-results/backend-feed-smoke.json`. Fixture/log only, temporary SQLite.
-- Mobile actual-route feed: in progress; second-host publication uses the
-  real restore → Share another drop flow (a fresh host tab restores active food).
-- Seeded A–E actual-route natural expiry: pending final feed check.
+- Mobile actual-route feed: PASS on integration implementation commit
+  `c0a9cb5` (full SHA in `test-results/campus-feed/evidence.json`). Second-host
+  publication uses real restore → Share another drop. Two-building projector
+  UI and aggregate API match, including current joined count. All mobile pages
+  have no horizontal overflow; no browser errors/GPS attempts/location payloads.
+- Browser evidence uses the authorized Playwright/Chrome fallback. Preview status
+  was unavailable; both preview opens failed with "This host is missing libraries
+  T3's browser needs". Supplied library/font paths allowed real Chromium checks.
+- Seeded A–E actual-route natural expiry: PASS, A/C wave one, B dairy
+  exclusion, A held, natural C expiry and D ring four, followed by clean reset.
+  No student location controls appear in seeded menus either.
 - Evidence output: `test-results/campus-feed/evidence.json` and PNGs;
   `test-results/rehearsal/timing.json` and PNGs (local ignored files).
 - Final integration SHA: report after final commit; a document cannot embed its
@@ -136,15 +160,16 @@ mitigates device duplicates but does not establish exactly-once delivery. Feed
 FCM TTL is 900 seconds. A unique student/drop outbox prevents normal repeated
 publish/tick enqueueing. Older database rows retain compatibility without a
 schema migration; feed visitor area is an empty database string and public null,
-with no derived student cell or location in student data. Integration fix: failed-send retries now recheck joined session validity,
+with no derived student cell or location in student data.
+
+Integration fix: failed-send retries now recheck joined session validity,
 alert consent, current allergens/diets, and existing reservations. Ineligible
 opportunities are consumed without transport while retaining the unique pair;
 restoring preferences does not revive them. Five regression cases cover leaving,
 pausing, allergen/diet changes, and acquiring a hold. `sent` internally means
 handled (including cancelled), never a physical delivery receipt.
 
-Own existing claims
-take explanation precedence over dietary mismatch; current dietary checks still
+Own existing claims take explanation precedence over dietary mismatch; current dietary checks still
 gate a new reservation.
 
 Payload wiring uses `notification_mode=campus_feed|seeded_waves`; feed clicks
