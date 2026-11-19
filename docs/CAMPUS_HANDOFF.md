@@ -19,11 +19,11 @@ restart, live provider request, or real It tap is part of this evidence.
 
 Worker commits were inspected and cherry-picked in this order:
 
-| Worker | Source SHA | Local cherry-pick | Worker checkout / branch |
-|---|---|---|---|
-| Backend | `95eaf51213c49ec676766174ba4a74f6bb6c15fe` | `e5cc229` | `/home/node/.t3/worktrees/owl-plate/t3-7dfda4fd`, `t3/campus-backend` |
-| Frontend | `2458dc7399d5cac1b3fa662745acfa93f84f5b4a` | `dc816b7` | `/home/node/.t3/worktrees/owl-plate/t3-a65e6155`, `t3/campus-building-selector` |
-| Dataset | `a37319cd85747474b3e17abec6ab4dda8d4a8a82` | `7d88bb5` | `/home/node/.t3/worktrees/owl-plate/t3-1ac99516`, `t3/research-marietta-campus-data` |
+| Worker   | Source SHA                                 | Local cherry-pick | Worker checkout / branch                                                             |
+| -------- | ------------------------------------------ | ----------------- | ------------------------------------------------------------------------------------ |
+| Backend  | `95eaf51213c49ec676766174ba4a74f6bb6c15fe` | `e5cc229`         | `/home/node/.t3/worktrees/owl-plate/t3-7dfda4fd`, `t3/campus-backend`                |
+| Frontend | `2458dc7399d5cac1b3fa662745acfa93f84f5b4a` | `dc816b7`         | `/home/node/.t3/worktrees/owl-plate/t3-a65e6155`, `t3/campus-building-selector`      |
+| Dataset  | `a37319cd85747474b3e17abec6ab4dda8d4a8a82` | `7d88bb5`         | `/home/node/.t3/worktrees/owl-plate/t3-1ac99516`, `t3/research-marietta-campus-data` |
 
 Worker checkouts/branches were checked with `git worktree list` and completed
 thread records. Provider/model metadata was confirmed from those thread/run
@@ -67,19 +67,19 @@ All application browser evidence uses real local routes, real sessions and
 the real dataset, but synthetic people/image, fixture vision and log
 notifications. Chromium touch/mobile emulation is **not a physical iPhone**.
 
-| Check | Result |
-|---|---|
-| API pytest suite | 174 passed; one upstream Starlette/httpx deprecation warning |
-| Evaluation unit suite | 116 passed; not measured live model accuracy |
-| Campus dataset unit suite | 4 passed |
-| Dataset validator | 43 verified records, 1,591 checks, zero failures |
-| It companion existing suite | 6 passed; local mocked aggregate API, no real paired tap |
-| Frontend unit suite | 35 passed |
-| Ruff lint / format | Pass, including campus files |
-| ESLint / Prettier | Pass; browser scripts separately format-checked |
-| OpenAPI generation | Pass, repeat generation produces no drift |
-| Next route types / TypeScript | Pass |
-| Production Next build | Pass via isolated presentation launcher |
+| Check                         | Result                                                       |
+| ----------------------------- | ------------------------------------------------------------ |
+| API pytest suite              | 174 passed; one upstream Starlette/httpx deprecation warning |
+| Evaluation unit suite         | 116 passed; not measured live model accuracy                 |
+| Campus dataset unit suite     | 4 passed                                                     |
+| Dataset validator             | 43 verified records, 1,591 checks, zero failures             |
+| It companion existing suite   | 6 passed; local mocked aggregate API, no real paired tap     |
+| Frontend unit suite           | 35 passed                                                    |
+| Ruff lint / format            | Pass, including campus files                                 |
+| ESLint / Prettier             | Pass; browser scripts separately format-checked              |
+| OpenAPI generation            | Pass, repeat generation produces no drift                    |
+| Next route types / TypeScript | Pass                                                         |
+| Production Next build         | Pass via isolated presentation launcher                      |
 
 Reusable real-route browser commands:
 
@@ -224,3 +224,28 @@ cd apps/web && npm run typecheck
   can start a fresh candidate. No production readiness or deployment approval
   is implied.
 - Fresh exact-SHA manager review still follows this integration handoff.
+
+## Manager checkpoint after integration
+
+- Canonical feature branch: `feature/marietta-locations`, fast-forwarded to
+  integration `cbeab00b5946c98e4db1f7b8a08179ef9839f02a`; default branch untouched.
+  Pre-existing cloud edits remain uncommitted. Their saved hashes match, except
+  `docs/ARCHITECTURE.md`, which preserves the same cloud diff and additionally
+  contains the committed campus architecture paragraph.
+- Fresh GLM review of `cbeab00` reported PASS with no blocking findings. Its
+  frontend count of 40 includes the five unrelated uncommitted cloud tests in
+  canonical; the isolated implementation count is 35. A clean-worktree final
+  recheck follows the small projector label correction below.
+- Manager repeated the mobile campus flow at exact `cbeab00`: PASS, including
+  natural expiry to ring four, exact walking destination, reserve/pickup counts,
+  no GPS and no horizontal overflow. Artifacts are in the integrator worktree's
+  `test-results/campus-manager-cbeab00/`; both phone-width screenshots were
+  visually inspected and are readable. Companion was not configured in this
+  additional run; exact-drop href coverage remains the integrator's evidence.
+- Manager found and corrected a projector copy issue: verified campus drops
+  previously inherited the synthetic-coordinate warning. Campus drops now show
+  their building name and a verified-building-point label; rehearsal drops keep
+  the placeholder warning. Marker copy allows both selected campus buildings
+  and synthetic rehearsal areas and discloses display offsets.
+- No physical push receipt, paired It tap, live model evaluation, cloud
+  deployment or push to Git is claimed. Survey collection remains disabled.

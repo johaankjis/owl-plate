@@ -20,6 +20,7 @@ interface DispatchMapProps {
   originCell: string;
   ringK: number;
   participants: MapParticipant[];
+  campusBuildingName?: string | null;
 }
 
 interface HexCellDatum {
@@ -45,6 +46,7 @@ export function DispatchMap({
   originCell,
   ringK,
   participants,
+  campusBuildingName = null,
 }: DispatchMapProps) {
   const [webglError, setWebglError] = useState<string | null>(null);
 
@@ -157,11 +159,17 @@ export function DispatchMap({
     >
       <div className="pointer-events-none absolute left-3 right-3 top-3 z-10 flex flex-wrap items-center justify-between gap-2">
         <div
-          data-testid="arbitrary-coordinates-banner"
+          data-testid={
+            campusBuildingName
+              ? "campus-coordinates-banner"
+              : "arbitrary-coordinates-banner"
+          }
           className="rounded-lg border border-amber-500/40 bg-owl-black/90 px-3 py-1.5 text-sm text-amber-200"
         >
-          Simulated venue, unverified placeholder coordinates · search ring k ={" "}
-          {ringK}
+          {campusBuildingName
+            ? `${campusBuildingName} · verified campus building point`
+            : "Simulated venue, unverified placeholder coordinates"}{" "}
+          · search ring k = {ringK}
         </div>
         <div className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-700 bg-owl-black/90 px-3 py-1.5 text-sm text-zinc-200">
           {LEGEND.map(([color, label]) => (
@@ -187,8 +195,9 @@ export function DispatchMap({
       )}
 
       <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-10 rounded-lg border border-zinc-800 bg-owl-black/90 px-3 py-2 text-sm text-zinc-300">
-        Visitor markers show nicknames at simulated demo areas. Seeded markers
-        are simulated students labeled{" "}
+        Markers show selected buildings or synthetic rehearsal areas, with
+        display offsets for readability. Seeded markers are simulated students
+        labeled{" "}
         <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-owl-gold">
           [SIM]
         </span>

@@ -298,6 +298,7 @@ export default function DispatchProjectorPage() {
                   originCell={dispatch.origin_cell}
                   ringK={dispatch.ring_k}
                   participants={participants}
+                  campusBuildingName={drop?.building?.name}
                 />
                 {drop && (
                   <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-800 bg-owl-slate px-5 py-4 text-lg">
