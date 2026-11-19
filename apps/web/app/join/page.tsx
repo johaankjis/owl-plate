@@ -1,24 +1,27 @@
 "use client";
 
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DemoHeader } from "../../components/DemoHeader";
+import { BuildingSelector } from "../../components/BuildingSelector";
 import {
   ALLERGENS,
   ALLERGEN_WARNING_TEXT,
   DIETS,
   type Allergen,
+  type Building,
   type DemoArea,
-  type DemoAreaId,
   type Diet,
 } from "../../lib/types/api";
 import {
   ApiContractError,
+  getBuildings,
   getDemoAreas,
   INITIAL_DATA_SOURCE,
   joinDemoSession,
   type DataSourceMode,
 } from "../../lib/api-client";
+import { filterVerifiedBuildings } from "../../lib/buildings";
 import { FIXTURE_DEMO_AREAS } from "../../lib/fixtures/demo-fixtures";
 import { SESSION_ENDED_MESSAGE, setSessionToken } from "../../lib/session";
 
@@ -29,33 +32,60 @@ function JoinDemoContent() {
 
   const [sourceMode, setSourceMode] =
     useState<DataSourceMode>(INITIAL_DATA_SOURCE);
+  const [buildings, setBuildings] = useState<Building[]>([]);
+  const [buildingsLoading, setBuildingsLoading] = useState<boolean>(true);
+  const [buildingsError, setBuildingsError] = useState<string | null>(null);
   const [areas, setAreas] = useState<DemoArea[]>([...FIXTURE_DEMO_AREAS]);
   const [nickname, setNickname] = useState("");
-  const [selectedArea, setSelectedArea] = useState<DemoAreaId>("demo-venue");
+  const [selectedArea, setSelectedArea] = useState<string>("demo-venue");
   const [selectedAllergens, setSelectedAllergens] = useState<Allergen[]>([]);
   const [selectedDiets, setSelectedDiets] = useState<Diet[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [nicknameError, setNicknameError] = useState<string | null>(null);
   const [generalError, setGeneralError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let active = true;
-    getDemoAreas()
-      .then((res) => {
-        if (!active) return;
-        setSourceMode(res.source);
-        if (res.data.areas.length > 0) {
-          setAreas(res.data.areas);
-          setSelectedArea(res.data.areas[0]!.id);
-        }
-      })
-      .catch(() => {
-        // Keep fallback areas if server is starting up
-      });
-    return () => {
-      active = false;
-    };
+  const loadLocations = useCallback(async () => {
+    setBuildingsLoading(true);
+    setBuildingsError(null);
+
+    const [buildingsRes, areasRes] = await Promise.allSettled([
+      getBuildings(),
+      getDemoAreas(),
+    ]);
+
+    if (areasRes.status === "fulfilled") {
+      setSourceMode(areasRes.value.source);
+      if (areasRes.value.data.areas.length > 0) {
+        setAreas(areasRes.value.data.areas);
+      }
+    }
+
+    if (buildingsRes.status === "fulfilled") {
+      setSourceMode(buildingsRes.value.source);
+      const verified = filterVerifiedBuildings(
+        buildingsRes.value.data.buildings,
+      );
+      setBuildings(verified);
+      if (verified.length > 0) {
+        setSelectedArea((prev) =>
+          prev === "demo-venue" ? verified[0]!.id : prev,
+        );
+      }
+    } else {
+      const err = buildingsRes.reason;
+      setBuildingsError(
+        err instanceof Error
+          ? err.message
+          : "Could not load Marietta campus buildings.",
+      );
+    }
+
+    setBuildingsLoading(false);
   }, []);
+
+  useEffect(() => {
+    void loadLocations();
+  }, [loadLocations]);
 
   const toggleAllergen = (alg: Allergen) => {
     setSelectedAllergens((prev) =>
@@ -137,8 +167,8 @@ function JoinDemoContent() {
             </span>
           </div>
           <p className="text-sm text-zinc-300">
-            No account or phone number needed. Set your campus area and any
-            dietary filters below.
+            No account, phone number, or GPS tracking needed. Choose your
+            Marietta campus building and any dietary filters below.
           </p>
         </div>
 
@@ -184,45 +214,21 @@ function JoinDemoContent() {
             )}
           </div>
 
-          {/* 2. Campus Area (Simulated Locations) */}
+          {/* 2. Campus Building Selector (Verified Marietta Campus + Explicit Rehearsal Areas) */}
           <fieldset className="space-y-2">
-            <legend className="text-sm font-bold text-white">
-              2. Where are you on campus?
-            </legend>
-            <p className="text-xs text-zinc-400">
-              Simulated campus locations for this demo (no real GPS tracking).
-            </p>
-            <div className="grid gap-2.5 pt-1">
-              {areas.map((area) => {
-                const selected = selectedArea === area.id;
-                return (
-                  <button
-                    key={area.id}
-                    type="button"
-                    data-testid={`join-area-${area.id}`}
-                    aria-pressed={selected}
-                    onClick={() => setSelectedArea(area.id)}
-                    className={`flex min-h-[56px] w-full flex-col items-start justify-center rounded-xl border px-4 py-3 text-left transition ${
-                      selected
-                        ? "border-owl-gold bg-owl-gold/15 text-white ring-1 ring-owl-gold/50"
-                        : "border-zinc-700/80 bg-owl-black text-zinc-300 hover:border-zinc-600"
-                    }`}
-                  >
-                    <div className="flex w-full items-center justify-between gap-2">
-                      <span className="text-sm font-bold text-white">
-                        {area.label}
-                      </span>
-                      <span className="rounded-md bg-zinc-800 px-2 py-0.5 text-[11px] font-semibold text-owl-gold">
-                        Simulated
-                      </span>
-                    </div>
-                    <span className="mt-0.5 text-xs text-zinc-400">
-                      {area.description}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            <BuildingSelector
+              buildings={buildings}
+              value={selectedArea}
+              onChange={setSelectedArea}
+              loading={buildingsLoading}
+              error={buildingsError}
+              onRetry={() => void loadLocations()}
+              testIdPrefix="join"
+              rehearsalOptions={areas}
+              getRehearsalOptionTestId={(id) => `join-area-${id}`}
+              label="2. Where are you on campus?"
+              helperText="Pick a verified Marietta building (no GPS permission required), or choose an explicit synthetic rehearsal area below."
+            />
           </fieldset>
 
           {/* 3. Optional Dietary Restrictions */}

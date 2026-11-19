@@ -7,14 +7,23 @@
  */
 
 import type { components } from "./api.generated";
+import type {
+  BuildingsResponse,
+  DispatchResponse,
+  DropResponse,
+  VisitorDecision,
+} from "./types/api";
 
 type Schemas = components["schemas"];
-export type DispatchResponse = Schemas["DispatchResponse"];
-export type DropResponse = Schemas["DropResponse"];
+export type {
+  BuildingsResponse,
+  DispatchResponse,
+  DropResponse,
+  VisitorDecision,
+};
 export type DemoStatusResponse = Schemas["DemoStatusResponse"];
 export type DemoArea = Schemas["DemoArea"];
 export type PersonaDecision = Schemas["PersonaDecision"];
-export type VisitorDecision = Schemas["VisitorDecision"];
 export type Scenario = Schemas["DemoResetRequest"]["scenario"];
 
 const API_BASE_URL =
@@ -66,6 +75,9 @@ export const getDemoStatus = () => call<DemoStatusResponse>("/demo/status");
 
 export const getDemoAreas = () =>
   call<Schemas["DemoAreasResponse"]>("/demo/areas", {}, false);
+
+export const getBuildings = () =>
+  call<BuildingsResponse>("/buildings", {}, false);
 
 export const getDispatch = (dropId: string) =>
   call<DispatchResponse>(`/drops/${dropId}/dispatch`);

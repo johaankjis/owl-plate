@@ -373,3 +373,144 @@ test("parseSeededPersonaParam resolves rehearsal query parameter ?persona=A..E",
   assert.equal(session.parseSeededPersonaParam(""), null);
   assert.equal(session.parseSeededPersonaParam(null), null);
 });
+
+test("getBuildings calls GET /buildings and updateDrop sends canonical building id, room, and pickup_instructions", async () => {
+  const requests = [];
+  const { api } = loadClient({
+    fetch: async (url, options) => {
+      const parsed = new URL(url);
+      requests.push({
+        method: options.method,
+        pathname: parsed.pathname,
+        auth: options.headers.get("Authorization"),
+        body: options.body ? JSON.parse(options.body) : null,
+      });
+      if (parsed.pathname === "/buildings") {
+        return Response.json({
+          campus: "marietta",
+          buildings: [
+            {
+              id: "ksu-marietta-joe-mack-wilson-student-center",
+              name: "Joe Mack Wilson Student Center",
+              building_code: "A",
+              building_number: "840",
+              category: "student_life",
+              latitude: 33.9389,
+              longitude: -84.5197,
+              verification_status: "verified",
+              sources: [],
+            },
+          ],
+        });
+      }
+      if (parsed.pathname === "/drops/drop-123" && options.method === "PATCH") {
+        const body = JSON.parse(options.body);
+        return Response.json({
+          id: "drop-123",
+          status: "draft",
+          building_code: body.building_code,
+          room: body.room,
+          pickup_instructions: body.pickup_instructions,
+        });
+      }
+      throw new Error(`Unexpected path: ${parsed.pathname}`);
+    },
+  });
+
+  const buildingsRes = await api.getBuildings();
+  assert.equal(buildingsRes.data.campus, "marietta");
+  assert.equal(
+    buildingsRes.data.buildings[0].id,
+    "ksu-marietta-joe-mack-wilson-student-center",
+  );
+
+  const patchRes = await api.updateDrop("drop-123", {
+    servings_final: 4,
+    allergens_final: ["dairy"],
+    diet_tags_final: ["vegetarian"],
+    building_code: "ksu-marietta-joe-mack-wilson-student-center",
+    room: "214",
+    pickup_instructions: "2nd floor lobby table by east stairs",
+    expires_in_minutes: 45,
+    safety_review: {
+      covered_and_temperature_safe: true,
+      served_within_two_hours: true,
+      untouched: true,
+      ingredient_information_checked: false,
+      religious_diets_confirmed: false,
+    },
+  });
+
+  assert.equal(
+    patchRes.data.building_code,
+    "ksu-marietta-joe-mack-wilson-student-center",
+  );
+  assert.equal(
+    patchRes.data.pickup_instructions,
+    "2nd floor lobby table by east stairs",
+  );
+  assert.equal(requests[0].method, "GET");
+  assert.equal(requests[0].pathname, "/buildings");
+  assert.equal(requests[0].auth, null);
+  assert.equal(
+    requests[1].body.building_code,
+    "ksu-marietta-joe-mack-wilson-student-center",
+  );
+  assert.equal(
+    requests[1].body.pickup_instructions,
+    "2nd floor lobby table by east stairs",
+  );
+});
+
+test("joinDemoSession accepts canonical campus building id and surfaces 422 invalid_building error", async () => {
+  const { api } = loadClient({
+    fetch: async (_url, options) => {
+      const body = JSON.parse(options.body);
+      if (body.area === "ksu-marietta-unknown") {
+        return Response.json(
+          {
+            detail: {
+              code: "invalid_building",
+              message: "Unknown or unverified building ID.",
+            },
+          },
+          { status: 422 },
+        );
+      }
+      return Response.json(
+        {
+          token: "demo-session-campus-1",
+          student: {
+            id: "00000000-0000-4000-9000-000000000099",
+            nickname: "CampusOwl",
+            area: body.area,
+            allergens: [],
+            diets: [],
+            kind: "visitor",
+            valid_until: "2026-11-18T19:00:00Z",
+          },
+        },
+        { status: 201 },
+      );
+    },
+  });
+
+  const okRes = await api.joinDemoSession({
+    nickname: "CampusOwl",
+    area: "ksu-marietta-atrium-building",
+    allergens: [],
+    diets: [],
+  });
+  assert.equal(okRes.data.student.area, "ksu-marietta-atrium-building");
+
+  await assert.rejects(
+    api.joinDemoSession({
+      nickname: "CampusOwl",
+      area: "ksu-marietta-unknown",
+    }),
+    (error) =>
+      error.status === 422 &&
+      error.code === "invalid_building" &&
+      error.message === "Unknown or unverified building ID.",
+  );
+});

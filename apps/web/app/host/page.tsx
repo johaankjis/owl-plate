@@ -4,11 +4,16 @@ import React, { useState, useEffect, useCallback } from "react";
 import { DemoHeader } from "../../components/DemoHeader";
 import { AllergenListDisplay } from "../../components/AllergenBadge";
 import {
+  BuildingSelector,
+  type RehearsalOption,
+} from "../../components/BuildingSelector";
+import {
   ALLERGENS,
   ALLERGEN_WARNING_TEXT,
   DIETS,
   RELIGIOUS_DIETS,
   type Allergen,
+  type Building,
   type Diet,
   type DropEdit,
   type DropResponse,
@@ -16,6 +21,7 @@ import {
 } from "../../lib/types/api";
 import {
   createDrop,
+  getBuildings,
   getDrop,
   getActiveDrop,
   publishDrop,
@@ -23,12 +29,16 @@ import {
   INITIAL_DATA_SOURCE,
   type DataSourceMode,
 } from "../../lib/api-client";
+import { filterVerifiedBuildings } from "../../lib/buildings";
 import {
   buildPickupCompanionUrl,
   formatHostCounts,
+  formatHostDropLocation,
   getVisionSourceLabel,
   HOST_POLL_INTERVAL_MS,
+  HOST_REHEARSAL_CODE,
   isLiveVisionSource,
+  resolveDefaultHostBuildingId,
   resolveHostStep,
   restoreHostDropState,
   shouldPollHostCounts,
@@ -36,6 +46,15 @@ import {
 } from "./host-helpers";
 
 const HOST_CREDENTIAL = "demo-host" as const;
+
+const HOST_REHEARSAL_OPTIONS: ReadonlyArray<RehearsalOption> = [
+  {
+    id: HOST_REHEARSAL_CODE,
+    label: "Demo origin (DEMO-ORIGIN)",
+    description:
+      "Synthetic rehearsal origin at placeholder (0, 0) for scripted A–E or 4-visitor demo areas.",
+  },
+];
 
 export default function HostPage() {
   const [sourceMode, setSourceMode] =
@@ -45,6 +64,11 @@ export default function HostPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [hostNote, setHostNote] = useState<string>("");
 
+  // Verified campus buildings directory
+  const [buildings, setBuildings] = useState<Building[]>([]);
+  const [buildingsLoading, setBuildingsLoading] = useState<boolean>(true);
+  const [buildingsError, setBuildingsError] = useState<string | null>(null);
+
   // Host review form state
   const [servingsFinal, setServingsFinal] = useState<number>(2);
   const [allergensFinal, setAllergensFinal] = useState<Allergen[]>([
@@ -52,8 +76,9 @@ export default function HostPage() {
     "gluten",
   ]);
   const [dietTagsFinal, setDietTagsFinal] = useState<Diet[]>([]);
-  const [buildingCode, setBuildingCode] = useState<string>("DEMO-ORIGIN");
+  const [buildingCode, setBuildingCode] = useState<string>(HOST_REHEARSAL_CODE);
   const [room, setRoom] = useState<string>("214");
+  const [pickupInstructions, setPickupInstructions] = useState<string>("");
   const expiresInMinutes = 45;
   const [safetyReview, setSafetyReview] = useState<SafetyReview>({
     covered_and_temperature_safe: false,
@@ -70,24 +95,54 @@ export default function HostPage() {
     null,
   );
 
-  const syncFormFromDrop = useCallback((d: DropResponse) => {
-    setServingsFinal(d.servings_final);
-    setAllergensFinal([...d.allergens_final]);
-    setDietTagsFinal([...d.diet_tags_final]);
-    setBuildingCode(d.building_code);
-    setRoom(d.room);
-    if (d.safety_review) {
-      setSafetyReview({ ...d.safety_review });
-    } else {
-      setSafetyReview({
-        covered_and_temperature_safe: false,
-        served_within_two_hours: false,
-        untouched: false,
-        ingredient_information_checked: false,
-        religious_diets_confirmed: false,
-      });
+  const loadCampusBuildings = useCallback(async () => {
+    setBuildingsLoading(true);
+    setBuildingsError(null);
+    try {
+      const res = await getBuildings();
+      setSourceMode(res.source);
+      const verified = filterVerifiedBuildings(res.data.buildings);
+      setBuildings(verified);
+      setBuildingCode((prev) => resolveDefaultHostBuildingId(prev, verified));
+    } catch (err) {
+      setBuildingsError(
+        err instanceof Error
+          ? err.message
+          : "Could not load Marietta campus buildings.",
+      );
+    } finally {
+      setBuildingsLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    void loadCampusBuildings();
+  }, [loadCampusBuildings]);
+
+  const syncFormFromDrop = useCallback(
+    (d: DropResponse, currentBuildings: ReadonlyArray<Building>) => {
+      setServingsFinal(d.servings_final);
+      setAllergensFinal([...d.allergens_final]);
+      setDietTagsFinal([...d.diet_tags_final]);
+      setBuildingCode(
+        resolveDefaultHostBuildingId(d.building_code, currentBuildings),
+      );
+      setRoom(d.room);
+      setPickupInstructions(d.pickup_instructions ?? "");
+      if (d.safety_review) {
+        setSafetyReview({ ...d.safety_review });
+      } else {
+        setSafetyReview({
+          covered_and_temperature_safe: false,
+          served_within_two_hours: false,
+          untouched: false,
+          ingredient_information_checked: false,
+          religious_diets_confirmed: false,
+        });
+      }
+    },
+    [],
+  );
 
   // Restore active drop on mount via GET /demo/active-drop then GET /drops/{id}
   useEffect(() => {
@@ -102,7 +157,7 @@ export default function HostPage() {
         setDrop(restored.drop);
         setViewStep(restored.step);
         if (restored.drop) {
-          syncFormFromDrop(restored.drop);
+          syncFormFromDrop(restored.drop, buildings);
         }
       })
       .catch((err) => {
@@ -114,6 +169,7 @@ export default function HostPage() {
     return () => {
       active = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [syncFormFromDrop]);
 
   // Poll GET /drops/{id} (demo-host) every 2 s while the counts panel is open
@@ -201,7 +257,7 @@ export default function HostPage() {
       setDrop(res.data);
       setViewStep(resolveHostStep(res.data));
       setSourceMode(res.source);
-      syncFormFromDrop(res.data);
+      syncFormFromDrop(res.data, buildings);
       setStatusMessage(
         `Estimate ready (${getVisionSourceLabel(res.data.vision_source)}). Confirm details and food safety below.`,
       );
@@ -234,8 +290,11 @@ export default function HostPage() {
     servings_final: servingsFinal,
     allergens_final: allergensFinal,
     diet_tags_final: dietTagsFinal,
-    building_code: buildingCode.trim() || "DEMO-ORIGIN",
+    building_code:
+      resolveDefaultHostBuildingId(buildingCode, buildings) ||
+      HOST_REHEARSAL_CODE,
     room: room.trim(),
+    pickup_instructions: pickupInstructions.trim(),
     expires_in_minutes: expiresInMinutes,
     safety_review: safetyReview,
   });
@@ -545,38 +604,63 @@ export default function HostPage() {
                 </p>
               )}
 
-              {/* Pickup Room & Building */}
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div>
-                  <label
-                    htmlFor="building-code-input"
-                    className="block text-xs font-semibold text-zinc-300"
-                  >
-                    Building
-                  </label>
-                  <input
-                    id="building-code-input"
-                    type="text"
-                    value={buildingCode}
-                    onChange={(e) => setBuildingCode(e.target.value)}
-                    className="mt-1 min-h-[44px] w-full rounded-xl border border-zinc-700 bg-owl-black px-3 py-2 text-sm text-white"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="room-input"
-                    className="block text-xs font-semibold text-zinc-300"
-                  >
-                    Room
-                  </label>
-                  <input
-                    id="room-input"
-                    type="text"
-                    value={room}
-                    onChange={(e) => setRoom(e.target.value)}
-                    placeholder="214"
-                    className="mt-1 min-h-[44px] w-full rounded-xl border border-zinc-700 bg-owl-black px-3 py-2 text-sm text-white"
-                  />
+              {/* Pickup Building, Room & Pickup Instructions */}
+              <div className="space-y-4 border-t border-zinc-800/80 pt-3">
+                <BuildingSelector
+                  buildings={buildings}
+                  value={buildingCode}
+                  onChange={setBuildingCode}
+                  loading={buildingsLoading}
+                  error={buildingsError}
+                  onRetry={() => void loadCampusBuildings()}
+                  testIdPrefix="host"
+                  rehearsalOptions={HOST_REHEARSAL_OPTIONS}
+                  allowCustomRehearsalCode={true}
+                  customRehearsalInputId="building-code-input"
+                  label="Pickup building (Marietta campus)"
+                  helperText="Select a verified Marietta campus building, or choose the explicit synthetic rehearsal origin below."
+                />
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label
+                      htmlFor="room-input"
+                      className="block text-xs font-semibold text-zinc-300"
+                    >
+                      Room
+                    </label>
+                    <input
+                      id="room-input"
+                      data-testid="room-input"
+                      type="text"
+                      maxLength={80}
+                      value={room}
+                      onChange={(e) => setRoom(e.target.value)}
+                      placeholder="214"
+                      className="mt-1 min-h-[44px] w-full rounded-xl border border-zinc-700 bg-owl-black px-3 py-2 text-sm text-white focus:border-owl-gold focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="pickup-instructions-input"
+                      className="block text-xs font-semibold text-zinc-300"
+                    >
+                      Pickup instructions{" "}
+                      <span className="font-normal text-zinc-400">
+                        (optional)
+                      </span>
+                    </label>
+                    <input
+                      id="pickup-instructions-input"
+                      data-testid="pickup-instructions-input"
+                      type="text"
+                      maxLength={500}
+                      value={pickupInstructions}
+                      onChange={(e) => setPickupInstructions(e.target.value)}
+                      placeholder='e.g. "2nd floor lobby table by the east stairs"'
+                      className="mt-1 min-h-[44px] w-full rounded-xl border border-zinc-700 bg-owl-black px-3 py-2 text-sm text-white placeholder:text-zinc-500 focus:border-owl-gold focus:outline-none"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -822,15 +906,25 @@ export default function HostPage() {
                 <h2 className="text-xl font-extrabold text-white">
                   Pickup counts
                 </h2>
-                <p className="mt-0.5 text-xs text-zinc-400">
-                  {drop.building_code}
-                  {drop.room ? `, Room ${drop.room}` : ""}
+                <p
+                  data-testid="host-drop-location"
+                  className="mt-0.5 text-xs text-zinc-300"
+                >
+                  {formatHostDropLocation(drop, buildings)}
                   {isPollingCounts && (
                     <span className="ml-2 text-emerald-400">
                       • Auto-refreshing
                     </span>
                   )}
                 </p>
+                {drop.pickup_instructions?.trim() && (
+                  <p
+                    data-testid="host-pickup-instructions"
+                    className="mt-1 text-xs text-zinc-400"
+                  >
+                    Pickup note: {drop.pickup_instructions.trim()}
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5">

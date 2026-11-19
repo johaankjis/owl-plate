@@ -1,10 +1,16 @@
 import type {
+  Building,
   ClaimResponse,
   DemoAreaId,
+  DropResponse,
   InviteResponse,
   SeededPersonaLabel,
 } from "../../lib/types/api";
 import { FIXTURE_DEMO_AREAS } from "../../lib/fixtures/demo-fixtures";
+import {
+  buildWalkingDirectionsUrl,
+  isVerifiedBuilding,
+} from "../../lib/buildings";
 
 export type StudentCardKind = "waiting" | "invite" | "pickup" | "picked_up";
 
@@ -41,7 +47,7 @@ export type StudentCardState =
       collapsedLines: CollapsedInviteLine[];
     };
 
-export const DEMO_AREA_LABELS: Record<DemoAreaId, string> =
+export const DEMO_AREA_LABELS: Record<string, string> =
   FIXTURE_DEMO_AREAS.reduce(
     (acc, area) => {
       acc[area.id] = area.label;
@@ -59,15 +65,75 @@ export const SEEDED_PERSONA_AREA_LABELS: Record<SeededPersonaLabel, string> = {
 };
 
 /**
+ * Formats a student's joined area ID into a readable label, preferring the verified
+ * campus building name when present in the directory, or falling back to rehearsal area labels.
+ */
+export function formatStudentAreaLabel(
+  areaId: string | null | undefined,
+  buildings: ReadonlyArray<Building> = [],
+): string {
+  const clean = areaId?.trim();
+  if (!clean) return "Campus area (demo)";
+  const matchedBuilding = buildings.find((b) => b.id === clean);
+  if (matchedBuilding && matchedBuilding.name.trim()) {
+    return matchedBuilding.name.trim();
+  }
+  return DEMO_AREA_LABELS[clean] ?? clean;
+}
+
+/**
  * Formats a drop's building and optional room into a readable campus location string.
+ * When `building` is provided (from `drop.building` or directory lookup), displays the
+ * real building name (`building.name`) rather than the raw slug or code.
  */
 export function formatDropLocation(
   buildingCode: string,
   room?: string | null,
+  building?: Pick<Building, "name"> | null,
 ): string {
-  const cleanBuilding = buildingCode.trim() || "Campus venue";
+  const cleanBuilding =
+    building?.name?.trim() || buildingCode.trim() || "Campus venue";
   const cleanRoom = room?.trim();
   return cleanRoom ? `${cleanBuilding}, Room ${cleanRoom}` : cleanBuilding;
+}
+
+/**
+ * Formats a DropResponse's location using `drop.building.name` when present,
+ * or looking up `drop.building_code` in the loaded buildings directory.
+ */
+export function formatDropResponseLocation(
+  drop: Pick<DropResponse, "building_code" | "room" | "building">,
+  buildings: ReadonlyArray<Building> = [],
+): string {
+  const resolvedBuilding =
+    drop.building ?? buildings.find((b) => b.id === drop.building_code) ?? null;
+  return formatDropLocation(drop.building_code, drop.room, resolvedBuilding);
+}
+
+/**
+ * Returns the trimmed pickup instructions on a drop, or null if blank/absent.
+ */
+export function getDropPickupInstructions(
+  drop: Pick<DropResponse, "pickup_instructions">,
+): string | null {
+  const trimmed = drop.pickup_instructions?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * Resolves the Google Maps walking directions URL for a drop:
+ * `https://www.google.com/maps/dir/?api=1&destination=LAT,LNG&travelmode=walking`
+ *
+ * Only verified real building coordinates (`drop.building`) receive a directions link.
+ * Rehearsal drops (`drop.building === null` or unverified) return null.
+ */
+export function getDropWalkingDirectionsUrl(
+  drop: Pick<DropResponse, "building">,
+): string | null {
+  if (!drop.building || !isVerifiedBuilding(drop.building)) {
+    return null;
+  }
+  return buildWalkingDirectionsUrl(drop.building);
 }
 
 /**
@@ -99,6 +165,7 @@ export function buildCollapsedInviteLines(
     const locationLabel = formatDropLocation(
       inv.drop.building_code,
       inv.drop.room,
+      inv.drop.building,
     );
     const foodTitle = summarizeDropFood(inv);
 

@@ -11,6 +11,7 @@ import {
   formatEastern,
 } from "../../components/presenter/labels";
 import {
+  getBuildings,
   getDemoAreas,
   getDemoStatus,
   getDispatch,
@@ -93,13 +94,22 @@ export default function DispatchProjectorPage() {
 
   useEffect(() => {
     setJoinUrl(`${window.location.origin}/join`);
-    getDemoAreas()
-      .then((res) =>
-        setAreaLabels(
-          Object.fromEntries(res.areas.map((area) => [area.id, area.label])),
-        ),
-      )
-      .catch(() => setAreaLabels({}));
+    Promise.allSettled([getDemoAreas(), getBuildings()]).then(
+      ([areasRes, buildingsRes]) => {
+        const nextLabels: Record<string, string> = {};
+        if (areasRes.status === "fulfilled") {
+          for (const area of areasRes.value.areas) {
+            nextLabels[area.id] = area.label;
+          }
+        }
+        if (buildingsRes.status === "fulfilled") {
+          for (const building of buildingsRes.value.buildings) {
+            nextLabels[building.id] = building.name;
+          }
+        }
+        setAreaLabels(nextLabels);
+      },
+    );
     void poll();
     const pollTimer = setInterval(() => void poll(), 2000);
     const clockTimer = setInterval(() => setNow(Date.now()), 1000);
@@ -295,7 +305,10 @@ export default function DispatchProjectorPage() {
                       {drop.vision.items.map((item) => item.name).join(", ")}
                     </span>
                     <span className="text-zinc-400">
-                      {drop.servings_final} servings · {drop.building_code}
+                      {drop.servings_final} servings ·{" "}
+                      {drop.building?.name ??
+                        areaLabels[drop.building_code] ??
+                        drop.building_code}
                     </span>
                     <span
                       data-testid="dispatch-vision-source"

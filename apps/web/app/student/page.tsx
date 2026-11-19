@@ -4,14 +4,20 @@ import React, { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DemoHeader } from "../../components/DemoHeader";
 import { AllergenListDisplay } from "../../components/AllergenBadge";
+import { BuildingSelector } from "../../components/BuildingSelector";
 import {
   ALLERGEN_WARNING_TEXT,
+  type Building,
+  type DemoArea,
   type InviteResponse,
   type SessionStudent,
 } from "../../lib/types/api";
 import {
+  checkInPresence,
   claimInvite,
   declineInvite,
+  getBuildings,
+  getDemoAreas,
   getMyInvites,
   getMySession,
   INITIAL_DATA_SOURCE,
@@ -20,6 +26,8 @@ import {
   releaseClaim,
   type DataSourceMode,
 } from "../../lib/api-client";
+import { filterVerifiedBuildings } from "../../lib/buildings";
+import { FIXTURE_DEMO_AREAS } from "../../lib/fixtures/demo-fixtures";
 import {
   clearSessionToken,
   getSessionToken,
@@ -30,8 +38,10 @@ import { formatEasternTime, formatRemainingTime } from "../../lib/time";
 import { usePushOptIn } from "../../lib/push";
 import { PushOptIn } from "../../components/PushOptIn";
 import {
-  DEMO_AREA_LABELS,
-  formatDropLocation,
+  formatDropResponseLocation,
+  formatStudentAreaLabel,
+  getDropPickupInstructions,
+  getDropWalkingDirectionsUrl,
   resolveStudentCardState,
   SEEDED_PERSONA_AREA_LABELS,
   summarizeDropFood,
@@ -51,6 +61,15 @@ function StudentContent() {
   );
   const [sourceMode, setSourceMode] =
     useState<DataSourceMode>(INITIAL_DATA_SOURCE);
+  const [buildings, setBuildings] = useState<Building[]>([]);
+  const [buildingsLoading, setBuildingsLoading] = useState<boolean>(true);
+  const [buildingsError, setBuildingsError] = useState<string | null>(null);
+  const [rehearsalAreas, setRehearsalAreas] = useState<DemoArea[]>([
+    ...FIXTURE_DEMO_AREAS,
+  ]);
+  const [checkInSelection, setCheckInSelection] = useState<string>("");
+  const [checkInStatus, setCheckInStatus] = useState<string | null>(null);
+
   const [invites, setInvites] = useState<InviteResponse[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -71,6 +90,34 @@ function StudentContent() {
     },
     [router, seededPersona],
   );
+
+  const loadDirectory = useCallback(async () => {
+    setBuildingsLoading(true);
+    setBuildingsError(null);
+    const [bRes, aRes] = await Promise.allSettled([
+      getBuildings(),
+      getDemoAreas(),
+    ]);
+    if (aRes.status === "fulfilled" && aRes.value.data.areas.length > 0) {
+      setRehearsalAreas(aRes.value.data.areas);
+    }
+    if (bRes.status === "fulfilled") {
+      const verified = filterVerifiedBuildings(bRes.value.data.buildings);
+      setBuildings(verified);
+    } else {
+      const err = bRes.reason;
+      setBuildingsError(
+        err instanceof Error
+          ? err.message
+          : "Could not load Marietta campus buildings.",
+      );
+    }
+    setBuildingsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    void loadDirectory();
+  }, [loadDirectory]);
 
   // Resolve session token or rehearsal persona on mount
   useEffect(() => {
@@ -100,6 +147,7 @@ function StudentContent() {
       .then((res) => {
         if (!active) return;
         setSessionStudent(res.data);
+        setCheckInSelection(res.data.area);
         setSourceMode(res.source);
       })
       .catch((err) => {
@@ -202,6 +250,32 @@ function StudentContent() {
     }
   };
 
+  const handleCheckInBuilding = async () => {
+    if (!authToken || !checkInSelection.trim()) return;
+    setBusyId("checkin");
+    setErrorMessage(null);
+    setCheckInStatus(null);
+    try {
+      const res = await checkInPresence(
+        { building_code: checkInSelection.trim() },
+        authToken,
+      );
+      setSourceMode(res.source);
+      if (!seededPersona) {
+        const refreshed = await getMySession(authToken);
+        setSessionStudent(refreshed.data);
+      }
+      setCheckInStatus(
+        `Checked in at ${formatStudentAreaLabel(checkInSelection, buildings)}.`,
+      );
+      await loadInvites();
+    } catch (err) {
+      onApiError(err, "Could not update your campus building check-in");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const handleLeaveDemo = async () => {
     setBusyId("leave");
     setErrorMessage(null);
@@ -233,11 +307,28 @@ function StudentContent() {
   const displayArea = seededPersona
     ? SEEDED_PERSONA_AREA_LABELS[seededPersona.label]
     : sessionStudent
-      ? (DEMO_AREA_LABELS[sessionStudent.area] ?? sessionStudent.area)
+      ? formatStudentAreaLabel(sessionStudent.area, buildings)
       : "Campus area (demo)";
 
   const cardState = resolveStudentCardState(invites);
   const nowIso = new Date(nowTick).toISOString();
+
+  const activeDrop =
+    cardState.kind === "invite" ||
+    cardState.kind === "pickup" ||
+    cardState.kind === "picked_up"
+      ? cardState.activeInvite.drop
+      : null;
+
+  const activeDropLocation = activeDrop
+    ? formatDropResponseLocation(activeDrop, buildings)
+    : "";
+  const activePickupInstructions = activeDrop
+    ? getDropPickupInstructions(activeDrop)
+    : null;
+  const activeDirectionsUrl = activeDrop
+    ? getDropWalkingDirectionsUrl(activeDrop)
+    : null;
 
   return (
     <div className="min-h-screen bg-owl-black text-zinc-100">
@@ -264,7 +355,12 @@ function StudentContent() {
                   </span>
                 )}
               </div>
-              <p className="truncate text-xs text-zinc-400">{displayArea}</p>
+              <p
+                data-testid="student-current-area"
+                className="truncate text-xs text-zinc-400"
+              >
+                {displayArea}
+              </p>
             </div>
 
             <button
@@ -279,7 +375,43 @@ function StudentContent() {
           </div>
 
           {menuOpen && (
-            <div className="flex flex-col gap-2.5 border-t border-zinc-800 pt-3">
+            <div className="flex flex-col gap-3 border-t border-zinc-800 pt-3">
+              {!seededPersona && (
+                <div className="space-y-2.5 rounded-xl border border-zinc-800 bg-owl-black/50 p-3">
+                  <BuildingSelector
+                    buildings={buildings}
+                    value={checkInSelection || sessionStudent?.area || ""}
+                    onChange={setCheckInSelection}
+                    loading={buildingsLoading}
+                    error={buildingsError}
+                    onRetry={() => void loadDirectory()}
+                    testIdPrefix="join"
+                    rehearsalOptions={rehearsalAreas}
+                    label="Update campus building check-in"
+                    helperText="Refresh your current building for the next 2 hours (no GPS used)."
+                  />
+                  {checkInStatus && (
+                    <p
+                      data-testid="student-checkin-status"
+                      className="text-xs font-semibold text-emerald-300"
+                    >
+                      {checkInStatus}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    data-testid="student-checkin-button"
+                    disabled={busyId !== null || !checkInSelection.trim()}
+                    onClick={() => void handleCheckInBuilding()}
+                    className="min-h-[44px] w-full rounded-xl bg-owl-gold px-4 py-2.5 text-xs font-extrabold text-owl-black transition hover:bg-owl-goldDark disabled:opacity-50"
+                  >
+                    {busyId === "checkin"
+                      ? "Checking in..."
+                      : "Check in near selected building"}
+                  </button>
+                </div>
+              )}
+
               <p className="text-xs text-zinc-400">
                 Leaving releases any held spot so another nearby student can use
                 it.
@@ -396,16 +528,38 @@ function StudentContent() {
               <h2 className="text-2xl font-extrabold text-white">
                 {summarizeDropFood(cardState.activeInvite)}
               </h2>
-              <p className="text-sm font-medium text-zinc-200">
-                {formatDropLocation(
-                  cardState.activeInvite.drop.building_code,
-                  cardState.activeInvite.drop.room,
-                )}
+              <p
+                data-testid="invite-drop-location"
+                className="text-sm font-bold text-zinc-100"
+              >
+                {activeDropLocation}
               </p>
+              {activePickupInstructions && (
+                <p
+                  data-testid="invite-pickup-instructions"
+                  className="rounded-lg border border-zinc-800 bg-owl-black/60 px-3 py-2 text-xs text-zinc-200"
+                >
+                  <strong className="text-owl-gold">Pickup note:</strong>{" "}
+                  {activePickupInstructions}
+                </p>
+              )}
               <p className="text-xs text-zinc-400">
                 About {cardState.activeInvite.drop.counts.available} of{" "}
                 {cardState.activeInvite.drop.counts.total} servings left
               </p>
+              {activeDirectionsUrl && (
+                <div className="pt-1">
+                  <a
+                    data-testid="get-directions-link"
+                    href={activeDirectionsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-3.5 py-2 text-xs font-bold text-emerald-200 transition hover:bg-emerald-500/25"
+                  >
+                    Get directions
+                  </a>
+                </div>
+              )}
             </div>
 
             {/* Food breakdown & dietary tags */}
@@ -496,20 +650,42 @@ function StudentContent() {
             </div>
 
             {/* Where to go */}
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
                 Where to go
               </p>
-              <h2 className="text-2xl font-extrabold text-white">
-                {formatDropLocation(
-                  cardState.activeInvite.drop.building_code,
-                  cardState.activeInvite.drop.room,
-                )}
+              <h2
+                data-testid="pickup-drop-location"
+                className="text-2xl font-extrabold text-white"
+              >
+                {activeDropLocation}
               </h2>
+              {activePickupInstructions && (
+                <p
+                  data-testid="pickup-instructions"
+                  className="rounded-lg border border-emerald-500/30 bg-owl-black/70 px-3 py-2 text-xs text-zinc-100"
+                >
+                  <strong className="text-emerald-300">Pickup note:</strong>{" "}
+                  {activePickupInstructions}
+                </p>
+              )}
               <p className="text-xs text-zinc-300">
                 Pickup needs no ID or proof. Just head over before your hold
                 ends.
               </p>
+              {activeDirectionsUrl && (
+                <div className="pt-1">
+                  <a
+                    data-testid="get-directions-link"
+                    href={activeDirectionsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border border-emerald-400/50 bg-emerald-500/15 px-4 py-2.5 text-sm font-extrabold text-emerald-200 transition hover:bg-emerald-500/25"
+                  >
+                    Get directions
+                  </a>
+                </div>
+              )}
             </div>
 
             {/* Hold countdown */}
@@ -616,14 +792,13 @@ function StudentContent() {
               </h2>
               <p className="text-sm text-zinc-300">
                 Picked up from{" "}
-                <strong className="text-white">
-                  {formatDropLocation(
-                    cardState.activeInvite.drop.building_code,
-                    cardState.activeInvite.drop.room,
-                  )}
-                </strong>
-                .
+                <strong className="text-white">{activeDropLocation}</strong>.
               </p>
+              {activePickupInstructions && (
+                <p className="text-xs text-zinc-400">
+                  Pickup note: {activePickupInstructions}
+                </p>
+              )}
             </div>
 
             <p className="text-xs text-zinc-400">

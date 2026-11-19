@@ -11,6 +11,7 @@
 
 import type {
   AuthToken,
+  BuildingsResponse,
   ClaimResponse,
   DemoActiveDropResponse,
   DemoAreasResponse,
@@ -42,6 +43,7 @@ import {
   fixtureDeclineInvite,
   fixtureDemoReset,
   fixtureDemoTick,
+  fixtureGetBuildings,
   fixtureGetDemoAreas,
   fixtureGetDemoStatus,
   fixtureGetDispatch,
@@ -208,6 +210,12 @@ async function request<T>(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export async function getBuildings(): Promise<ApiResult<BuildingsResponse>> {
+  return request<BuildingsResponse>("/buildings", { method: "GET" }, null, () =>
+    fixtureGetBuildings(),
+  );
 }
 
 export async function getDemoAreas(): Promise<ApiResult<DemoAreasResponse>> {

@@ -1,11 +1,57 @@
-import type { Counts, DropResponse, VisionSource } from "../../lib/types/api";
+import type {
+  Building,
+  Counts,
+  DropResponse,
+  VisionSource,
+} from "../../lib/types/api";
+import { filterVerifiedBuildings } from "../../lib/buildings";
 
 export type HostViewStep = "upload" | "review" | "counts";
 
 export const HOST_POLL_INTERVAL_MS = 2000;
 
+export const HOST_REHEARSAL_CODE = "DEMO-ORIGIN";
+
 const DROP_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * Resolves the default building selection for the host review form:
+ * - If the drop already specifies a canonical verified building ID (or non-default code), preserve it.
+ * - Otherwise, if verified campus buildings are loaded and the drop is still on the placeholder "DEMO-ORIGIN",
+ *   select the first verified campus building by default so campus mode is the default choice.
+ */
+export function resolveDefaultHostBuildingId(
+  currentCode: string,
+  buildings: ReadonlyArray<Building>,
+): string {
+  const verified = filterVerifiedBuildings(buildings);
+  const trimmed = currentCode.trim();
+  if (trimmed && trimmed !== HOST_REHEARSAL_CODE) {
+    return trimmed;
+  }
+  if (verified.length > 0) {
+    return verified[0]!.id;
+  }
+  return trimmed || HOST_REHEARSAL_CODE;
+}
+
+/**
+ * Formats the location header shown on the host counts panel, preferring the verified
+ * building name when present on DropResponse or matched in the directory.
+ */
+export function formatHostDropLocation(
+  drop: Pick<DropResponse, "building_code" | "room" | "building">,
+  buildings: ReadonlyArray<Building> = [],
+): string {
+  const matched =
+    drop.building?.name?.trim() ||
+    buildings.find((b) => b.id === drop.building_code)?.name?.trim() ||
+    drop.building_code.trim() ||
+    HOST_REHEARSAL_CODE;
+  const room = drop.room?.trim();
+  return room ? `${matched}, Room ${room}` : matched;
+}
 
 /**
  * Builds the paired It page URL for one published drop. Only the drop UUID is

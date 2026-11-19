@@ -38,11 +38,41 @@ const fixturesCompiled = ts.transpileModule(fixturesSource, {
   },
 }).outputText;
 
+const buildingsSource = readFileSync(
+  new URL("../lib/buildings.ts", import.meta.url),
+  "utf8",
+);
+const buildingsCompiled = ts.transpileModule(buildingsSource, {
+  compilerOptions: {
+    module: ts.ModuleKind.CommonJS,
+    target: ts.ScriptTarget.ES2022,
+  },
+}).outputText;
+
 function loadHostHelpers() {
+  const typesExports = {};
+  runInNewContext(typesCompiled, {
+    exports: typesExports,
+    require: () => ({}),
+  });
+
+  const buildingsExports = {};
+  runInNewContext(buildingsCompiled, {
+    exports: buildingsExports,
+    require: (id) => {
+      if (id === "./types/api") return typesExports;
+      return {};
+    },
+  });
+
   const exports = {};
   runInNewContext(hostHelpersCompiled, {
     exports,
-    require: () => ({}),
+    require: (id) => {
+      if (id === "../../lib/buildings") return buildingsExports;
+      if (id === "../../lib/types/api") return typesExports;
+      return {};
+    },
     URL,
   });
   return exports;
@@ -348,4 +378,86 @@ test("fixture mode exercises restore and live counts transitions (available -> h
   assert.equal("visitors" in afterPickupC, false);
   assert.equal("invites" in afterPickupC, false);
   assert.equal("claims" in afterPickupC, false);
+});
+
+test("resolveDefaultHostBuildingId prefers verified campus buildings by default when current code is DEMO-ORIGIN or blank", () => {
+  const helpers = loadHostHelpers();
+  const sampleBuildings = [
+    {
+      id: "ksu-marietta-atrium-building",
+      name: "Atrium Building",
+      building_code: "J",
+      building_number: "860",
+      category: "academic",
+      latitude: 33.9378,
+      longitude: -84.5205,
+      verification_status: "verified",
+      sources: [],
+    },
+  ];
+
+  assert.equal(
+    helpers.resolveDefaultHostBuildingId("DEMO-ORIGIN", sampleBuildings),
+    "ksu-marietta-atrium-building",
+  );
+  assert.equal(
+    helpers.resolveDefaultHostBuildingId("", sampleBuildings),
+    "ksu-marietta-atrium-building",
+  );
+  assert.equal(
+    helpers.resolveDefaultHostBuildingId(
+      "ksu-marietta-student-center",
+      sampleBuildings,
+    ),
+    "ksu-marietta-student-center",
+  );
+  assert.equal(
+    helpers.resolveDefaultHostBuildingId("DEMO-ORIGIN", []),
+    "DEMO-ORIGIN",
+  );
+});
+
+test("formatHostDropLocation uses drop.building.name or directory match, and falls back to building_code for rehearsal", () => {
+  const helpers = loadHostHelpers();
+  const sampleBuilding = {
+    id: "ksu-marietta-atrium-building",
+    name: "Atrium Building",
+    building_code: "J",
+    building_number: "860",
+    category: "academic",
+    latitude: 33.9378,
+    longitude: -84.5205,
+    verification_status: "verified",
+    sources: [],
+  };
+
+  assert.equal(
+    helpers.formatHostDropLocation({
+      building_code: "ksu-marietta-atrium-building",
+      room: "109",
+      building: sampleBuilding,
+    }),
+    "Atrium Building, Room 109",
+  );
+
+  assert.equal(
+    helpers.formatHostDropLocation(
+      {
+        building_code: "ksu-marietta-atrium-building",
+        room: "214",
+        building: null,
+      },
+      [sampleBuilding],
+    ),
+    "Atrium Building, Room 214",
+  );
+
+  assert.equal(
+    helpers.formatHostDropLocation({
+      building_code: "DEMO-ORIGIN",
+      room: "214",
+      building: null,
+    }),
+    "DEMO-ORIGIN, Room 214",
+  );
 });

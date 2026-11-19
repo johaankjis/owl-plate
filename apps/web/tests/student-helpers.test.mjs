@@ -38,11 +38,31 @@ const fixturesCompiled = ts.transpileModule(fixturesSource, {
   },
 }).outputText;
 
+const buildingsSource = readFileSync(
+  new URL("../lib/buildings.ts", import.meta.url),
+  "utf8",
+);
+const buildingsCompiled = ts.transpileModule(buildingsSource, {
+  compilerOptions: {
+    module: ts.ModuleKind.CommonJS,
+    target: ts.ScriptTarget.ES2022,
+  },
+}).outputText;
+
 function loadStudentHelpersAndFixtures() {
   const typesExports = {};
   runInNewContext(typesCompiled, {
     exports: typesExports,
     require: () => ({}),
+  });
+
+  const buildingsExports = {};
+  runInNewContext(buildingsCompiled, {
+    exports: buildingsExports,
+    require: (id) => {
+      if (id === "./types/api") return typesExports;
+      return {};
+    },
   });
 
   const store = new Map();
@@ -69,6 +89,7 @@ function loadStudentHelpersAndFixtures() {
     require: (id) => {
       if (id === "../../lib/fixtures/demo-fixtures") return fixturesExports;
       if (id === "../../lib/types/api") return typesExports;
+      if (id === "../../lib/buildings") return buildingsExports;
       return {};
     },
   });
@@ -76,6 +97,7 @@ function loadStudentHelpersAndFixtures() {
   return {
     studentHelpers: studentHelpersExports,
     fixtures: fixturesExports,
+    buildings: buildingsExports,
   };
 }
 
@@ -281,4 +303,87 @@ test("full visitor lifecycle in fixtures drives waiting -> invite -> pickup -> p
   invites = fixtures.fixtureGetMyInvites(joinRes.token).invites;
   cardState = studentHelpers.resolveStudentCardState(invites);
   assert.equal(cardState.kind, "picked_up");
+});
+
+test("student helpers format real building name, room, pickup instructions, and exact walking directions URL without origin or GPS", () => {
+  const { studentHelpers } = loadStudentHelpersAndFixtures();
+
+  const verifiedBuilding = {
+    id: "ksu-marietta-joe-mack-wilson-student-center",
+    name: "Joe Mack Wilson Student Center",
+    building_code: "A",
+    building_number: "840",
+    category: "student_life",
+    latitude: 33.9389,
+    longitude: -84.5197,
+    verification_status: "verified",
+    sources: [{ url: "https://www.kennesaw.edu/maps", title: "KSU Maps" }],
+  };
+
+  const dropWithVerifiedBuilding = {
+    building_code: "ksu-marietta-joe-mack-wilson-student-center",
+    room: "214",
+    pickup_instructions: "  2nd floor lobby table by the east stairs  ",
+    building: verifiedBuilding,
+  };
+
+  assert.equal(
+    studentHelpers.formatDropResponseLocation(dropWithVerifiedBuilding),
+    "Joe Mack Wilson Student Center, Room 214",
+  );
+  assert.equal(
+    studentHelpers.getDropPickupInstructions(dropWithVerifiedBuilding),
+    "2nd floor lobby table by the east stairs",
+  );
+
+  const directionsUrl = studentHelpers.getDropWalkingDirectionsUrl(
+    dropWithVerifiedBuilding,
+  );
+  assert.equal(
+    directionsUrl,
+    "https://www.google.com/maps/dir/?api=1&destination=33.9389,-84.5197&travelmode=walking",
+  );
+  assert.equal(directionsUrl.includes("origin="), false);
+  assert.equal(directionsUrl.includes("key="), false);
+
+  // Rehearsal drop (building: null) never gets a directions URL
+  const rehearsalDrop = {
+    building_code: "DEMO-ORIGIN",
+    room: "214",
+    pickup_instructions: "",
+    building: null,
+  };
+  assert.equal(
+    studentHelpers.formatDropResponseLocation(rehearsalDrop),
+    "DEMO-ORIGIN, Room 214",
+  );
+  assert.equal(studentHelpers.getDropPickupInstructions(rehearsalDrop), null);
+  assert.equal(studentHelpers.getDropWalkingDirectionsUrl(rehearsalDrop), null);
+
+  // Unverified or synthetic (0, 0) building never gets a directions URL
+  assert.equal(
+    studentHelpers.getDropWalkingDirectionsUrl({
+      building: { ...verifiedBuilding, verification_status: "unverified" },
+    }),
+    null,
+  );
+  assert.equal(
+    studentHelpers.getDropWalkingDirectionsUrl({
+      building: { ...verifiedBuilding, latitude: 0, longitude: 0 },
+    }),
+    null,
+  );
+
+  // Student area label prefers directory building name over raw canonical id
+  assert.equal(
+    studentHelpers.formatStudentAreaLabel(
+      "ksu-marietta-joe-mack-wilson-student-center",
+      [verifiedBuilding],
+    ),
+    "Joe Mack Wilson Student Center",
+  );
+  assert.equal(
+    studentHelpers.formatStudentAreaLabel("demo-venue", [verifiedBuilding]),
+    "Event venue (demo)",
+  );
 });

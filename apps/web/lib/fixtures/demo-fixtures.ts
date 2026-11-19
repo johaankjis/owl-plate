@@ -13,6 +13,7 @@ import { latLngToCell, gridDisk } from "h3-js";
 import type {
   Allergen,
   AuthToken,
+  BuildingsResponse,
   ClaimResponse,
   Counts,
   DemoArea,
@@ -506,6 +507,14 @@ export function getActiveFixtureDropId(): string {
   return activeCandidates[0]?.id ?? "";
 }
 
+export function fixtureGetBuildings(): BuildingsResponse {
+  // Offline fixture mode is explicitly synthetic and never fabricates verified campus coordinates.
+  return {
+    campus: "marietta",
+    buildings: [],
+  };
+}
+
 export function fixtureGetDemoAreas(): DemoAreasResponse {
   return {
     areas: FIXTURE_DEMO_AREAS.map((a) => ({ ...a })),
@@ -543,8 +552,14 @@ export function fixtureJoinSession(req: JoinRequest): JoinResponse {
     );
   }
 
-  const areaInfo =
-    FIXTURE_DEMO_AREAS.find((a) => a.id === req.area) ?? FIXTURE_DEMO_AREAS[0]!;
+  const areaInfo = FIXTURE_DEMO_AREAS.find((a) => a.id === req.area);
+  if (!areaInfo) {
+    throw new FixtureContractError(
+      422,
+      "invalid_building",
+      `Location "${req.area}" is not available in offline synthetic fixture mode.`,
+    );
+  }
   const areaId: DemoAreaId = areaInfo.id;
 
   const visitorIndex = existingVisitors.length + 1;
@@ -695,7 +710,9 @@ export function fixtureCreateDrop(hostNote?: string): DropResponse {
     id,
     status: "draft",
     building_code: "DEMO-ORIGIN",
+    building: null,
     room: "214",
+    pickup_instructions: "",
     vision,
     vision_source: "fixture",
     servings_final: vision.servings_estimate,
@@ -770,7 +787,9 @@ export function fixtureUpdateDrop(
   drop.allergens_final = [...edit.allergens_final];
   drop.diet_tags_final = [...edit.diet_tags_final];
   drop.building_code = edit.building_code;
+  drop.building = null;
   drop.room = edit.room;
+  drop.pickup_instructions = (edit.pickup_instructions ?? "").trim();
   drop.safety_review = { ...edit.safety_review };
   drop.expires_at = new Date(
     nowMs + edit.expires_in_minutes * 60 * 1000,

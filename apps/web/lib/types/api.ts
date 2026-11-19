@@ -38,19 +38,76 @@ export const RELIGIOUS_DIETS: ReadonlyArray<Diet> = [
 
 export const ALLERGEN_WARNING_TEXT = "may contain, confirm with host";
 
+export type BuildingCategory =
+  "academic" | "student_life" | "housing" | "other";
+
+export const BUILDING_CATEGORIES: ReadonlyArray<BuildingCategory> = [
+  "academic",
+  "student_life",
+  "housing",
+  "other",
+];
+
+export interface BuildingSource {
+  url: string;
+  title: string;
+}
+
+export interface Building {
+  id: string;
+  name: string;
+  building_code: string | null;
+  building_number: string | null;
+  category: BuildingCategory;
+  latitude: number;
+  longitude: number;
+  verification_status: "verified" | "unverified";
+  sources: BuildingSource[];
+}
+
+export interface BuildingsResponse {
+  campus: "marietta";
+  buildings: Building[];
+}
+
 export type FoodItem = components["schemas"]["FoodItem"];
 export type VisionEstimate = components["schemas"]["VisionEstimate"];
 export type SafetyReview = components["schemas"]["SafetyReview"];
-export type DropEdit = components["schemas"]["DropEdit"];
+export type DropEdit = components["schemas"]["DropEdit"] & {
+  pickup_instructions?: string;
+};
 export type Counts = components["schemas"]["Counts"];
-export type DropResponse = components["schemas"]["DropResponse"];
+export type DropResponse = components["schemas"]["DropResponse"] & {
+  pickup_instructions?: string;
+  building?: Building | null;
+};
 export type ClaimResponse = components["schemas"]["ClaimResponse"];
-export type InviteResponse = components["schemas"]["InviteResponse"];
-export type InvitesResponse = components["schemas"]["InvitesResponse"];
+export type InviteResponse = Omit<
+  components["schemas"]["InviteResponse"],
+  "drop"
+> & {
+  drop: DropResponse;
+};
+export type InvitesResponse = Omit<
+  components["schemas"]["InvitesResponse"],
+  "invites"
+> & {
+  invites: InviteResponse[];
+};
 export type WaveResponse = components["schemas"]["WaveResponse"];
 export type PersonaDecision = components["schemas"]["PersonaDecision"];
-export type VisitorDecision = components["schemas"]["VisitorDecision"];
-export type DispatchResponse = components["schemas"]["DispatchResponse"];
+export type VisitorDecision = Omit<
+  components["schemas"]["VisitorDecision"],
+  "area"
+> & {
+  area: DemoAreaId | string;
+};
+export type DispatchResponse = Omit<
+  components["schemas"]["DispatchResponse"],
+  "visitors"
+> & {
+  visitors?: VisitorDecision[];
+};
 export type DemoTick = components["schemas"]["DemoTick"];
 export type DemoTickResponse = components["schemas"]["DemoTickResponse"];
 export type DemoResetRequest = components["schemas"]["DemoResetRequest"];
@@ -61,9 +118,21 @@ export type DemoActiveDropResponse =
 export type DemoArea = components["schemas"]["DemoArea"];
 export type DemoAreaId = DemoArea["id"];
 export type DemoAreasResponse = components["schemas"]["DemoAreasResponse"];
-export type JoinRequest = components["schemas"]["JoinRequest"];
-export type JoinResponse = components["schemas"]["JoinResponse"];
-export type SessionStudent = components["schemas"]["SessionStudent"];
+export type JoinRequest = Omit<components["schemas"]["JoinRequest"], "area"> & {
+  area: DemoAreaId | string;
+};
+export type JoinResponse = Omit<
+  components["schemas"]["JoinResponse"],
+  "student"
+> & {
+  student: SessionStudent;
+};
+export type SessionStudent = Omit<
+  components["schemas"]["SessionStudent"],
+  "area"
+> & {
+  area: DemoAreaId | string;
+};
 export type SessionLeftResponse = components["schemas"]["SessionLeftResponse"];
 export type Preferences = components["schemas"]["Preferences"];
 export type PresenceRequest = components["schemas"]["PresenceRequest"];
