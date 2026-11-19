@@ -11,6 +11,7 @@
  */
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const { execFileSync } = require("node:child_process");
 const { chromium } = require(
   process.env.OWL_PLAYWRIGHT_MODULE || "playwright-core",
 );
@@ -40,6 +41,14 @@ async function call(path, token, method = "GET") {
   fs.mkdirSync(out, { recursive: true });
   const started = Date.now();
   const events = [];
+  const evidence = {
+    application_sha: execFileSync("git", ["rev-parse", "HEAD"], {
+      encoding: "utf8",
+    }).trim(),
+    recorded_at: new Date().toISOString(),
+    mode: "Four synthetic visitors, fixture vision, simulated notifications; no physical push or live vision evidence",
+    events,
+  };
   const mark = (name, extra = {}) =>
     events.push({ name, seconds: (Date.now() - started) / 1000, ...extra });
   const errors = [];
@@ -252,8 +261,11 @@ async function call(path, token, method = "GET") {
     ).toLowerCase();
     assert.doesNotMatch(leaked, /priority|demo-session-|"allergens"|"diets"/);
     assert.deepEqual(errors, []);
-    console.log(JSON.stringify({ status: "PASS", events }, null, 2));
+    evidence.status = "PASS";
+    console.log(JSON.stringify(evidence, null, 2));
   } catch (err) {
+    evidence.status = "FAIL";
+    evidence.error = err.message;
     console.log(
       JSON.stringify(
         { status: "FAIL", error: err.message, events, errors },
@@ -264,5 +276,9 @@ async function call(path, token, method = "GET") {
     process.exitCode = 1;
   } finally {
     await browser.close();
+    fs.writeFileSync(
+      `${out}/evidence.json`,
+      JSON.stringify(evidence, null, 2) + "\n",
+    );
   }
 })();

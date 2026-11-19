@@ -74,7 +74,10 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     })) {
       contexts[name] = await browser.newContext({
         viewport,
-        recordVideo: { dir: `${out}/raw`, size: viewport },
+        recordVideo:
+          process.env.OWL_RECORD_VIDEO === "false"
+            ? undefined
+            : { dir: `${out}/raw`, size: viewport },
       });
       contexts[name].setDefaultTimeout(20000);
       pages[name] = await contexts[name].newPage();
@@ -282,7 +285,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     );
     for (const [name, context] of Object.entries(contexts)) {
       await context.close();
-      if (pages[name]) {
+      if (pages[name]?.video()) {
         const videoPath = await pages[name].video().path();
         assert.ok(
           fs.statSync(videoPath).size > 0,
