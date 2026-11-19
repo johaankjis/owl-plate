@@ -1,5 +1,9 @@
 # Campus Milestone 1 — integration handoff
 
+Historical checkpoint. `docs/FEED_HANDOFF.md` records the campus-feed successor;
+normal visitor check-in/ring assumptions and the former visitor harness behavior
+below are superseded. The explicitly seeded A–E rehearsal remains supported.
+
 Local-only integration, November 19, 2026. No push, cloud deployment, canonical
 restart, live provider request, or real It tap is part of this evidence.
 

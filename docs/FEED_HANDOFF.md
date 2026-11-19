@@ -1,7 +1,7 @@
 # Campus feed integration handoff
 
-Status: source integration and both browser flows passed; final label/reset
-polish and verification are being finalized.
+Status: local integration complete. Both source commits and integration fixes
+are committed. The isolated fixture/log candidate was verified and stopped.
 
 ## Baseline and ownership
 
@@ -17,8 +17,9 @@ polish and verification are being finalized.
 - Integrator owns scripts, generated OpenAPI/types, wiring, alias cleanup and docs.
   No competing backend/frontend source changes before their completed commits.
 - Canonical dirty cloud docs and the live campus checkout are untouched.
-  This clean worktree updates `ARCHITECTURE.md`; manager must preserve/reapply
-  canonical cloud edits if cherry-picking that documentation overlaps them.
+  This clean worktree updates `ARCHITECTURE.md` and marks the old campus handoff
+  historical; manager must preserve/reapply canonical cloud edits if cherry-picking
+  documentation overlaps them. Canonical `docs/HANDOFF.md` was never edited here.
 
 ## Reproduce isolated checks
 
@@ -130,7 +131,8 @@ superseded by `CAMPUS_FEED_CONTRACT.md`. The seeded rehearsal remains in
   location-free join, two buildings, reserve/global hold/release and aggregate;
   `test-results/backend-feed-smoke.json`. Fixture/log only, temporary SQLite.
 - Mobile actual-route feed: PASS on integration implementation commit
-  `c0a9cb5` (full SHA in `test-results/campus-feed/evidence.json`). Second-host
+  `088d1945beab4723775af9ca1eae5d305bd08103` (recorded in
+  `test-results/campus-feed/evidence.json`). Second-host
   publication uses real restore → Share another drop. Two-building projector
   UI and aggregate API match, including current joined count. All mobile pages
   have no horizontal overflow; no browser errors/GPS attempts/location payloads.
@@ -139,18 +141,27 @@ superseded by `CAMPUS_FEED_CONTRACT.md`. The seeded rehearsal remains in
   T3's browser needs". Supplied library/font paths allowed real Chromium checks.
 - Seeded A–E actual-route natural expiry: PASS, A/C wave one, B dairy
   exclusion, A held, natural C expiry and D ring four, followed by clean reset.
-  No student location controls appear in seeded menus either.
+  No student location controls appear in seeded menus either. The final run took
+  93.389 seconds with no clock advance, on the same browser-tested code SHA.
 - Evidence output: `test-results/campus-feed/evidence.json` and PNGs;
   `test-results/rehearsal/timing.json` and PNGs (local ignored files).
-- Final integration SHA: report after final commit; a document cannot embed its
-  own commit hash without changing that hash.
+- Browser-tested application code: `088d1945beab4723775af9ca1eae5d305bd08103`.
+  The final commit only finalizes handoff documentation; its exact SHA is returned
+  with the result because this file cannot embed its own commit hash.
+- Student/join headers now explicitly label fixture vision as saved demo
+  estimates alongside simulated notifications. The launcher reset hint includes
+  API 8027 and the actual scenario; its 14 unit tests still pass.
+- Candidate shutdown evidence: `test-results/candidate-stopped.json`; only the
+  verified launcher from this checkout was signalled, which stopped its own
+  API/web process groups. Ports 3027/8027 closed afterward; protected live ports
+  3017/8017 and DeckScout8000 remained listening before and after shutdown.
 
 Physical Android and Home Screen iPhone push receipt, live-model accuracy on an
 independent labeled set, and a paired It device tap remain unverified. Mock/log
 sends and exact companion hrefs do not establish these outcomes. No real vision,
 push, cloud provisioning, survey distribution, deployment or Git push is part of
-this integration. This container has no `make` binary. Validation uses the exact recipe commands
-directly; Make targets are included for teammates with GNU Make. The canonical
+this integration. This container has no `make` binary. Validation uses the exact
+recipe commands directly; Make targets are included for teammates with GNU Make. The canonical
 Python environment is used only to execute installed tools.
 
 Backend limits: feed sends happen while holding the serialized database lock, so
@@ -169,13 +180,15 @@ restoring preferences does not revive them. Five regression cases cover leaving,
 pausing, allergen/diet changes, and acquiring a hold. `sent` internally means
 handled (including cancelled), never a physical delivery receipt.
 
-Own existing claims take explanation precedence over dietary mismatch; current dietary checks still
-gate a new reservation.
+Own existing claims take explanation precedence over dietary mismatch; current
+dietary checks still gate a new reservation.
 
-Payload wiring uses `notification_mode=campus_feed|seeded_waves`; feed clicks
-prefer `drop_id` and a stable drop tag, with legacy invite fallback. Provider
-ambiguous-response/crash retry limits must be carried forward from the completed
-backend's documented behavior.
+Payload wiring uses `notification_mode=campus_feed|seeded_waves`. Feed payloads
+contain `drop_id` and no `invite_id`. The service worker honors the mode, prefers
+the feed drop destination and stable tag, and keeps seeded/invite-only fallback.
+Mock FCM composition covers both fixture and mocked OpenRouter composition,
+once-only enqueue/send semantics, late registration and legacy seeded payloads;
+no real provider is called.
 
 The existing recorded fallback is explicitly the legacy seeded-wave scenario,
 not a campus-feed recording. Submission deck/video are unchanged in this milestone.
