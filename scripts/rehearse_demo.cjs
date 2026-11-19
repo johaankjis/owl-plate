@@ -284,6 +284,33 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       .evaluate((el) => el.scrollIntoView({ block: "center" }));
     mark("D_browser_invite_visible");
     await shot("07-D-invite", student);
+    // Legacy no-photo completion is permitted only in this explicit seeded demo.
+    const seededClaim = (
+      await request("/students/me/invites", "demo-student-A")
+    ).invites[0].claim;
+    assert.equal(seededClaim.status, "held");
+    const legacyPickup = await request(
+      `/claims/${seededClaim.id}/pickup`,
+      "demo-student-A",
+      "POST",
+    );
+    assert.equal(legacyPickup.status, "picked_up");
+    const legacyRetry = await request(
+      `/claims/${seededClaim.id}/pickup`,
+      "demo-student-A",
+      "POST",
+    );
+    assert.equal(legacyRetry.id, legacyPickup.id);
+    assert.deepEqual(
+      (await request(`/drops/${dropId}/dispatch`, "demo-projector")).counts,
+      {
+        total: 2,
+        available: 1,
+        held: 0,
+        picked_up: 1,
+      },
+    );
+    mark("explicit_seeded_only_legacy_no_body_pickup_idempotent");
     await pause(6000);
     await scene(
       "host",

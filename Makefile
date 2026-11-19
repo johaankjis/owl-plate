@@ -72,3 +72,11 @@ verify-feed:
 
 rehearse-seeded:
 	OWL_WEB_URL=http://127.0.0.1:3027 OWL_API_URL=http://127.0.0.1:8027 node scripts/rehearse_demo.cjs
+
+.PHONY: verify-pickup
+verify-pickup:
+	OWL_WEB_URL=http://127.0.0.1:3027 node scripts/verify_pickup_routes.cjs
+
+.PHONY: verify-pickup-mobile
+verify-pickup-mobile:
+	OWL_WEB_URL=http://127.0.0.1:3027 node scripts/verify_pickup_mobile.cjs

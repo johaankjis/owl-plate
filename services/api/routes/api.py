@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Respo
 from sqlalchemy.exc import SQLAlchemyError
 
 from services.api.application import Actor, Backend, DomainError
+from services.api.routes.uploads import MemoryPhotoRoute
 from services.api.schemas.api import (
     BuildingsResponse,
     CampusDistributionResponse,
@@ -53,7 +54,8 @@ def build_router(
 ) -> APIRouter:
     """Bind manager-owned adapters without relying on global app state."""
     router = APIRouter(
-        responses={code: {"model": ErrorResponse} for code in [401, 403, 404, 409, 413, 503]}
+        route_class=MemoryPhotoRoute,
+        responses={code: {"model": ErrorResponse} for code in [401, 403, 404, 409, 413, 503]},
     )
 
     def invoke(method: Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> R:

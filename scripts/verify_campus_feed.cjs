@@ -341,13 +341,69 @@ function privateSafe(value) {
       .getByRole("button", { name: /reserve/i })
       .click();
     await student.page.getByTestId("active-claim-banner").waitFor();
+    const pickupClaim = (await feed(student)).drops.find(
+      (d) => d.drop.id === second.id,
+    ).claim;
+    const bypass = await request(
+      `/claims/${pickupClaim.id}/pickup`,
+      student.token,
+      "POST",
+      undefined,
+      409,
+    );
+    assert.equal(bypass.detail.code, "pickup_verification_required");
+    const pickupPhoto = student.page.locator(
+      'input[type="file"][capture="environment"]',
+    );
+    const assessmentResponse = student.page.waitForResponse(
+      (r) =>
+        /\/claims\/[^/]+\/pickup-photo$/.test(new URL(r.url()).pathname) &&
+        r.request().method() === "POST",
+    );
+    await pickupPhoto.setInputFiles({
+      name: "synthetic-pickup.png",
+      mimeType: "image/png",
+      buffer: photo,
+    });
+    const assessment = await (await assessmentResponse).json();
+    assert.equal(assessment.source, "fixture");
+    assert.equal(assessment.match_status, "consistent");
+    assert.equal(assessment.can_confirm, true);
+    assert.equal(
+      (await request(`/drops/${second.id}`, "demo-host")).counts.picked_up,
+      0,
+    );
+    await student.page
+      .getByText(
+        "Photo-assisted confirmation. A photo cannot independently establish physical pickup or food safety.",
+        { exact: false },
+      )
+      .first()
+      .waitFor();
+    await student.page.screenshot({
+      path: `${out}/pickup-consistent-before-completion.png`,
+      fullPage: true,
+    });
     await student.page.getByTestId("pickup-confirm-button").click();
     await student.page.getByTestId("picked-up-card").waitFor();
     await hosts[1].page
       .getByTestId("host-count-picked-up")
       .filter({ hasText: /^1$/ })
       .waitFor();
-    mark("pickup_consumes_serving_and_host_counts");
+    const completedRetry = await request(
+      `/claims/${pickupClaim.id}/pickup`,
+      student.token,
+      "POST",
+      { verification_id: assessment.id },
+    );
+    assert.equal(completedRetry.status, "picked_up");
+    assert.equal(
+      (await request(`/drops/${second.id}`, "demo-host")).counts.picked_up,
+      1,
+    );
+    mark(
+      "photo_assessment_does_not_pick_up_explicit_completion_counts_and_idempotence",
+    );
     const racers = await Promise.all([
       join("Synthetic Race One"),
       join("Synthetic Race Two"),

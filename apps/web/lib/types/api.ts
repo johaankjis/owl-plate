@@ -177,79 +177,24 @@ export const DEMO_CREDENTIALS: ReadonlyArray<{
   },
 ];
 
-/**
- * Milestone 2: Photo-assisted pickup confirmation & host review types.
- * Narrow local interfaces per docs/PICKUP_CONFIRMATION_CONTRACT.md until generated schema is refreshed.
- */
-
+/** Pickup HTTP models are generated from the composed backend contract. */
 export const PICKUP_CONFIRMATION_NOTICE =
   "Photo-assisted confirmation. A photo cannot independently establish physical pickup or food safety.";
-
 export const PICKUP_CONSISTENT_CONFIDENCE_THRESHOLD = 0.8;
-
-export type PickupVerificationStatus = "processing" | "ready" | "failed";
-
-export type PickupMatchStatus = "consistent" | "uncertain" | "inconsistent";
-
-export type PickupVerificationSource = "fixture" | "openrouter";
-
-export type PickupReviewStatus =
-  | "not_requested"
-  | "pending"
-  | "approved"
-  | "rejected"
-  | "expired"
-  | "superseded";
-
-export type HostPickupReviewStatus =
-  "pending" | "approved" | "rejected" | "expired" | "superseded";
-
-export type HostPickupReviewDecision = "approve" | "reject";
-
-export interface PickupVerification {
-  id: string;
-  claim_id: string;
-  status: PickupVerificationStatus;
-  match_status: PickupMatchStatus | null;
-  confidence: number | null;
-  explanation: string;
-  source: PickupVerificationSource;
-  created_at: string;
-  review_status: PickupReviewStatus;
-  can_confirm: boolean;
-  notice: string;
-}
-
-export interface PickupVerificationResponse {
-  verification: PickupVerification | null;
-}
-
-export interface PickupClaimRequest {
-  verification_id?: string | null;
-}
-
-export interface PickupReviewRequest {
-  verification_id: string;
-}
-
-export interface HostPickupReview {
-  id: string;
-  drop_id: string;
-  match_status: PickupMatchStatus;
-  confidence: number;
-  explanation: string;
-  source: PickupVerificationSource;
-  created_at: string;
-  held_until: string;
-  review_status: HostPickupReviewStatus;
-  notice: string;
-}
-
-export interface HostPickupReviewsResponse {
-  reviews: HostPickupReview[];
-  server_time: string;
-}
-
-export interface HostPickupReviewDecisionRequest {
-  decision: HostPickupReviewDecision;
-}
+export type PickupVerification = components["schemas"]["PickupVerification"];
+export type PickupVerificationStatus = PickupVerification["status"];
+export type PickupMatchStatus = NonNullable<PickupVerification["match_status"]>;
+export type PickupVerificationSource = PickupVerification["source"];
+export type PickupReviewStatus = PickupVerification["review_status"];
+export type PickupVerificationResponse =
+  components["schemas"]["PickupVerificationResponse"];
+export type PickupClaimRequest = components["schemas"]["PickupRequest"];
+export type PickupReviewRequest = components["schemas"]["PickupReviewRequest"];
+export type HostPickupReview = components["schemas"]["HostPickupReview"];
+export type HostPickupReviewStatus = HostPickupReview["review_status"];
+export type HostPickupReviewsResponse =
+  components["schemas"]["HostPickupReviewsResponse"];
+export type HostPickupReviewDecisionRequest =
+  components["schemas"]["HostReviewDecision"];
+export type HostPickupReviewDecision =
+  HostPickupReviewDecisionRequest["decision"];
