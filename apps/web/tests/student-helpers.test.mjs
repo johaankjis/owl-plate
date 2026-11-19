@@ -248,16 +248,17 @@ test("expired, declined, and released invites collapse to short single lines and
   assert.match(state.collapsedLines[2].summary, /^Released • Cheese Pizza/);
 });
 
-test("full visitor lifecycle in fixtures drives waiting -> invite -> pickup -> picked_up transitions", () => {
+test("seeded rehearsal lifecycle in fixtures drives waiting -> invite -> pickup -> picked_up transitions", () => {
   const { studentHelpers, fixtures } = loadStudentHelpersAndFixtures();
 
-  fixtures.fixtureDemoReset({ scenario: "visitors" });
+  fixtures.fixtureDemoReset({ scenario: "seeded" });
   const joinRes = fixtures.fixtureJoinSession({
     nickname: "MariettaOwl",
     area: "demo-venue",
     allergens: [],
     diets: [],
   });
+  assert.equal(joinRes.student.area, "demo-venue");
 
   // 1. Before drop is published -> waiting
   let invites = fixtures.fixtureGetMyInvites(joinRes.token).invites;
@@ -303,6 +304,255 @@ test("full visitor lifecycle in fixtures drives waiting -> invite -> pickup -> p
   invites = fixtures.fixtureGetMyInvites(joinRes.token).invites;
   cardState = studentHelpers.resolveStudentCardState(invites);
   assert.equal(cardState.kind, "picked_up");
+});
+
+test("campus feed lifecycle in fixtures supports location-free join, multi-drop feed, dietary precedence, direct reserve, hold release/expiry/pickup, and aggregate distribution", () => {
+  const { studentHelpers, fixtures } = loadStudentHelpersAndFixtures();
+
+  fixtures.fixtureDemoReset({ scenario: "visitors" });
+
+  // Empty overview works before any drops exist
+  const emptyDist = fixtures.fixtureGetDistribution();
+  assert.equal(emptyDist.distribution_mode, "campus_feed");
+  assert.equal(emptyDist.active_drops, 0);
+  assert.equal(emptyDist.joined_students, 0);
+  assert.deepEqual(
+    { ...emptyDist.counts },
+    {
+      total: 0,
+      available: 0,
+      held: 0,
+      picked_up: 0,
+    },
+  );
+  assert.equal(emptyDist.buildings.length, 0);
+
+  // Student A joins location-free (no area)
+  const studentA = fixtures.fixtureJoinSession({
+    nickname: "OwlA",
+    allergens: [],
+    diets: [],
+  });
+  assert.equal(studentA.student.area, null);
+
+  // Presence check-ins are rejected in campus_feed mode with 409 invalid_state
+  assert.throws(
+    () =>
+      fixtures.fixtureUpdatePresence(studentA.token, {
+        building_code: "DEMO-ORIGIN",
+      }),
+    (err) => err.status === 409 && err.code === "invalid_state",
+  );
+
+  // Host publishes Drop 1 (pizza: dairy, gluten; 1 serving)
+  const draft1 = fixtures.fixtureCreateDrop("pizza");
+  fixtures.fixtureUpdateDrop(draft1.id, {
+    servings_final: 1,
+    allergens_final: ["dairy", "gluten"],
+    diet_tags_final: [],
+    building_code: "BLDG-A",
+    room: "101",
+    pickup_instructions: "Front desk",
+    expires_in_minutes: 45,
+    safety_review: {
+      covered_and_temperature_safe: true,
+      served_within_two_hours: true,
+      untouched: true,
+      ingredient_information_checked: false,
+      religious_diets_confirmed: false,
+    },
+  });
+  const pub1 = fixtures.fixturePublishDrop(draft1.id);
+  assert.equal(pub1.distribution_mode, "campus_feed");
+
+  // Campus feed publish never creates seeded-wave invites or visitor rows in dispatch
+  assert.equal(fixtures.fixtureGetMyInvites(studentA.token).invites.length, 0);
+  const dispatch1 = fixtures.fixtureGetDispatch(pub1.id);
+  assert.equal(dispatch1.distribution_mode, "campus_feed");
+  assert.equal(dispatch1.waves.length, 0);
+  assert.equal(dispatch1.visitors.length, 0);
+  assert.equal(dispatch1.personas.length, 0);
+  assert.equal(dispatch1.next_wave_at, null);
+
+  // Advance clock 10s and publish Drop 2 (veggie/vegan: no allergens; 2 servings)
+  fixtures.fixtureDemoTick({ advance_seconds: 10 });
+  const draft2 = fixtures.fixtureCreateDrop("salad");
+  fixtures.fixtureUpdateDrop(draft2.id, {
+    servings_final: 2,
+    allergens_final: [],
+    diet_tags_final: ["vegetarian", "vegan", "gluten_free"],
+    building_code: "BLDG-B",
+    room: "202",
+    pickup_instructions: "2nd floor lounge",
+    expires_in_minutes: 45,
+    safety_review: {
+      covered_and_temperature_safe: true,
+      served_within_two_hours: true,
+      untouched: true,
+      ingredient_information_checked: true,
+      religious_diets_confirmed: false,
+    },
+  });
+  const pub2 = fixtures.fixturePublishDrop(draft2.id);
+
+  // Student B joins AFTER both drops were published, with dairy allergy and vegan diet
+  const studentB = fixtures.fixtureJoinSession({
+    nickname: "OwlB",
+    allergens: ["dairy"],
+    diets: ["vegan"],
+  });
+  assert.equal(studentB.student.area, null);
+
+  // Student B sees both drops newest-first; Drop 2 is reservable, Drop 1 is disabled with allergen_conflict
+  const feedB1 = fixtures.fixtureGetMyFeed(studentB.token);
+  assert.equal(feedB1.drops.length, 2);
+  assert.equal(feedB1.drops[0].drop.id, pub2.id);
+  assert.equal(feedB1.drops[0].can_reserve, true);
+  assert.equal(feedB1.drops[0].unavailable_reason, null);
+  assert.equal(feedB1.drops[1].drop.id, pub1.id);
+  assert.equal(feedB1.drops[1].can_reserve, false);
+  assert.equal(feedB1.drops[1].unavailable_reason, "allergen_conflict");
+
+  // Student A reserves the single serving on Drop 1 -> Drop 1 becomes claimed_out (0 available)
+  const claimA1 = fixtures.fixtureReserveDrop(pub1.id, studentA.token);
+  assert.equal(claimA1.status, "held");
+  // Idempotent retry returns the same claim ID
+  const claimA1Retry = fixtures.fixtureReserveDrop(pub1.id, studentA.token);
+  assert.equal(claimA1Retry.id, claimA1.id);
+
+  // Even after Student A changes preferences to conflict with Drop 1, idempotent retry still returns same held claim
+  fixtures.fixtureUpdatePreferences(studentA.token, {
+    allergens: ["dairy"],
+    diets: [],
+    alerts_paused: true,
+  });
+  const claimA1RetryAfterPrefChange = fixtures.fixtureReserveDrop(
+    pub1.id,
+    studentA.token,
+  );
+  assert.equal(claimA1RetryAfterPrefChange.id, claimA1.id);
+  // Restore Student A's preferences (keep alerts_paused: true to verify paused alerts don't block reserve)
+  fixtures.fixtureUpdatePreferences(studentA.token, {
+    allergens: [],
+    diets: [],
+    alerts_paused: true,
+  });
+
+  // For Student B, Drop 1 is at 0 available, but dietary conflict still takes precedence over capacity
+  const feedB2 = fixtures.fixtureGetMyFeed(studentB.token);
+  const drop1ForB = feedB2.drops.find((d) => d.drop.id === pub1.id);
+  assert.equal(drop1ForB.drop.status, "claimed_out");
+  assert.equal(drop1ForB.unavailable_reason, "allergen_conflict");
+
+  // For Student A, Drop 1 has unavailable_reason = "already_reserved" (with own held claim) and Drop 2 has "active_claim"
+  const feedA1 = fixtures.fixtureGetMyFeed(studentA.token);
+  const drop1ForA = feedA1.drops.find((d) => d.drop.id === pub1.id);
+  const drop2ForA = feedA1.drops.find((d) => d.drop.id === pub2.id);
+  assert.equal(drop1ForA.can_reserve, false);
+  assert.equal(drop1ForA.unavailable_reason, "already_reserved");
+  assert.equal(drop1ForA.claim?.id, claimA1.id);
+  assert.equal(drop2ForA.can_reserve, false);
+  assert.equal(drop2ForA.unavailable_reason, "active_claim");
+
+  // Student A cannot reserve Drop 2 while holding Drop 1 (409 active_claim)
+  assert.throws(
+    () => fixtures.fixtureReserveDrop(pub2.id, studentA.token),
+    (err) => err.status === 409 && err.code === "active_claim",
+  );
+
+  // Student A releases hold on Drop 1 -> capacity restores, Drop 1 returns to live, but Student A cannot re-reserve Drop 1
+  fixtures.fixtureReleaseClaim(claimA1.id, studentA.token);
+  assert.throws(
+    () => fixtures.fixtureReserveDrop(pub1.id, studentA.token),
+    (err) => err.status === 409 && err.code === "invalid_state",
+  );
+  const feedA2 = fixtures.fixtureGetMyFeed(studentA.token);
+  const drop1AfterRelease = feedA2.drops.find((d) => d.drop.id === pub1.id);
+  assert.equal(drop1AfterRelease.drop.status, "live");
+  assert.equal(drop1AfterRelease.drop.counts.available, 1);
+  assert.equal(drop1AfterRelease.unavailable_reason, "already_reserved");
+  assert.equal(
+    studentHelpers.formatUnavailableReason(
+      drop1AfterRelease.unavailable_reason,
+      drop1AfterRelease.claim,
+    ),
+    "You released your hold on this drop (one reservation per drop).",
+  );
+
+  // Now Student A (with alerts_paused = true) can reserve Drop 2 and confirm pickup
+  const claimA2 = fixtures.fixtureReserveDrop(pub2.id, studentA.token);
+  assert.equal(claimA2.status, "held");
+  const pickedA2 = fixtures.fixturePickupClaim(claimA2.id, studentA.token);
+  assert.equal(pickedA2.status, "picked_up");
+
+  // Current dietary preferences are enforced at reserve time if Student B updates preferences
+  fixtures.fixtureUpdatePreferences(studentB.token, {
+    allergens: [],
+    diets: ["halal"],
+    alerts_paused: false,
+  });
+  assert.throws(
+    () => fixtures.fixtureReserveDrop(pub2.id, studentB.token),
+    (err) => err.status === 409 && err.code === "diet_mismatch",
+  );
+
+  // Student B clears halal diet, reserves Drop 2, and lets hold expire after 601s
+  fixtures.fixtureUpdatePreferences(studentB.token, {
+    allergens: [],
+    diets: ["vegan"],
+    alerts_paused: false,
+  });
+  const claimB2 = fixtures.fixtureReserveDrop(pub2.id, studentB.token);
+  assert.equal(claimB2.status, "held");
+
+  // Check projector aggregate distribution while B2 is held and A2 is picked_up
+  const distMid = fixtures.fixtureGetDistribution();
+  assert.equal(distMid.active_drops, 2);
+  assert.equal(distMid.joined_students, 2);
+  assert.deepEqual(
+    { ...distMid.counts },
+    {
+      total: 3,
+      available: 1,
+      held: 1,
+      picked_up: 1,
+    },
+  );
+  assert.equal(distMid.buildings.length, 2);
+
+  // Advance clock 601s so Student B's 10-minute hold expires (drops have 45m expiry so drops remain live)
+  fixtures.fixtureDemoTick({ advance_seconds: 601 });
+  const distAfterHoldExpiry = fixtures.fixtureGetDistribution();
+  assert.deepEqual(
+    { ...distAfterHoldExpiry.counts },
+    {
+      total: 3,
+      available: 2,
+      held: 0,
+      picked_up: 1,
+    },
+  );
+
+  // Student B cannot re-reserve Drop 2 after hold expiry (one reservation per student/drop lifecycle)
+  assert.throws(
+    () => fixtures.fixtureReserveDrop(pub2.id, studentB.token),
+    (err) => err.status === 409 && err.code === "invalid_state",
+  );
+
+  // resolveStudentFeedView focuses ?drop=<id> and flags missing/expired drop IDs
+  const feedBFinal = fixtures.fixtureGetMyFeed(studentB.token);
+  const focusedView = studentHelpers.resolveStudentFeedView(
+    feedBFinal.drops,
+    pub1.id,
+  );
+  assert.equal(focusedView.focusedDropMissing, false);
+  assert.equal(focusedView.orderedDrops[0].drop.id, pub1.id);
+
+  const missingView = studentHelpers.resolveStudentFeedView(
+    feedBFinal.drops,
+    "non-existent-drop-uuid",
+  );
+  assert.equal(missingView.focusedDropMissing, true);
 });
 
 test("student helpers format real building name, room, pickup instructions, and exact walking directions URL without origin or GPS", () => {
@@ -374,7 +624,11 @@ test("student helpers format real building name, room, pickup instructions, and 
     null,
   );
 
-  // Student area label prefers directory building name over raw canonical id
+  // Student area label prefers directory building name over raw canonical id, and null maps to Campus-wide feed
+  assert.equal(
+    studentHelpers.formatStudentAreaLabel(null, [verifiedBuilding]),
+    "Campus-wide feed",
+  );
   assert.equal(
     studentHelpers.formatStudentAreaLabel(
       "ksu-marietta-joe-mack-wilson-student-center",

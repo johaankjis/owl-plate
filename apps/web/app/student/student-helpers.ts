@@ -3,6 +3,8 @@ import type {
   ClaimResponse,
   DemoAreaId,
   DropResponse,
+  FeedDrop,
+  FeedUnavailableReason,
   InviteResponse,
   SeededPersonaLabel,
 } from "../../lib/types/api";
@@ -73,7 +75,7 @@ export function formatStudentAreaLabel(
   buildings: ReadonlyArray<Building> = [],
 ): string {
   const clean = areaId?.trim();
-  if (!clean) return "Campus area (demo)";
+  if (!clean) return "Campus-wide feed";
   const matchedBuilding = buildings.find((b) => b.id === clean);
   if (matchedBuilding && matchedBuilding.name.trim()) {
     return matchedBuilding.name.trim();
@@ -137,14 +139,111 @@ export function getDropWalkingDirectionsUrl(
 }
 
 /**
- * Summarizes the food items on a drop into a concise single-line title.
+ * Summarizes the food items on a drop or invite into a concise single-line title.
  */
-export function summarizeDropFood(invite: InviteResponse): string {
-  const items = invite.drop.vision.items;
+export function summarizeDropItems(drop: Pick<DropResponse, "vision">): string {
+  const items = drop.vision?.items;
   if (!items || items.length === 0) {
     return "Event leftovers";
   }
   return items.map((item) => item.name).join(" + ");
+}
+
+/**
+ * Summarizes the food items on an invite into a concise single-line title.
+ */
+export function summarizeDropFood(invite: InviteResponse): string {
+  return summarizeDropItems(invite.drop);
+}
+
+/**
+ * Plain-language explanation for why a campus feed tile cannot be reserved by this student.
+ */
+export function formatUnavailableReason(
+  reason: FeedUnavailableReason | null | undefined,
+  claim?: ClaimResponse | null,
+): string | null {
+  if (!reason) return null;
+  switch (reason) {
+    case "allergen_conflict":
+      return "Contains an allergen you avoid.";
+    case "diet_mismatch":
+      return "Does not match your dietary requirements.";
+    case "active_claim":
+      return claim?.status === "held"
+        ? "You currently hold a spot for this drop."
+        : "You already have an active hold on another drop.";
+    case "capacity":
+      return "All servings are currently held or claimed.";
+    case "already_reserved":
+      if (claim?.status === "held") {
+        return "You currently hold a spot for this drop.";
+      }
+      if (claim?.status === "picked_up") {
+        return "You already picked up from this drop.";
+      }
+      if (claim?.status === "released") {
+        return "You released your hold on this drop (one reservation per drop).";
+      }
+      if (claim?.status === "expired") {
+        return "Your hold on this drop expired (one reservation per drop).";
+      }
+      return "You already used your reservation for this drop.";
+    default:
+      return "Unavailable to reserve.";
+  }
+}
+
+export interface StudentFeedView {
+  activeHold: { feedDrop: FeedDrop; claim: ClaimResponse } | null;
+  focusedDropMissing: boolean;
+  orderedDrops: FeedDrop[];
+}
+
+/**
+ * Organizes campus feed drops for the student screen:
+ * - Identifies the student's active held claim if any.
+ * - If `focusedDropId` (`?drop=UUID`) matches an active feed drop, places it first and marks it focused;
+ *   if `focusedDropId` is provided but absent from the feed, sets `focusedDropMissing = true`.
+ */
+export function resolveStudentFeedView(
+  drops: ReadonlyArray<FeedDrop>,
+  focusedDropId?: string | null,
+): StudentFeedView {
+  const cleanFocus = focusedDropId?.trim() || null;
+  let activeHold: { feedDrop: FeedDrop; claim: ClaimResponse } | null = null;
+
+  for (const fd of drops) {
+    if (fd.claim?.status === "held") {
+      activeHold = { feedDrop: fd, claim: fd.claim };
+      break;
+    }
+  }
+
+  if (!cleanFocus) {
+    return {
+      activeHold,
+      focusedDropMissing: false,
+      orderedDrops: [...drops],
+    };
+  }
+
+  const focusedIndex = drops.findIndex((fd) => fd.drop.id === cleanFocus);
+  if (focusedIndex === -1) {
+    return {
+      activeHold,
+      focusedDropMissing: true,
+      orderedDrops: [...drops],
+    };
+  }
+
+  const focusedItem = drops[focusedIndex]!;
+  const rest = drops.filter((_, idx) => idx !== focusedIndex);
+  return {
+    activeHold,
+    focusedDropMissing: false,
+    orderedDrops: [focusedItem, ...rest],
+  };
 }
 
 /**
@@ -197,7 +296,7 @@ export function buildCollapsedInviteLines(
 }
 
 /**
- * Pure helper that decides the single primary student card state:
+ * Pure helper that decides the single primary student card state for seeded rehearsal mode:
  * - "pickup": student has an active held claim (replaces the invite card completely)
  * - "invite": student has an active sent invite ready to reserve or decline
  * - "picked_up": student confirmed pickup on their claim

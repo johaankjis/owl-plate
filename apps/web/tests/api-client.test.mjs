@@ -514,3 +514,143 @@ test("joinDemoSession accepts canonical campus building id and surfaces 422 inva
       error.message === "Unknown or unverified building ID.",
   );
 });
+
+test("location-free joinDemoSession omits area and getMyFeed, reserveDrop, and getDistribution call contract routes", async () => {
+  const requests = [];
+  const { api } = loadClient({
+    fetch: async (url, options) => {
+      const parsed = new URL(url);
+      requests.push({
+        method: options.method,
+        pathname: parsed.pathname,
+        auth: options.headers.get("Authorization"),
+        body: options.body ? JSON.parse(options.body) : null,
+      });
+
+      if (parsed.pathname === "/sessions" && options.method === "POST") {
+        return Response.json(
+          {
+            token: "demo-session-feed-1",
+            student: {
+              id: "00000000-0000-4000-9000-000000000010",
+              nickname: "FeedOwl",
+              area: null,
+              allergens: ["peanut"],
+              diets: ["vegetarian"],
+              kind: "visitor",
+              valid_until: "2026-11-18T19:00:00Z",
+            },
+          },
+          { status: 201 },
+        );
+      }
+
+      if (parsed.pathname === "/students/me/feed" && options.method === "GET") {
+        return Response.json({
+          drops: [
+            {
+              drop: {
+                id: "drop-feed-1",
+                status: "live",
+                distribution_mode: "campus_feed",
+                building_code: "ksu-marietta-joe-mack-wilson-student-center",
+                room: "214",
+                pickup_instructions: "2nd floor lobby",
+                building: null,
+              },
+              can_reserve: true,
+              unavailable_reason: null,
+              claim: null,
+            },
+          ],
+          server_time: "2026-11-18T17:00:00Z",
+          is_demo: true,
+        });
+      }
+
+      if (
+        parsed.pathname === "/drops/drop-feed-1/reserve" &&
+        options.method === "POST"
+      ) {
+        return Response.json({
+          id: "claim-feed-1",
+          invite_id: "inv-feed-1",
+          drop_id: "drop-feed-1",
+          status: "held",
+          held_until: "2026-11-18T17:10:00Z",
+        });
+      }
+
+      if (parsed.pathname === "/distribution" && options.method === "GET") {
+        return Response.json({
+          distribution_mode: "campus_feed",
+          active_drops: 1,
+          joined_students: 5,
+          counts: { total: 4, available: 3, held: 1, picked_up: 0 },
+          buildings: [
+            {
+              building_code: "ksu-marietta-joe-mack-wilson-student-center",
+              building: null,
+              active_drops: 1,
+              counts: { total: 4, available: 3, held: 1, picked_up: 0 },
+            },
+          ],
+          server_time: "2026-11-18T17:00:00Z",
+          is_demo: true,
+        });
+      }
+
+      throw new Error(`Unexpected path: ${parsed.pathname}`);
+    },
+  });
+
+  const joinRes = await api.joinDemoSession({
+    nickname: "FeedOwl",
+    allergens: ["peanut"],
+    diets: ["vegetarian"],
+  });
+  assert.equal(joinRes.data.student.area, null);
+  assert.equal("area" in requests[0].body, false);
+
+  const feedRes = await api.getMyFeed("demo-session-feed-1");
+  assert.equal(feedRes.data.drops.length, 1);
+  assert.equal(feedRes.data.drops[0].can_reserve, true);
+
+  const reserveRes = await api.reserveDrop(
+    "drop-feed-1",
+    "demo-session-feed-1",
+  );
+  assert.equal(reserveRes.data.id, "claim-feed-1");
+  assert.equal(reserveRes.data.status, "held");
+
+  const distRes = await api.getDistribution();
+  assert.equal(distRes.data.distribution_mode, "campus_feed");
+  assert.equal(distRes.data.active_drops, 1);
+  assert.equal(distRes.data.joined_students, 5);
+
+  assert.deepEqual(
+    requests.map((r) => ({
+      method: r.method,
+      pathname: r.pathname,
+      auth: r.auth,
+    })),
+    [
+      { method: "POST", pathname: "/sessions", auth: null },
+      {
+        method: "GET",
+        pathname: "/students/me/feed",
+        auth: "Bearer demo-session-feed-1",
+      },
+      {
+        method: "POST",
+        pathname: "/drops/drop-feed-1/reserve",
+        auth: "Bearer demo-session-feed-1",
+      },
+      {
+        method: "GET",
+        pathname: "/distribution",
+        auth: "Bearer demo-projector",
+      },
+    ],
+  );
+});

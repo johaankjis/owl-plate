@@ -1,91 +1,38 @@
 "use client";
 
-import React, { Suspense, useCallback, useEffect, useState } from "react";
+import React, { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DemoHeader } from "../../components/DemoHeader";
-import { BuildingSelector } from "../../components/BuildingSelector";
 import {
   ALLERGENS,
   ALLERGEN_WARNING_TEXT,
   DIETS,
   type Allergen,
-  type Building,
-  type DemoArea,
   type Diet,
 } from "../../lib/types/api";
 import {
   ApiContractError,
-  getBuildings,
-  getDemoAreas,
   INITIAL_DATA_SOURCE,
   joinDemoSession,
   type DataSourceMode,
 } from "../../lib/api-client";
-import { filterVerifiedBuildings } from "../../lib/buildings";
-import { FIXTURE_DEMO_AREAS } from "../../lib/fixtures/demo-fixtures";
 import { SESSION_ENDED_MESSAGE, setSessionToken } from "../../lib/session";
+import { useNotificationMode } from "../../lib/vision-mode";
 
 function JoinDemoContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const reason = searchParams.get("reason");
+  const notificationMode = useNotificationMode();
 
   const [sourceMode, setSourceMode] =
     useState<DataSourceMode>(INITIAL_DATA_SOURCE);
-  const [buildings, setBuildings] = useState<Building[]>([]);
-  const [buildingsLoading, setBuildingsLoading] = useState<boolean>(true);
-  const [buildingsError, setBuildingsError] = useState<string | null>(null);
-  const [areas, setAreas] = useState<DemoArea[]>([...FIXTURE_DEMO_AREAS]);
   const [nickname, setNickname] = useState("");
-  const [selectedArea, setSelectedArea] = useState<string>("demo-venue");
   const [selectedAllergens, setSelectedAllergens] = useState<Allergen[]>([]);
   const [selectedDiets, setSelectedDiets] = useState<Diet[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [nicknameError, setNicknameError] = useState<string | null>(null);
   const [generalError, setGeneralError] = useState<string | null>(null);
-
-  const loadLocations = useCallback(async () => {
-    setBuildingsLoading(true);
-    setBuildingsError(null);
-
-    const [buildingsRes, areasRes] = await Promise.allSettled([
-      getBuildings(),
-      getDemoAreas(),
-    ]);
-
-    if (areasRes.status === "fulfilled") {
-      setSourceMode(areasRes.value.source);
-      if (areasRes.value.data.areas.length > 0) {
-        setAreas(areasRes.value.data.areas);
-      }
-    }
-
-    if (buildingsRes.status === "fulfilled") {
-      setSourceMode(buildingsRes.value.source);
-      const verified = filterVerifiedBuildings(
-        buildingsRes.value.data.buildings,
-      );
-      setBuildings(verified);
-      if (verified.length > 0) {
-        setSelectedArea((prev) =>
-          prev === "demo-venue" ? verified[0]!.id : prev,
-        );
-      }
-    } else {
-      const err = buildingsRes.reason;
-      setBuildingsError(
-        err instanceof Error
-          ? err.message
-          : "Could not load Marietta campus buildings.",
-      );
-    }
-
-    setBuildingsLoading(false);
-  }, []);
-
-  useEffect(() => {
-    void loadLocations();
-  }, [loadLocations]);
 
   const toggleAllergen = (alg: Allergen) => {
     setSelectedAllergens((prev) =>
@@ -116,7 +63,6 @@ function JoinDemoContent() {
     try {
       const res = await joinDemoSession({
         nickname: trimmed,
-        area: selectedArea,
         allergens: selectedAllergens,
         diets: selectedDiets,
       });
@@ -139,6 +85,11 @@ function JoinDemoContent() {
     }
   };
 
+  const notifyBadgeText =
+    notificationMode === "fcm"
+      ? "Real push available after join"
+      : "Simulated notifications";
+
   return (
     <div className="min-h-screen bg-owl-black text-zinc-100">
       <DemoHeader sourceMode={sourceMode} isDemo={true} />
@@ -157,18 +108,19 @@ function JoinDemoContent() {
         <div className="space-y-1.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h1 className="text-2xl font-extrabold tracking-tight text-white">
-              Find nearby food
+              Browse campus food drops
             </h1>
             <span
               data-testid="simulated-notification-label"
               className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-300"
             >
-              Simulated notifications
+              {notifyBadgeText}
             </span>
           </div>
           <p className="text-sm text-zinc-300">
-            No account, phone number, or GPS tracking needed. Choose your
-            Marietta campus building and any dietary filters below.
+            No account, phone number, location selection, or GPS tracking
+            needed. Pick a nickname and any optional dietary filters below to
+            browse active Marietta campus food drops.
           </p>
         </div>
 
@@ -214,32 +166,15 @@ function JoinDemoContent() {
             )}
           </div>
 
-          {/* 2. Campus Building Selector (Verified Marietta Campus + Explicit Rehearsal Areas) */}
-          <fieldset className="space-y-2">
-            <BuildingSelector
-              buildings={buildings}
-              value={selectedArea}
-              onChange={setSelectedArea}
-              loading={buildingsLoading}
-              error={buildingsError}
-              onRetry={() => void loadLocations()}
-              testIdPrefix="join"
-              rehearsalOptions={areas}
-              getRehearsalOptionTestId={(id) => `join-area-${id}`}
-              label="2. Where are you on campus?"
-              helperText="Pick a verified Marietta building (no GPS permission required), or choose an explicit synthetic rehearsal area below."
-            />
-          </fieldset>
-
-          {/* 3. Optional Dietary Restrictions */}
+          {/* 2. Optional Dietary Restrictions */}
           <div className="space-y-4 border-t border-zinc-800 pt-4">
             <fieldset className="space-y-2">
               <legend className="text-sm font-bold text-white">
-                3. Allergens to avoid{" "}
+                2. Allergens to avoid{" "}
                 <span className="font-normal text-zinc-400">(optional)</span>
               </legend>
               <p className="text-xs text-zinc-400">
-                Filtered before invites are sent. Allergens always say:{" "}
+                Checked before reservations and alerts. Allergens always say:{" "}
                 <strong className="text-amber-300">
                   {ALLERGEN_WARNING_TEXT}
                 </strong>
@@ -303,8 +238,8 @@ function JoinDemoContent() {
             data-testid="join-privacy-notice"
             className="text-xs leading-relaxed text-zinc-400"
           >
-            Your restrictions are private and used only to filter out food that
-            doesn&apos;t fit you.
+            Your restrictions are private and used only to protect you from food
+            that doesn&apos;t fit your needs. No location or GPS is collected.
           </p>
 
           {generalError && (

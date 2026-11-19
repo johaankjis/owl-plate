@@ -56,14 +56,43 @@ export type VisionEstimate = components["schemas"]["VisionEstimate"];
 export type SafetyReview = components["schemas"]["SafetyReview"];
 export type DropEdit = components["schemas"]["DropEdit"];
 export type Counts = components["schemas"]["Counts"];
-export type DropResponse = components["schemas"]["DropResponse"];
+export type DistributionMode = "campus_feed" | "seeded_waves";
+
+export type FeedUnavailableReason =
+  | "allergen_conflict"
+  | "diet_mismatch"
+  | "active_claim"
+  | "capacity"
+  | "already_reserved";
+
+export type DropResponse = components["schemas"]["DropResponse"] & {
+  distribution_mode?: DistributionMode;
+};
 export type ClaimResponse = components["schemas"]["ClaimResponse"];
-export type InviteResponse = components["schemas"]["InviteResponse"];
-export type InvitesResponse = components["schemas"]["InvitesResponse"];
+export type InviteResponse = Omit<
+  components["schemas"]["InviteResponse"],
+  "drop"
+> & {
+  drop: DropResponse;
+};
+export type InvitesResponse = {
+  invites: InviteResponse[];
+};
 export type WaveResponse = components["schemas"]["WaveResponse"];
 export type PersonaDecision = components["schemas"]["PersonaDecision"];
-export type VisitorDecision = components["schemas"]["VisitorDecision"];
-export type DispatchResponse = components["schemas"]["DispatchResponse"];
+export type VisitorDecision = Omit<
+  components["schemas"]["VisitorDecision"],
+  "area"
+> & {
+  area: DemoAreaId | null;
+};
+export type DispatchResponse = Omit<
+  components["schemas"]["DispatchResponse"],
+  "visitors"
+> & {
+  distribution_mode?: DistributionMode;
+  visitors?: VisitorDecision[];
+};
 export type DemoTick = components["schemas"]["DemoTick"];
 export type DemoTickResponse = components["schemas"]["DemoTickResponse"];
 export type DemoResetRequest = components["schemas"]["DemoResetRequest"];
@@ -74,9 +103,21 @@ export type DemoActiveDropResponse =
 export type DemoArea = components["schemas"]["DemoArea"];
 export type DemoAreaId = DemoArea["id"];
 export type DemoAreasResponse = components["schemas"]["DemoAreasResponse"];
-export type JoinRequest = components["schemas"]["JoinRequest"];
-export type JoinResponse = components["schemas"]["JoinResponse"];
-export type SessionStudent = components["schemas"]["SessionStudent"];
+export type JoinRequest = Omit<components["schemas"]["JoinRequest"], "area"> & {
+  area?: DemoAreaId | null;
+};
+export type SessionStudent = Omit<
+  components["schemas"]["SessionStudent"],
+  "area"
+> & {
+  area: DemoAreaId | null;
+};
+export type JoinResponse = Omit<
+  components["schemas"]["JoinResponse"],
+  "student"
+> & {
+  student: SessionStudent;
+};
 export type SessionLeftResponse = components["schemas"]["SessionLeftResponse"];
 export type Preferences = components["schemas"]["Preferences"];
 export type PresenceRequest = components["schemas"]["PresenceRequest"];
@@ -89,6 +130,36 @@ export type VisionSource = DropResponse["vision_source"];
 export type ClaimStatus = ClaimResponse["status"];
 export type InviteStatus = InviteResponse["status"];
 export type DemoScenario = DemoStatusResponse["scenario"];
+
+export interface FeedDrop {
+  drop: DropResponse;
+  can_reserve: boolean;
+  unavailable_reason: FeedUnavailableReason | null;
+  claim: ClaimResponse | null;
+}
+
+export interface FeedResponse {
+  drops: FeedDrop[];
+  server_time: string;
+  is_demo: boolean;
+}
+
+export interface BuildingDistribution {
+  building_code: string;
+  building: Building | null;
+  active_drops: number;
+  counts: Counts;
+}
+
+export interface CampusDistributionResponse {
+  distribution_mode: DistributionMode;
+  active_drops: number;
+  joined_students: number;
+  counts: Counts;
+  buildings: BuildingDistribution[];
+  server_time: string;
+  is_demo: boolean;
+}
 
 export type SeededPersonaLabel = "A" | "B" | "C" | "D" | "E";
 

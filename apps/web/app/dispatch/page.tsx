@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { latLngToCell } from "h3-js";
 import { DispatchMap, type MapParticipant } from "../../components/DispatchMap";
 import { PresenterControls } from "../../components/presenter/PresenterControls";
 import {
@@ -15,7 +16,9 @@ import {
   getDemoAreas,
   getDemoStatus,
   getDispatch,
+  getDistribution,
   getDrop,
+  type CampusDistributionResponse,
   type DemoStatusResponse,
   type DispatchResponse,
   type DropResponse,
@@ -23,6 +26,7 @@ import {
 import { useVisionMode, visionModeLabel } from "../../lib/vision-mode";
 
 const ALLERGEN_NOTICE = "may contain, confirm with host";
+const PLACEHOLDER_ORIGIN_CELL = latLngToCell(0.0, 0.0, 11);
 
 interface Row {
   key: string;
@@ -60,6 +64,8 @@ function StatTile({
 
 export default function DispatchProjectorPage() {
   const [status, setStatus] = useState<DemoStatusResponse | null>(null);
+  const [distribution, setDistribution] =
+    useState<CampusDistributionResponse | null>(null);
   const [dispatch, setDispatch] = useState<DispatchResponse | null>(null);
   const [drop, setDrop] = useState<DropResponse | null>(null);
   const [areaLabels, setAreaLabels] = useState<Record<string, string>>({});
@@ -72,8 +78,12 @@ export default function DispatchProjectorPage() {
 
   const poll = useCallback(async () => {
     try {
-      const current = await getDemoStatus();
+      const [current, dist] = await Promise.all([
+        getDemoStatus(),
+        getDistribution(),
+      ]);
       setStatus(current);
+      setDistribution(dist);
       if (!current.active_drop_id) {
         setDispatch(null);
         setDrop(null);
@@ -126,7 +136,7 @@ export default function DispatchProjectorPage() {
       testId: `visitor-row-${v.nickname}`,
       name: v.nickname,
       simulated: false,
-      where: areaLabels[v.area] ?? v.area,
+      where: v.area ? (areaLabels[v.area] ?? v.area) : "Campus-wide feed",
       status: v.status,
       reasonCodes: v.reason_codes,
       wave: v.wave_number ?? null,
@@ -182,6 +192,22 @@ export default function DispatchProjectorPage() {
         )
       : null;
 
+  const isSeededMode =
+    status?.scenario === "seeded" ||
+    (distribution?.distribution_mode === "seeded_waves" &&
+      status?.scenario !== "visitors");
+
+  const campusActiveDrops = distribution?.active_drops ?? 0;
+  const campusJoinedStudents =
+    distribution?.joined_students ?? status?.visitors ?? 0;
+  const campusCounts = distribution?.counts ?? {
+    total: 0,
+    available: 0,
+    held: 0,
+    picked_up: 0,
+  };
+  const campusBuildings = distribution?.buildings ?? [];
+
   return (
     <div className="min-h-screen bg-owl-black text-zinc-100">
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800 px-8 py-4">
@@ -190,7 +216,9 @@ export default function DispatchProjectorPage() {
             Owl Plate
           </Link>
           <span className="text-2xl font-semibold text-zinc-300">
-            Live dispatch
+            {isSeededMode
+              ? "Live dispatch (seeded rehearsal)"
+              : "Campus distribution"}
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">
@@ -227,7 +255,212 @@ export default function DispatchProjectorPage() {
           </div>
         )}
 
-        {!dispatch ? (
+        {!isSeededMode ? (
+          <>
+            <section className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+              <StatTile
+                label="Active drops"
+                testId="distribution-active-drops"
+                value={campusActiveDrops}
+                accent="text-owl-gold"
+              />
+              <StatTile
+                label="Joined students"
+                testId="visitor-count"
+                value={`${campusJoinedStudents} joined`}
+                accent="text-sky-300"
+              />
+              <StatTile
+                label="Available"
+                testId="dispatch-count-available"
+                value={campusCounts.available}
+                accent="text-emerald-400"
+              />
+              <StatTile
+                label="Held"
+                testId="dispatch-count-held"
+                value={campusCounts.held}
+                accent="text-owl-gold"
+              />
+              <StatTile
+                label="Picked up"
+                testId="dispatch-count-picked-up"
+                value={campusCounts.picked_up}
+                accent="text-zinc-100"
+              />
+            </section>
+
+            {campusActiveDrops === 0 ? (
+              <section
+                data-testid="distribution-empty-state"
+                className="grid gap-5 lg:grid-cols-2"
+              >
+                <div className="rounded-xl border border-zinc-800 bg-owl-slate p-8">
+                  <h1 className="text-4xl font-extrabold">
+                    Waiting for a host to share food
+                  </h1>
+                  <p className="mt-3 text-xl text-zinc-300">
+                    Students join the campus-wide feed, then hosts publish drops
+                    at verified campus buildings. Active pickup locations appear
+                    here.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-owl-gold/40 bg-owl-gold/5 p-8">
+                  <div className="text-lg font-semibold uppercase tracking-wide text-owl-gold">
+                    Join the campus feed
+                  </div>
+                  <div
+                    data-testid="join-url"
+                    className="mt-2 break-all font-mono text-3xl font-bold"
+                  >
+                    {joinUrl}
+                  </div>
+                  <div className="mt-4 text-xl text-zinc-300">
+                    No student locations or check-ins collected · direct reserve
+                    from mobile feed
+                  </div>
+                </div>
+              </section>
+            ) : (
+              <section className="grid gap-5 xl:grid-cols-12">
+                <div className="space-y-4 xl:col-span-7">
+                  <DispatchMap
+                    originCell={
+                      dispatch?.origin_cell ?? PLACEHOLDER_ORIGIN_CELL
+                    }
+                    ringK={0}
+                    participants={[]}
+                    campusBuildingName={drop?.building?.name}
+                    distributionMode="campus_feed"
+                    buildingDistributions={campusBuildings}
+                  />
+                  {drop && (
+                    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-800 bg-owl-slate px-5 py-4 text-lg">
+                      <span className="font-semibold">
+                        {drop.vision.items.map((item) => item.name).join(", ")}
+                      </span>
+                      <span className="text-zinc-400">
+                        {drop.servings_final} servings ·{" "}
+                        {drop.building?.name ??
+                          areaLabels[drop.building_code] ??
+                          drop.building_code}
+                      </span>
+                      <span
+                        data-testid="dispatch-vision-source"
+                        className="rounded bg-purple-500/20 px-2 py-0.5 text-sm font-semibold text-purple-200"
+                      >
+                        {drop.vision_source === "gemini"
+                          ? "Live Gemini"
+                          : "Saved demo estimate"}
+                      </span>
+                      {drop.allergens_final.length > 0 && (
+                        <span className="text-amber-200">
+                          Allergens: {drop.allergens_final.join(", ")} —{" "}
+                          {ALLERGEN_NOTICE}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4 xl:col-span-5">
+                  <div className="rounded-xl border border-zinc-800 bg-owl-slate">
+                    <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-3">
+                      <h2 className="text-xl font-bold">
+                        Host pickup buildings
+                      </h2>
+                      <span className="text-base text-zinc-400">
+                        Join:{" "}
+                        <span data-testid="join-url" className="font-mono">
+                          {joinUrl}
+                        </span>
+                      </span>
+                    </div>
+                    {campusBuildings.length === 0 ? (
+                      <p className="px-5 py-6 text-lg text-zinc-400">
+                        No active pickup buildings right now.
+                      </p>
+                    ) : (
+                      <ul
+                        data-testid="distribution-buildings-list"
+                        className="divide-y divide-zinc-800"
+                      >
+                        {campusBuildings.map((b) => {
+                          const buildingName =
+                            b.building?.name ??
+                            areaLabels[b.building_code] ??
+                            b.building_code;
+                          return (
+                            <li
+                              key={b.building_code}
+                              data-testid={`distribution-building-${b.building_code}`}
+                              className="space-y-2 px-5 py-4"
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="truncate text-xl font-bold text-white">
+                                    {buildingName}
+                                  </div>
+                                  <div className="text-sm text-zinc-400">
+                                    {b.active_drops}{" "}
+                                    {b.active_drops === 1
+                                      ? "active drop"
+                                      : "active drops"}{" "}
+                                    · {b.counts.total} total servings
+                                  </div>
+                                </div>
+                                <span
+                                  className={`shrink-0 rounded-full px-3.5 py-1 text-sm font-bold ${
+                                    b.counts.available > 0
+                                      ? "bg-emerald-500/20 text-emerald-300"
+                                      : "bg-amber-500/20 text-amber-300"
+                                  }`}
+                                >
+                                  {b.counts.available} available
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-4 text-sm text-zinc-300">
+                                <span>
+                                  Available:{" "}
+                                  <strong className="text-emerald-400">
+                                    {b.counts.available}
+                                  </strong>
+                                </span>
+                                <span>
+                                  Held:{" "}
+                                  <strong className="text-owl-gold">
+                                    {b.counts.held}
+                                  </strong>
+                                </span>
+                                <span>
+                                  Picked up:{" "}
+                                  <strong className="text-zinc-100">
+                                    {b.counts.picked_up}
+                                  </strong>
+                                </span>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-zinc-800 bg-owl-slate px-5 py-4 text-sm text-zinc-300">
+                    <h2 className="text-base font-bold text-white">
+                      Campus-wide feed privacy
+                    </h2>
+                    <p className="mt-1">
+                      Projector displays aggregate host pickup counts and
+                      verified building coordinates only. Student locations,
+                      nicknames, and dietary filters are never shown here.
+                    </p>
+                  </div>
+                </div>
+              </section>
+            )}
+          </>
+        ) : !dispatch ? (
           <section className="grid gap-5 lg:grid-cols-2">
             <div className="rounded-xl border border-zinc-800 bg-owl-slate p-8">
               <h1 className="text-4xl font-extrabold">
@@ -299,6 +532,7 @@ export default function DispatchProjectorPage() {
                   ringK={dispatch.ring_k}
                   participants={participants}
                   campusBuildingName={drop?.building?.name}
+                  distributionMode="seeded_waves"
                 />
                 {drop && (
                   <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-800 bg-owl-slate px-5 py-4 text-lg">

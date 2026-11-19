@@ -60,12 +60,12 @@ export default function HomePage() {
               <h2 className="text-2xl font-extrabold text-white">Find food</h2>
               <p className="text-sm text-zinc-300">
                 {hasActiveSession
-                  ? "Return to your active demo session to check nearby food invites or your 10-minute pickup hold."
-                  : "Pick a nickname, campus area, and optional dietary filters to receive nearby food invites."}
+                  ? "Return to your active demo session to browse campus food drops or check your 10-minute pickup hold."
+                  : "Pick a nickname and optional dietary filters to browse active Marietta campus food drops."}
               </p>
             </div>
             <span className="mt-5 inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-owl-gold px-4 py-3 text-sm font-extrabold text-owl-black transition group-hover:bg-owl-goldDark">
-              {hasActiveSession ? "Resume student view" : "Find food nearby"}
+              {hasActiveSession ? "Resume student view" : "Browse campus food"}
             </span>
           </Link>
 

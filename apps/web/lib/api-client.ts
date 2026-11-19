@@ -12,6 +12,7 @@
 import type {
   AuthToken,
   BuildingsResponse,
+  CampusDistributionResponse,
   ClaimResponse,
   DemoActiveDropResponse,
   DemoAreasResponse,
@@ -25,6 +26,7 @@ import type {
   DropEdit,
   DropResponse,
   ErrorDetail,
+  FeedResponse,
   InviteResponse,
   InvitesResponse,
   JoinRequest,
@@ -47,7 +49,9 @@ import {
   fixtureGetDemoAreas,
   fixtureGetDemoStatus,
   fixtureGetDispatch,
+  fixtureGetDistribution,
   fixtureGetDrop,
+  fixtureGetMyFeed,
   fixtureGetMyInvites,
   fixtureGetMySession,
   fixtureJoinSession,
@@ -56,6 +60,7 @@ import {
   fixturePublishDrop,
   fixtureRegisterPushToken,
   fixtureReleaseClaim,
+  fixtureReserveDrop,
   fixtureUpdateDrop,
   fixtureUpdatePreferences,
   fixtureUpdatePresence,
@@ -471,5 +476,39 @@ export async function getActiveDrop(
     { method: "GET" },
     credential,
     () => ({ drop_id: getActiveFixtureDropId() || null }),
+  );
+}
+
+export async function getMyFeed(
+  credential: AuthToken,
+): Promise<ApiResult<FeedResponse>> {
+  return request<FeedResponse>(
+    "/students/me/feed",
+    { method: "GET" },
+    credential,
+    () => fixtureGetMyFeed(credential),
+  );
+}
+
+export async function reserveDrop(
+  dropId: string,
+  credential: AuthToken,
+): Promise<ApiResult<ClaimResponse>> {
+  return request<ClaimResponse>(
+    `/drops/${encodeURIComponent(dropId)}/reserve`,
+    { method: "POST" },
+    credential,
+    () => fixtureReserveDrop(dropId, credential),
+  );
+}
+
+export async function getDistribution(
+  credential: DemoCredential = "demo-projector",
+): Promise<ApiResult<CampusDistributionResponse>> {
+  return request<CampusDistributionResponse>(
+    "/distribution",
+    { method: "GET" },
+    credential,
+    () => fixtureGetDistribution(),
   );
 }

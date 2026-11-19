@@ -269,11 +269,21 @@ test("offline fixture mode remains explicitly synthetic and never fabricates ver
   assert.equal(updated.building, null);
   assert.equal(updated.pickup_instructions, "Table inside main doors");
 
-  // Joining with an unverified or unknown campus slug in offline fixture mode throws 422 invalid_building
+  // In visitors (campus_feed) mode, deprecated area is ignored and student.area is null
+  const visitorJoined = fixtures.fixtureJoinSession({
+    nickname: "OfflineVisitor",
+    area: "ksu-marietta-atrium-building",
+    allergens: [],
+    diets: [],
+  });
+  assert.equal(visitorJoined.student.area, null);
+
+  // In explicit seeded rehearsal mode, joining with an unknown campus slug throws 422 invalid_building
+  fixtures.fixtureDemoReset({ scenario: "seeded" });
   assert.throws(
     () =>
       fixtures.fixtureJoinSession({
-        nickname: "OfflineVisitor",
+        nickname: "SeededVisitor",
         area: "ksu-marietta-atrium-building",
         allergens: [],
         diets: [],
