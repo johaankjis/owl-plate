@@ -13,6 +13,7 @@ import h3
 from sqlalchemy import Engine, delete, inspect
 from sqlmodel import Session, SQLModel, select
 
+from services.api.campus import CampusRegistry, load_registry
 from services.api.db.models import (
     Claim,
     Coordinator,
@@ -27,6 +28,7 @@ from services.api.db.session import transaction
 from services.api.dispatch import CandidateView, DropView, plan_wave
 from services.api.dispatch.config import INITIAL_RING, MAX_RING, RING_STEP
 from services.api.schemas.api import (
+    BuildingsResponse,
     ClaimResponse,
     Counts,
     DemoActiveDropResponse,
@@ -55,6 +57,7 @@ from services.api.sessions import (
     areas_response,
     create_session,
     end_session,
+    move_session,
     require_session,
     resolve_token,
     session_student,
@@ -130,6 +133,7 @@ class Backend:
         auth_mode: str = "",
         clock: Callable[[], datetime] | None = None,
         buildings: Mapping[str, str] | None = None,
+        campus: CampusRegistry | None = None,
         authenticate: Callable[[str], Actor] | None = None,
     ) -> None:
         self.engine = engine
@@ -143,6 +147,8 @@ class Backend:
         self.authenticate = authenticate
         self.seed = json.loads(SEED_PATH.read_text())
         self.origin = h3.latlng_to_cell(self.seed["origin"]["lat"], self.seed["origin"]["lng"], 11)
+        self.campus = campus if campus is not None else load_registry()
+        # Legacy rehearsal codes map straight to cells; campus IDs go through the registry.
         self.buildings = dict(buildings or {})
         if demo_mode:
             self.buildings[self.seed["origin"]["building_code"]] = self.origin
@@ -196,6 +202,17 @@ class Backend:
         self._require_demo()
         return areas_response()
 
+    def campus_buildings(self) -> BuildingsResponse:
+        """Public directory of verified buildings; no student location is involved."""
+        return self.campus.response()
+
+    def _location_cell(self, building_code: str) -> str:
+        """Resolve a host or check-in location, refusing anything not verified or rehearsal."""
+        cell = self.campus.cells.get(building_code) or self.buildings.get(building_code)
+        if cell is None:
+            raise DomainError("invalid_building", "Choose a building from the campus list.", 422)
+        return cell
+
     def _session_run(self, operation: Callable[[Session, datetime], T]) -> T:
         """Run visitor-session logic and map its failures to contract errors."""
         try:
@@ -208,7 +225,7 @@ class Backend:
         self._require_demo()
         return self._session_run(
             lambda session, now: create_session(
-                session, origin=self.origin, now=now, request=request
+                session, origin=self.origin, now=now, request=request, campus=self.campus
             )
         )
 
@@ -346,6 +363,8 @@ class Backend:
             status=drop.status,
             building_code=drop.data["building_code"],
             room=drop.data["room"],
+            pickup_instructions=drop.data.get("pickup_instructions", ""),
+            building=drop.data.get("building"),
             vision=drop.data["vision"],
             vision_source=drop.data["vision_source"],
             servings_final=drop.data["servings_final"],
@@ -422,6 +441,8 @@ class Backend:
                 data={
                     "building_code": self.seed["origin"]["building_code"] if self.demo_mode else "",
                     "room": "",
+                    "pickup_instructions": "",
+                    "building": None,
                     "origin_cell": self.origin if self.demo_mode else "",
                     "vision": estimate.model_dump(mode="json"),
                     "vision_source": source,
@@ -447,8 +468,8 @@ class Backend:
             drop = self._owned_drop(session, actor, drop_id)
             if drop.status != "draft":
                 raise DomainError("invalid_state", "Only draft drops can be edited.")
-            if edit.building_code not in self.buildings:
-                raise DomainError("invalid_building", "Unknown building.", 422)
+            origin_cell = self._location_cell(edit.building_code)
+            building = self.campus.get(edit.building_code)
             estimated = set(drop.data["vision"]["allergens_likely"])
             if (
                 estimated - set(edit.allergens_final)
@@ -465,7 +486,9 @@ class Backend:
             drop.data = {
                 **drop.data,
                 **edit.model_dump(mode="json"),
-                "origin_cell": self.buildings[edit.building_code],
+                "origin_cell": origin_cell,
+                # Snapshot the verified building so the drop keeps its place if data changes.
+                "building": building.model_dump(mode="json") if building else None,
             }
             session.add(drop)
             return self._response(session, drop)
@@ -831,18 +854,21 @@ class Backend:
     def presence(self, actor: Actor, building_code: str) -> datetime:
         """Replace the current coarse check-in instead of retaining a location history."""
         self.require(actor, "student")
-        if building_code not in self.buildings:
-            raise DomainError("invalid_building", "Unknown building.", 422)
+        cell = self._location_cell(building_code)
+        real = self.campus.get(building_code) is not None
 
         def operation(session: Session, now: datetime) -> datetime:
             student = self._get(session, Student, actor.id)
             until = now + timedelta(hours=2)
             student.data = {
                 **student.data,
-                "cell": self.buildings[building_code],
+                "cell": cell,
                 "valid_from": now.isoformat(),
                 "valid_until": until.isoformat(),
             }
+            if real and student.data.get("kind") == "visitor":
+                student.data = {**student.data, "area": building_code}
+                move_session(session, actor.id, building_code)
             session.add(student)
             return until
 

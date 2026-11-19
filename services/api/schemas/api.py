@@ -1,7 +1,7 @@
 """Freeze public shapes so independent clients and services agree on safe data."""
 
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -10,6 +10,9 @@ Allergen = Literal[
     "dairy", "egg", "gluten", "peanut", "tree_nut", "soy", "fish", "shellfish", "sesame"
 ]
 Diet = Literal["vegetarian", "vegan", "halal", "kosher", "pork_free"]
+BuildingCategory = Literal["academic", "student_life", "housing", "other"]
+# A canonical campus building ID or a legacy rehearsal ID; the server validates which.
+LocationId = Annotated[str, Field(min_length=1, max_length=80)]
 
 
 class ContractModel(BaseModel):
@@ -50,12 +53,37 @@ class SafetyReview(ContractModel):
     religious_diets_confirmed: bool = False
 
 
+class BuildingSource(ContractModel):
+    url: str = Field(min_length=1, max_length=500, pattern=r"^https?://")
+    title: str = Field(min_length=1, max_length=200)
+
+
+class Building(ContractModel):
+    """A verified campus building; public map data, never a student's location."""
+
+    id: str = Field(min_length=1, max_length=80, pattern=r"^ksu-marietta-[a-z0-9]+(-[a-z0-9]+)*$")
+    name: str = Field(min_length=1, max_length=120)
+    building_code: str | None = Field(default=None, max_length=20)
+    building_number: str | None = Field(default=None, max_length=20)
+    category: BuildingCategory
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    verification_status: Literal["verified"] = "verified"
+    sources: list[BuildingSource] = Field(min_length=1)
+
+
+class BuildingsResponse(ContractModel):
+    campus: Literal["marietta"] = "marietta"
+    buildings: list[Building]
+
+
 class DropEdit(ContractModel):
     servings_final: int = Field(ge=1, le=500)
     allergens_final: list[Allergen]
     diet_tags_final: list[Diet]
-    building_code: str = Field(min_length=1, max_length=40)
+    building_code: LocationId
     room: str = Field(default="", max_length=80)
+    pickup_instructions: str = Field(default="", max_length=500)
     expires_in_minutes: int = Field(default=45, ge=1, le=120)
     safety_review: SafetyReview
 
@@ -72,6 +100,8 @@ class DropResponse(ContractModel):
     status: Literal["draft", "live", "claimed_out", "expired"]
     building_code: str
     room: str
+    pickup_instructions: str = ""
+    building: Building | None = None
     vision: VisionEstimate
     vision_source: Literal["fixture", "gemini", "openrouter"]
     servings_final: int
@@ -143,7 +173,7 @@ class JoinRequest(ContractModel):
     """Everything a visitor shares to join; no contact details or real identity."""
 
     nickname: str = Field(min_length=1, max_length=24, pattern=r"^[A-Za-z0-9 _.-]+$")
-    area: DemoAreaId
+    area: LocationId
     allergens: list[Allergen] = Field(default_factory=list)
     diets: list[Diet] = Field(default_factory=list)
 
@@ -151,7 +181,7 @@ class JoinRequest(ContractModel):
 class SessionStudent(ContractModel):
     id: UUID
     nickname: str
-    area: DemoAreaId
+    area: LocationId
     allergens: list[Allergen]
     diets: list[Diet]
     kind: Literal["visitor"] = "visitor"
@@ -173,7 +203,7 @@ class VisitorDecision(ContractModel):
     """Projector row for a joined visitor; never includes which allergen or diet applied."""
 
     nickname: str
-    area: DemoAreaId
+    area: LocationId
     ring_distance: int | None
     status: str
     reason_codes: list[str]
@@ -234,7 +264,7 @@ class Preferences(ContractModel):
 
 
 class PresenceRequest(ContractModel):
-    building_code: str
+    building_code: LocationId
 
 
 class PushTokenRequest(ContractModel):

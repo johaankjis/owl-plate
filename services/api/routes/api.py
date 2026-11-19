@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from services.api.application import Actor, Backend, DomainError
 from services.api.schemas.api import (
+    BuildingsResponse,
     ClaimResponse,
     DemoActiveDropResponse,
     DemoAreasResponse,
@@ -184,6 +185,11 @@ def build_router(
     def status(actor: Identity) -> DemoStatusResponse:
         """Give presenter controls a projector-safe overview."""
         return invoke(backend.demo_status, actor)
+
+    @router.get("/buildings", response_model=BuildingsResponse)
+    def buildings() -> BuildingsResponse:
+        """List verified campus buildings; public map data needing no location permission."""
+        return backend.campus_buildings()
 
     @router.get("/demo/areas", response_model=DemoAreasResponse)
     def areas() -> DemoAreasResponse:

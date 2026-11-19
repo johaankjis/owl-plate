@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 
 from sqlmodel import Session, select
 
+from services.api.campus import CampusRegistry
 from services.api.db.models import Claim, Drop, Invite, Student, VisitorSession, Wave
 from services.api.schemas.api import (
     JoinRequest,
@@ -44,19 +45,34 @@ def resolve_token(session: Session, token: str) -> str | None:
     return record.student_id if record else None
 
 
+def _join_cell(session: Session, origin: str, area: str, campus: CampusRegistry) -> str:
+    """Resolve a legacy rehearsal ring or a verified building's own cell, nothing else."""
+    if area in RING_DISTANCE:
+        neighbors = session.exec(
+            select(VisitorSession.student_id).where(VisitorSession.area == area)
+        ).all()
+        return area_cell(origin, RING_DISTANCE[area], len(neighbors))
+    cell = campus.cells.get(area)
+    if cell is None:
+        raise SessionError("invalid_building", "Choose a building from the campus list.", 422)
+    return cell
+
+
 def create_session(
-    session: Session, *, origin: str, now: datetime, request: JoinRequest
+    session: Session,
+    *,
+    origin: str,
+    now: datetime,
+    request: JoinRequest,
+    campus: CampusRegistry,
 ) -> JoinResponse:
     """Create a distinct visitor student and a revocable token record per join call."""
+    cell = _join_cell(session, origin, request.area, campus)
     if len(session.exec(select(VisitorSession.student_id)).all()) >= SESSION_LIMIT:
         raise SessionError("session_limit", "This demo session is full.")
     key = request.nickname.lower()
     if session.exec(select(VisitorSession).where(VisitorSession.nickname_key == key)).first():
         raise SessionError("nickname_taken", "That nickname is already in this demo.")
-    neighbors = session.exec(
-        select(VisitorSession.student_id).where(VisitorSession.area == request.area)
-    ).all()
-    cell = area_cell(origin, RING_DISTANCE[request.area], len(neighbors))
     student_id = str(uuid4())
     valid_until = now + timedelta(hours=2)
     session.add(
@@ -114,6 +130,16 @@ def require_session(session: Session, student_id: str) -> VisitorSession:
     if record is None:
         raise SessionError("not_a_session", "No visitor session for this token.", 404)
     return record
+
+
+def move_session(session: Session, student_id: str, area: str) -> None:
+    """Keep a visitor's shown area in step with their latest real-building check-in."""
+    record = session.exec(
+        select(VisitorSession).where(VisitorSession.student_id == student_id)
+    ).first()
+    if record is not None:
+        record.area = area
+        session.add(record)
 
 
 def session_student(session: Session, record: VisitorSession) -> SessionStudent:
