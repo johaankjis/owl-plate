@@ -23,41 +23,58 @@ class PushRegistration(SQLModel, table=True):
     ciphertext: str
 
 
+class HostPushRegistration(SQLModel, table=True):
+    """Hosts' encrypted tokens, in their own namespace apart from student recipient policy."""
+
+    host_id: str = Field(primary_key=True)
+    ciphertext: str
+
+
 class TokenVault:
     """Keep plaintext tokens inside the transport boundary only."""
+
+    model: type[SQLModel] = PushRegistration
+    owner_field = "student_id"
 
     def __init__(self, engine: Engine, encryption_key: str) -> None:
         self.engine = engine
         self.cipher = Fernet(encryption_key.encode())
 
-    def register(self, student_id: str, token: str) -> None:
-        """Replace a student's device token without persisting or logging plaintext."""
+    def register(self, owner_id: str, token: str) -> None:
+        """Replace an owner's device token without persisting or logging plaintext."""
         encrypted = self.cipher.encrypt(token.encode()).decode()
         with transaction(self.engine) as session:
-            session.merge(PushRegistration(student_id=student_id, ciphertext=encrypted))
+            session.merge(self.model(**{self.owner_field: owner_id, "ciphertext": encrypted}))
 
-    def has(self, student_id: str) -> bool:
-        """Let the sender fall back to simulation for students who never opted in."""
+    def has(self, owner_id: str) -> bool:
+        """Let the sender fall back to simulation for owners who never opted in."""
         with Session(self.engine) as session:
-            return session.get(PushRegistration, student_id) is not None
+            return session.get(self.model, owner_id) is not None
 
-    def forget(self, student_id: str) -> None:
-        """Drop a device token when its visitor session ends."""
+    def forget(self, owner_id: str) -> None:
+        """Drop a device token when its owner opts out or its visitor session ends."""
         with transaction(self.engine) as session:
             session.execute(
-                delete(PushRegistration).where(PushRegistration.student_id == student_id)
+                delete(self.model).where(getattr(self.model, self.owner_field) == owner_id)
             )
 
-    def resolve(self, student_id: str) -> str:
+    def resolve(self, owner_id: str) -> str:
         """Decrypt only when the authorized transport needs a recipient."""
         with Session(self.engine) as session:
-            registration = session.get(PushRegistration, student_id)
+            registration = session.get(self.model, owner_id)
             if registration is None:
                 raise RuntimeError("Demo recipient has not registered this device")
             try:
                 return self.cipher.decrypt(registration.ciphertext.encode()).decode()
             except InvalidToken:
                 raise RuntimeError("Push token decryption unavailable") from None
+
+
+class HostTokenVault(TokenVault):
+    """Same Fernet key and private Firebase config, separate host-only storage."""
+
+    model = HostPushRegistration
+    owner_field = "host_id"
 
 
 class FcmNotifications:
@@ -69,6 +86,7 @@ class FcmNotifications:
         project_id: str,
         is_allowed: Callable[[str], bool],
         access_token: Callable[[], str],
+        host_vault: HostTokenVault | None = None,
     ) -> None:
         if not re.fullmatch(r"[a-z][a-z0-9-]{4,62}", project_id):
             raise ValueError("FCM requires a valid Firebase project ID")
@@ -76,6 +94,7 @@ class FcmNotifications:
         self.project_id = project_id
         self.is_allowed = is_allowed
         self.access_token = access_token
+        self.host_vault = host_vault
 
     def notify(
         self,
@@ -89,13 +108,27 @@ class FcmNotifications:
         if not self.is_allowed(student_id) or not self.vault.has(student_id):
             logger.info("Simulated notification (no opted-in device)")
             return
-        token = self.vault.resolve(student_id)
+        self._send(push_message(self.vault.resolve(student_id), invite_id, drop_id, mode))
+
+    def notify_host(self, notification_id: str, host_id: str, drop_id: str, body: str) -> None:
+        """Push one pickup update to the publishing host's own opted-in device, if any.
+
+        Registration is rechecked at send time, so an opt-out before a deferred send wins
+        and an opt-in afterwards never replays already handled events.
+        """
+        if self.host_vault is None or not self.host_vault.has(host_id):
+            logger.info("Simulated host pickup update (no opted-in host device)")
+            return
+        token = self.host_vault.resolve(host_id)
+        self._send(host_pickup_message(token, notification_id, drop_id, body))
+
+    def _send(self, message: dict) -> None:
         try:
             with httpx.Client(timeout=15) as client:
                 response = client.post(
                     f"https://fcm.googleapis.com/v1/projects/{self.project_id}/messages:send",
                     headers={"Authorization": f"Bearer {self.access_token()}"},
-                    json={"message": push_message(token, invite_id, drop_id, mode)},
+                    json={"message": message},
                 )
                 response.raise_for_status()
         except (httpx.HTTPError, ValueError):
@@ -142,6 +175,35 @@ def push_message(
         },
         "webpush": {
             "headers": {"TTL": "60", "Urgency": "high", "Topic": f"owl-{invite_id}"[:32]},
+        },
+    }
+
+
+HOST_TTL_SECONDS = 900
+
+
+def host_pickup_message(token: str, notification_id: str, drop_id: str, body: str) -> dict:
+    """Host-only pickup update: food and aggregate count, never a student or claim identity.
+
+    The tag and Web Push topic are stable per event so a retried send collapses.
+    """
+    return {
+        "token": token,
+        "data": {
+            "title": "Owl Plate: Pickup update",
+            "body": body,
+            "notification_mode": "host_pickup",
+            "drop_id": drop_id,
+            "notification_id": notification_id,
+            "tag": f"owl-pickup-{notification_id}",
+            "url": f"/host?drop={drop_id}",
+        },
+        "webpush": {
+            "headers": {
+                "TTL": str(HOST_TTL_SECONDS),
+                "Urgency": "normal",
+                "Topic": UUID(notification_id).hex,
+            },
         },
     }
 

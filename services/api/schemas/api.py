@@ -328,6 +328,69 @@ class DemoTickResponse(ContractModel):
     server_time: datetime
 
 
+MatchStatus = Literal["consistent", "uncertain", "inconsistent"]
+ReviewStatus = Literal["not_requested", "pending", "approved", "rejected", "expired", "superseded"]
+PickupSource = Literal["fixture", "openrouter"]
+PICKUP_NOTICE = (
+    "Photo-assisted confirmation. A photo cannot independently establish physical "
+    "pickup or food safety."
+)
+
+
+class PickupVerification(ContractModel):
+    """A student's own photo-assisted check; never proof of pickup or food safety."""
+
+    id: UUID
+    claim_id: UUID
+    status: Literal["processing", "ready", "failed"]
+    match_status: MatchStatus | None
+    confidence: float | None
+    explanation: str
+    source: PickupSource
+    created_at: datetime
+    review_status: ReviewStatus
+    can_confirm: bool
+    notice: str = PICKUP_NOTICE
+
+
+class PickupVerificationResponse(ContractModel):
+    verification: PickupVerification | None
+
+
+class PickupRequest(ContractModel):
+    """Optional for legacy seeded rehearsal; required for campus-feed pickups."""
+
+    verification_id: UUID | None = None
+
+
+class PickupReviewRequest(ContractModel):
+    verification_id: UUID
+
+
+class HostPickupReview(ContractModel):
+    """De-identified assessment metadata; the opaque ID is neither a student nor a claim ID."""
+
+    id: UUID
+    drop_id: UUID
+    match_status: MatchStatus
+    confidence: float
+    explanation: str
+    source: PickupSource
+    created_at: datetime
+    held_until: datetime
+    review_status: ReviewStatus
+    notice: str = PICKUP_NOTICE
+
+
+class HostPickupReviewsResponse(ContractModel):
+    reviews: list[HostPickupReview]
+    server_time: datetime
+
+
+class HostReviewDecision(ContractModel):
+    decision: Literal["approve", "reject"]
+
+
 class ErrorDetail(ContractModel):
     code: str
     message: str

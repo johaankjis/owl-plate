@@ -4,7 +4,7 @@ from collections.abc import Callable
 from typing import Annotated, ParamSpec, TypeVar
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Response, UploadFile
 from sqlalchemy.exc import SQLAlchemyError
 
 from services.api.application import Actor, Backend, DomainError
@@ -24,10 +24,17 @@ from services.api.schemas.api import (
     DropResponse,
     ErrorResponse,
     FeedResponse,
+    HostPickupReview,
+    HostPickupReviewsResponse,
+    HostReviewDecision,
     InviteResponse,
     InvitesResponse,
     JoinRequest,
     JoinResponse,
+    PickupRequest,
+    PickupReviewRequest,
+    PickupVerification,
+    PickupVerificationResponse,
     Preferences,
     PresenceRequest,
     PresenceResponse,
@@ -139,9 +146,73 @@ def build_router(
         return invoke(backend.update_claim, actor, str(claim_id))
 
     @router.post("/claims/{claim_id}/pickup", response_model=ClaimResponse)
-    def pickup(claim_id: UUID, actor: Identity) -> ClaimResponse:
-        """Keep unverified pickup strictly inside explicit demo mode."""
-        return invoke(backend.update_claim, actor, str(claim_id), pickup=True)
+    def pickup(
+        claim_id: UUID, actor: Identity, request: PickupRequest | None = None
+    ) -> ClaimResponse:
+        """Feed pickups need a consistent photo check; seeded rehearsal keeps no-body pickup."""
+        return invoke(
+            backend.update_claim,
+            actor,
+            str(claim_id),
+            pickup=True,
+            verification_id=request.verification_id if request else None,
+        )
+
+    @router.post(
+        "/claims/{claim_id}/pickup-photo",
+        response_model=PickupVerification,
+        responses={202: {"model": PickupVerification}, 422: {"model": ErrorResponse}},
+    )
+    def pickup_photo(
+        claim_id: UUID,
+        actor: Identity,
+        response: Response,
+        photo: Annotated[UploadFile, File()],
+        request_id: Annotated[UUID, Form()],
+    ) -> PickupVerification:
+        """Bound the upload, then let the service check it in memory; 202 while processing."""
+        invoke(backend.require, actor, "student")
+        if photo.content_type not in {"image/jpeg", "image/png"}:
+            raise HTTPException(
+                422, detail={"code": "invalid_photo", "message": "Use JPEG or PNG."}
+            )
+        content = photo.file.read(10 * 1024 * 1024 + 1)
+        result = invoke(backend.submit_pickup_photo, actor, str(claim_id), content, request_id)
+        if result.status == "processing":
+            response.status_code = 202
+        return result
+
+    @router.get("/claims/{claim_id}/pickup-verification", response_model=PickupVerificationResponse)
+    def pickup_verification(claim_id: UUID, actor: Identity) -> PickupVerificationResponse:
+        """Latest photo check on the caller's own claim."""
+        return invoke(backend.pickup_verification, actor, str(claim_id))
+
+    @router.post("/claims/{claim_id}/pickup-review", response_model=PickupVerification)
+    def pickup_review(
+        claim_id: UUID, request: PickupReviewRequest, actor: Identity
+    ) -> PickupVerification:
+        """Explicitly ask the host to review the latest check."""
+        return invoke(backend.request_pickup_review, actor, str(claim_id), request.verification_id)
+
+    @router.get("/drops/{drop_id}/pickup-reviews", response_model=HostPickupReviewsResponse)
+    def pickup_reviews(drop_id: UUID, actor: Identity) -> HostPickupReviewsResponse:
+        """De-identified review queue for the publishing host's own drop."""
+        return invoke(backend.pickup_reviews, actor, str(drop_id))
+
+    @router.post(
+        "/drops/{drop_id}/pickup-reviews/{verification_id}", response_model=HostPickupReview
+    )
+    def decide_pickup_review(
+        drop_id: UUID, verification_id: UUID, decision: HostReviewDecision, actor: Identity
+    ) -> HostPickupReview:
+        """Record the host's explicit approve or reject decision."""
+        return invoke(
+            backend.decide_pickup_review,
+            actor,
+            str(drop_id),
+            str(verification_id),
+            decision.decision,
+        )
 
     @router.put("/students/me/preferences", response_model=Preferences)
     def preferences(preferences: Preferences, actor: Identity) -> Preferences:
@@ -181,6 +252,21 @@ def build_router(
                 "message": "Encrypted push registration unavailable.",
             },
         )
+
+    @router.get("/hosts/me/push-token", response_model=PushTokenResponse)
+    def host_push_status(actor: Identity) -> PushTokenResponse:
+        """Report the authenticated host's current backend registration."""
+        return invoke(backend.host_push_status, actor)
+
+    @router.post("/hosts/me/push-token", response_model=PushTokenResponse)
+    def host_push_register(token: PushTokenRequest, actor: Identity) -> PushTokenResponse:
+        """Opt the authenticated host in to their own pickup updates."""
+        return invoke(backend.register_host_push, actor, token.token)
+
+    @router.delete("/hosts/me/push-token", response_model=PushTokenResponse)
+    def host_push_forget(actor: Identity) -> PushTokenResponse:
+        """Opt the authenticated host out; deferred sends recheck this."""
+        return invoke(backend.forget_host_push, actor)
 
     @router.get("/demo/active-drop", response_model=DemoActiveDropResponse)
     def active_drop(actor: Identity) -> DemoActiveDropResponse:

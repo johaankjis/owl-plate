@@ -1,6 +1,7 @@
 """Campus-feed service rules: location-free joins, reservations and one-time announcements."""
 
 import threading
+from uuid import uuid4
 
 import pytest
 from sqlmodel import Session, select
@@ -151,7 +152,11 @@ def test_one_active_hold_across_drops_and_expiry_restores_capacity(feed):
     late = publish_drop(feed, servings=1, minutes=5)
     hold = feed.reserve(actor, str(late.id))
     assert hold.held_until == feed.get_drop(host, str(late.id)).expires_at
-    picked = feed.update_claim(actor, str(hold.id), pickup=True)
+    assert code(lambda: feed.update_claim(actor, str(hold.id), pickup=True)) == (
+        "pickup_verification_required"
+    )
+    check = feed.submit_pickup_photo(actor, str(hold.id), b"food photo", uuid4())
+    picked = feed.update_claim(actor, str(hold.id), pickup=True, verification_id=check.id)
     assert picked.status == "picked_up"
     assert feed.reserve(actor, str(late.id)).id == hold.id
     counts = feed.get_drop(host, str(late.id)).counts

@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from services.api.application import Backend, fixture_vision
 from services.api.campus import CampusRegistry, load_registry
 from services.api.db.session import create_database
+from services.api.pickup.verifiers import FixturePickupVerifier
 from services.api.routes.api import build_router
 from services.api.schemas.api import DropEdit, SafetyReview
 
@@ -22,6 +23,7 @@ def backend(tmp_path):
         engine,
         analyze=fixture_vision,
         validate_photo=lambda b: b,
+        verify_pickup=FixturePickupVerifier(),
         demo_mode=True,
         auth_mode="demo",
         clock=lambda: datetime(2026, 11, 18, 12, tzinfo=UTC),
@@ -121,6 +123,7 @@ def _campus_client(tmp_path, campus_path, scenario):
         engine,
         analyze=fixture_vision,
         validate_photo=lambda b: b,
+        verify_pickup=FixturePickupVerifier(),
         demo_mode=True,
         auth_mode="demo",
         clock=lambda: datetime(2026, 11, 18, 12, tzinfo=UTC),

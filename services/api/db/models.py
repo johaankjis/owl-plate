@@ -93,3 +93,51 @@ class VisitorSession(SQLModel, table=True):
     nickname_key: str
     area: str
     joined_at: str
+
+
+class PickupAttempt(SQLModel, table=True):
+    """One photo-assisted pickup check; structured assessment state only, never the photo.
+
+    ``ordinal`` is an explicit per-claim monotonic order so "latest" never depends on UUID
+    sorting or equal clocks; ``(claim_id, request_id)`` makes network retries idempotent.
+    """
+
+    __table_args__ = (
+        UniqueConstraint("claim_id", "request_id"),
+        UniqueConstraint("claim_id", "ordinal"),
+    )
+    id: str = Field(primary_key=True)
+    claim_id: str = Field(foreign_key="claim.id", index=True)
+    drop_id: str = Field(foreign_key="drop.id", index=True)
+    request_id: str
+    ordinal: int
+    status: str = "processing"
+    match_status: str | None = None
+    confidence: float | None = None
+    explanation: str = ""
+    source: str
+    created_at: str
+    review_status: str = "not_requested"
+    review_requested_at: str | None = None
+    reviewed_at: str | None = None
+    # "student_consistent" or "host_approval": who completed pickup with this attempt.
+    completed_by: str | None = None
+
+
+class HostPickupNotification(SQLModel, table=True):
+    """Durable once-per-claim pickup update for the publishing host only.
+
+    The unique claim makes repeated completions, approvals and ticks unable to enqueue a
+    second event. Only the food name and the count captured at the committed pickup are
+    kept; nothing identifies the student or claim to the host.
+    """
+
+    __table_args__ = (UniqueConstraint("claim_id"),)
+    id: str = Field(primary_key=True)
+    claim_id: str = Field(foreign_key="claim.id")
+    drop_id: str = Field(foreign_key="drop.id", index=True)
+    host_id: str = Field(index=True)
+    food: str
+    available: int
+    created_at: str
+    sent: bool = False

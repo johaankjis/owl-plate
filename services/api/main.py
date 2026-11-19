@@ -16,6 +16,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from services.api.application import Backend
 from services.api.db.session import create_database
+from services.api.pickup.verifiers import build_pickup_verifier
 from services.api.providers.notifications import SimulatedNotifications
 from services.api.routes.api import build_router
 from services.api.routes.survey import build_survey_router
@@ -36,10 +37,12 @@ def create_app(database_url: str | None = None) -> FastAPI:
     if notification_mode not in {"log", "fcm"}:
         raise ValueError("Unsupported notification provider")
     provider = build_vision_provider()
+    pickup_verifier = build_pickup_verifier()
     if notification_mode == "fcm":
         # Register PushRegistration metadata before create_all initializes the database.
         from services.api.providers.fcm import (
             FcmNotifications,
+            HostTokenVault,
             TokenVault,
             service_account_access_token,
         )
@@ -63,6 +66,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
         engine,
         analyze=provider.analyze,
         validate_photo=validate_photo,
+        verify_pickup=pickup_verifier,
         demo_mode=demo,
         auth_mode=auth_mode,
     )
@@ -77,12 +81,15 @@ def create_app(database_url: str | None = None) -> FastAPI:
             return student_id in allowed_ids or backend.is_visitor(student_id)
 
         try:
-            vault = TokenVault(engine, os.getenv("PUSH_TOKEN_ENCRYPTION_KEY", ""))
+            key = os.getenv("PUSH_TOKEN_ENCRYPTION_KEY", "")
+            vault = TokenVault(engine, key)
+            host_vault = HostTokenVault(engine, key)
             notifications = FcmNotifications(
                 vault,
                 os.getenv("FIREBASE_PROJECT_ID", ""),
                 push_allowed,
                 service_account_access_token(account),
+                host_vault=host_vault,
             )
         except (ValueError, TypeError, KeyError):
             raise ValueError("Invalid private FCM configuration") from None
@@ -94,9 +101,11 @@ def create_app(database_url: str | None = None) -> FastAPI:
             vault.register(student_id, token)
 
         backend.forget_push = vault.forget
+        backend.host_push = host_vault
     else:
         notifications = SimulatedNotifications()
     backend.notify = notifications.notify
+    backend.notify_host = notifications.notify_host
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -145,6 +154,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
             "is_demo": demo,
             "notifications": "simulated" if notification_mode == "log" else "fcm",
             "vision": vision_mode,
+            "pickup_verification": pickup_verifier.source if pickup_verifier else "unavailable",
         }
 
     return app

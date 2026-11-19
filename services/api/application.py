@@ -7,10 +7,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal, TypeVar
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import h3
 from sqlalchemy import Engine, delete, inspect
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, SQLModel, select
 
 from services.api.campus import CampusRegistry, load_registry
@@ -20,7 +21,9 @@ from services.api.db.models import (
     DemoSettings,
     Drop,
     FeedNotification,
+    HostPickupNotification,
     Invite,
+    PickupAttempt,
     Student,
     VisitorSession,
     Wave,
@@ -42,6 +45,27 @@ from services.api.feed import (
     preference_conflict,
     unavailable_reason,
 )
+from services.api.pickup.contract import PickupAssessment
+from services.api.pickup.service import (
+    PickupError,
+    complete_with_result,
+    decide_review,
+    enqueue_host_update,
+    host_update_body,
+    latest_attempt,
+    listing_items,
+    own_attempt,
+    pending_reviews,
+    record_result,
+    request_review,
+    require_confirmable,
+    review_response,
+    start_attempt,
+    sweep,
+    verification_response,
+)
+from services.api.pickup.verifiers import PickupVerifier
+from services.api.providers.notifications import HostPushRegistry
 from services.api.schemas.api import (
     BuildingsResponse,
     CampusDistributionResponse,
@@ -57,12 +81,17 @@ from services.api.schemas.api import (
     DropResponse,
     FeedDrop,
     FeedResponse,
+    HostPickupReview,
+    HostPickupReviewsResponse,
     InviteResponse,
     InvitesResponse,
     JoinRequest,
     JoinResponse,
     PersonaDecision,
+    PickupVerification,
+    PickupVerificationResponse,
     Preferences,
+    PushTokenResponse,
     SafetyReview,
     Scenario,
     SessionLeftResponse,
@@ -94,6 +123,9 @@ ALLERGENS = ["dairy", "egg", "gluten", "peanut", "tree_nut", "soy", "fish", "she
 RELIGIOUS_DIETS = {"halal", "kosher", "pork_free"}
 SEED_PATH = Path(__file__).resolve().parents[2] / "data/seed/demo.json"
 HOLD_DURATION = timedelta(minutes=10)
+MAX_PHOTO_BYTES = 10 * 1024 * 1024
+# Optional per-deployment tables, created only when FCM composition imports them.
+PUSH_REGISTRATION_TABLES = ("pushregistration", "hostpushregistration")
 
 
 @dataclass(frozen=True)
@@ -149,6 +181,7 @@ class Backend:
         analyze: VisionCallable | None = None,
         validate_photo: Callable[[bytes], bytes] | None = None,
         notify: Callable[..., None] | None = None,
+        verify_pickup: PickupVerifier | None = None,
         demo_mode: bool = False,
         auth_mode: str = "",
         clock: Callable[[], datetime] | None = None,
@@ -160,7 +193,10 @@ class Backend:
         self.analyze = analyze
         self.validate_photo = validate_photo
         self.notify = notify
+        self.notify_host: Callable[[str, str, str, str], None] | None = None
+        self.verify_pickup = verify_pickup
         self.forget_push: Callable[[str], None] | None = None
+        self.host_push: HostPushRegistry | None = None
         self.demo_mode = demo_mode
         self.auth_mode = auth_mode
         self.clock = clock or (lambda: datetime.now(UTC))
@@ -240,6 +276,13 @@ class Backend:
         except SessionError as exc:
             raise DomainError(exc.code, exc.message, exc.status) from None
 
+    def _pickup_run(self, operation: Callable[[Session, datetime], T]) -> T:
+        """Run pickup rules and map their failures to contract errors."""
+        try:
+            return self._run(operation)
+        except PickupError as exc:
+            raise DomainError(exc.code, exc.message, exc.status) from None
+
     def join(self, request: JoinRequest) -> JoinResponse:
         """Create a distinct visitor session per docs/API_CONTRACT.md v2."""
         self._require_demo()
@@ -268,6 +311,7 @@ class Backend:
         def operation(session: Session, now: datetime) -> SessionLeftResponse:
             for drop in end_session(session, actor.id):
                 self._refresh(session, drop)
+            sweep(session, now)
             return SessionLeftResponse()
 
         result = self._session_run(operation)
@@ -385,6 +429,7 @@ class Backend:
                     session.add(claim)
             self._refresh(session, drop)
         session.flush()
+        sweep(session, now)
 
     def _response(self, session: Session, drop: Drop) -> DropResponse:
         return DropResponse(
@@ -868,26 +913,225 @@ class Backend:
 
         return self._run(operation)
 
-    def update_claim(self, actor: Actor, claim_id: str, *, pickup: bool = False) -> ClaimResponse:
-        """Release holds or consume a serving on a demo pickup, with safe retries."""
+    def _own_claim(self, session: Session, actor: Actor, claim_id: str) -> Claim:
+        claim = self._get(session, Claim, claim_id)
+        if claim.student_id != actor.id:
+            raise DomainError("not_found", "Not found.", 404)
+        return claim
+
+    def update_claim(
+        self,
+        actor: Actor,
+        claim_id: str,
+        *,
+        pickup: bool = False,
+        verification_id: UUID | None = None,
+    ) -> ClaimResponse:
+        """Release holds, or complete pickup with safe retries.
+
+        Campus-feed pickup needs the latest consistent photo-assisted result and is checked
+        in the same serialized transaction that consumes inventory. Only explicit seeded
+        rehearsal keeps the legacy no-body pickup, behind the existing demo gates.
+        """
         self.require(actor, "student", demo=pickup)
+        completed = False
 
         def operation(session: Session, now: datetime) -> ClaimResponse:
-            claim = self._get(session, Claim, claim_id)
-            if claim.student_id != actor.id:
-                raise DomainError("not_found", "Not found.", 404)
+            nonlocal completed
+            claim = self._own_claim(session, actor, claim_id)
             target = "picked_up" if pickup else "released"
             if claim.status == target:
+                return self._claim_response(claim)
+            drop = self._get(session, Drop, claim.drop_id)
+            if pickup and claim.status != "held":
+                raise DomainError("invalid_state", "This hold is no longer available.")
+            if pickup and drop_mode(drop) == "campus_feed":
+                if verification_id is None:
+                    raise DomainError(
+                        "pickup_verification_required",
+                        "Check a photo of your food before confirming pickup.",
+                    )
+                attempt = own_attempt(session, claim, verification_id)
+                require_confirmable(session, attempt, claim, drop, now)
+                complete_with_result(session, attempt, claim)
+                self._refresh(session, drop)
+                enqueue_host_update(
+                    session, claim, drop, self._counts(session, drop).available, now
+                )
+                completed = True
                 return self._claim_response(claim)
             if claim.status == "held":
                 claim.status = target
                 session.add(claim)
-            elif pickup:
-                raise DomainError("invalid_state", "This hold is no longer available.")
-            self._refresh(session, self._get(session, Drop, claim.drop_id))
+            self._refresh(session, drop)
+            sweep(session, now)
             return self._claim_response(claim)
 
-        return self._run(operation)
+        result = self._pickup_run(operation)
+        if completed:
+            self.deliver_notifications()
+        return result
+
+    def submit_pickup_photo(
+        self, actor: Actor, claim_id: str, photo: bytes, request_id: UUID
+    ) -> PickupVerification:
+        """Check one food photo against the published listing; never consumes inventory.
+
+        Ownership, hold and expiry are checked and a processing attempt is committed before
+        the model call, which runs outside any database transaction. The photo lives only
+        in this call's memory and is never stored, hashed or logged.
+        """
+        self.require(actor, "student")
+        if len(photo) > MAX_PHOTO_BYTES:
+            raise DomainError("photo_too_large", "Photo exceeds 10 MiB.", 413)
+        if not photo or self.validate_photo is None:
+            raise DomainError("invalid_photo", "A validated JPEG or PNG is required.", 422)
+        try:
+            photo = self.validate_photo(photo)
+        except Exception as exc:
+            raise DomainError("invalid_photo", "A valid JPEG or PNG is required.", 422) from exc
+        verifier = self.verify_pickup
+        if (
+            verifier is None
+            or verifier.source not in {"fixture", "openrouter"}
+            or (verifier.source == "fixture" and not self.demo_mode)
+        ):
+            raise DomainError(
+                "pickup_verification_unavailable",
+                "Photo checks are not configured on the server. No result was made.",
+                503,
+            )
+
+        def begin(session: Session, now: datetime) -> tuple[PickupVerification, list | None]:
+            claim = self._own_claim(session, actor, claim_id)
+            drop = self._get(session, Drop, claim.drop_id)
+            if drop_mode(drop) != "campus_feed":
+                raise DomainError("invalid_state", "Photo checks apply to campus-feed holds.")
+            attempt, is_new = start_attempt(session, claim, drop, request_id, verifier.source, now)
+            response = verification_response(session, attempt, claim, drop, now)
+            return response, listing_items(drop) if is_new else None
+
+        started, listing = self._pickup_run(begin)
+        if listing is None:
+            return started  # Same-key retry: same attempt, no second model call.
+        try:
+            raw = verifier.assess(photo, listing)
+            assessment: PickupAssessment | None = PickupAssessment.model_validate(raw.model_dump())
+        except Exception:  # noqa: BLE001 - any provider or shape failure fails closed
+            logger.warning("Pickup photo check failed closed; no result recorded")
+            assessment = None
+
+        def finish(session: Session, now: datetime) -> PickupVerification:
+            attempt = record_result(session, str(started.id), assessment)
+            claim = self._get(session, Claim, attempt.claim_id)
+            drop = self._get(session, Drop, claim.drop_id)
+            return verification_response(session, attempt, claim, drop, now)
+
+        return self._pickup_run(finish)
+
+    def pickup_verification(self, actor: Actor, claim_id: str) -> PickupVerificationResponse:
+        """The latest attempt on the caller's own claim, with authority derived now."""
+        self.require(actor, "student")
+
+        def operation(session: Session, now: datetime) -> PickupVerificationResponse:
+            claim = self._own_claim(session, actor, claim_id)
+            attempt = latest_attempt(session, claim.id)
+            if attempt is None:
+                return PickupVerificationResponse(verification=None)
+            drop = self._get(session, Drop, claim.drop_id)
+            return PickupVerificationResponse(
+                verification=verification_response(session, attempt, claim, drop, now)
+            )
+
+        return self._pickup_run(operation)
+
+    def request_pickup_review(
+        self, actor: Actor, claim_id: str, verification_id: UUID
+    ) -> PickupVerification:
+        """Explicitly ask the host to review; never completes pickup or extends the hold."""
+        self.require(actor, "student")
+
+        def operation(session: Session, now: datetime) -> PickupVerification:
+            claim = self._own_claim(session, actor, claim_id)
+            drop = self._get(session, Drop, claim.drop_id)
+            attempt = request_review(
+                session, own_attempt(session, claim, verification_id), claim, drop, now
+            )
+            return verification_response(session, attempt, claim, drop, now)
+
+        return self._pickup_run(operation)
+
+    def pickup_reviews(self, actor: Actor, drop_id: str) -> HostPickupReviewsResponse:
+        """Pending de-identified review requests on the host's own drop only."""
+
+        def operation(session: Session, now: datetime) -> HostPickupReviewsResponse:
+            drop = self._owned_drop(session, actor, drop_id)
+            return HostPickupReviewsResponse(
+                reviews=pending_reviews(session, drop, now), server_time=now
+            )
+
+        return self._pickup_run(operation)
+
+    def decide_pickup_review(
+        self, actor: Actor, drop_id: str, verification_id: str, decision: str
+    ) -> HostPickupReview:
+        """Record an explicit human decision; approval consumes the live hold atomically."""
+        approved = False
+
+        def operation(session: Session, now: datetime) -> HostPickupReview:
+            nonlocal approved
+            drop = self._owned_drop(session, actor, drop_id)
+            attempt = session.get(PickupAttempt, verification_id)
+            if attempt is None or attempt.drop_id != drop.id:
+                raise DomainError("not_found", "Not found.", 404)
+            claim = self._get(session, Claim, attempt.claim_id)
+            approved = decide_review(session, attempt, claim, drop, decision, now)
+            if approved:
+                self._refresh(session, drop)
+                enqueue_host_update(
+                    session, claim, drop, self._counts(session, drop).available, now
+                )
+            return review_response(attempt, claim)
+
+        result = self._pickup_run(operation)
+        if approved:
+            self.deliver_notifications()
+        return result
+
+    def host_push_status(self, actor: Actor) -> PushTokenResponse:
+        """Backend truth for the host's opt-in, so client flags cannot outlive a reset."""
+        self.require(actor, "host")
+        try:
+            return PushTokenResponse(
+                registered=self.host_push is not None and self.host_push.has(actor.id)
+            )
+        except (RuntimeError, ValueError, SQLAlchemyError):
+            raise self._push_unavailable() from None
+
+    def register_host_push(self, actor: Actor, token: str) -> PushTokenResponse:
+        """Bind a device to the authenticated host only; no target ID is ever accepted."""
+        self.require(actor, "host")
+        if self.host_push is None:
+            raise self._push_unavailable()
+        try:
+            self.host_push.register(actor.id, token)
+        except (RuntimeError, ValueError, SQLAlchemyError):
+            raise self._push_unavailable() from None
+        return PushTokenResponse(registered=True)
+
+    def forget_host_push(self, actor: Actor) -> PushTokenResponse:
+        """Opt out; deferred host updates recheck this before any send."""
+        self.require(actor, "host")
+        if self.host_push is not None:
+            try:
+                self.host_push.forget(actor.id)
+            except (RuntimeError, ValueError, SQLAlchemyError):
+                raise self._push_unavailable() from None
+        return PushTokenResponse(registered=False)
+
+    @staticmethod
+    def _push_unavailable() -> DomainError:
+        return DomainError("provider_unavailable", "Encrypted push registration unavailable.", 503)
 
     def tick(self, advance_seconds: int = 0) -> datetime:
         """Expire deadlines and widen exhausted waves under the same lock as claims."""
@@ -926,45 +1170,68 @@ class Backend:
 
     def deliver_notifications(self) -> None:
         """Retry committed outbox entries without ever sending private metadata."""
-        if self.notify is None:
-            return
         # Hold coordination while sending to avoid overlapping workers delivering the same entry.
         # Adapters must have bounded timeouts and deduplicate by invite_id for crash recovery.
         # Feed announcements pass their outbox ID with mode="campus_feed"; a crash between an
         # accepted send and commit can repeat one, which the stable per-drop topic collapses.
+        # Host pickup updates are likewise at-least-once across a crash; their stable
+        # per-event tag and topic collapse such a repeat on the host's device.
         with transaction(self.engine) as session:
             now = self._now(session)
-            for invite in session.exec(
-                select(Invite).where(Invite.notification_sent == False, Invite.status == "sent")
-            ).all():
-                if now >= timestamp(invite.expires_at):
-                    continue
+            if self.notify is not None:
+                self._deliver_student_alerts(session, now)
+            if self.notify_host is not None:
+                self._deliver_host_updates(session)
+
+    def _deliver_student_alerts(self, session: Session, now: datetime) -> None:
+        for invite in session.exec(
+            select(Invite).where(Invite.notification_sent == False, Invite.status == "sent")
+        ).all():
+            if now >= timestamp(invite.expires_at):
+                continue
+            try:
+                self.notify(invite.id, invite.student_id, invite.drop_id)
+            except Exception:  # noqa: BLE001 - adapter failures must not roll back committed waves
+                logger.warning("Notification delivery deferred")
+            else:
+                invite.notification_sent = True
+                session.add(invite)
+        for record in session.exec(
+            select(FeedNotification).where(FeedNotification.sent == False)
+        ).all():
+            drop = session.get(Drop, record.drop_id)
+            if drop is None or drop.status not in FEED_STATUSES:
+                continue  # Never announce food that is already gone.
+            if not announcement_eligible(session, record, drop, now):
+                # Consume cancelled opportunities without transport; keep their unique pair
+                # so restoring consent/preferences cannot resurrect a stale announcement.
+                record.sent = True
+                session.add(record)
+                continue
+            try:
+                self.notify(record.id, record.student_id, record.drop_id, mode="campus_feed")
+            except Exception:  # noqa: BLE001 - adapter failures must not roll back publishes
+                logger.warning("Notification delivery deferred")
+            else:
+                record.sent = True
+                session.add(record)
+
+    def _deliver_host_updates(self, session: Session) -> None:
+        """Send each committed pickup event to its publishing host, once when accepted."""
+        for record in session.exec(
+            select(HostPickupNotification).where(HostPickupNotification.sent == False)
+        ).all():
+            drop = session.get(Drop, record.drop_id)
+            if drop is not None and drop.host_id == record.host_id:
                 try:
-                    self.notify(invite.id, invite.student_id, invite.drop_id)
-                except Exception:  # noqa: BLE001 - adapter failures must not roll back committed waves
-                    logger.warning("Notification delivery deferred")
-                else:
-                    invite.notification_sent = True
-                    session.add(invite)
-            for record in session.exec(
-                select(FeedNotification).where(FeedNotification.sent == False)
-            ).all():
-                drop = session.get(Drop, record.drop_id)
-                if drop is None or drop.status not in FEED_STATUSES:
-                    continue  # Never announce food that is already gone.
-                if not announcement_eligible(session, record, drop, now):
-                    # Consume cancelled opportunities without transport; keep their unique pair
-                    # so restoring consent/preferences cannot resurrect a stale announcement.
-                    record.sent = True
-                    session.add(record)
+                    self.notify_host(
+                        record.id, record.host_id, record.drop_id, host_update_body(record)
+                    )
+                except Exception:  # noqa: BLE001 - adapter failures must not roll back pickups
+                    logger.warning("Host pickup update deferred")
                     continue
-                try:
-                    self.notify(record.id, record.student_id, record.drop_id, mode="campus_feed")
-                except Exception:  # noqa: BLE001 - adapter failures must not roll back publishes
-                    logger.warning("Notification delivery deferred")
-                else:
-                    record.sent = True
-                    session.add(record)
+            record.sent = True
+            session.add(record)
 
     def active_drop(self, actor: Actor) -> DemoActiveDropResponse:
         """Discover the latest demo drop without sharing browser state or recipient details."""
@@ -979,12 +1246,21 @@ class Backend:
         """Replace demo state atomically; any reset ends every visitor session."""
         self.require_presenter(actor)
         with transaction(self.engine) as session:
-            registrations = SQLModel.metadata.tables.get("pushregistration")
-            if registrations is not None and inspect(session.connection()).has_table(
-                registrations.name
+            for name in PUSH_REGISTRATION_TABLES:
+                registrations = SQLModel.metadata.tables.get(name)
+                if registrations is not None and inspect(session.connection()).has_table(name):
+                    session.execute(delete(registrations))
+            for model in (
+                HostPickupNotification,
+                PickupAttempt,
+                FeedNotification,
+                Claim,
+                Invite,
+                Wave,
+                Drop,
+                VisitorSession,
+                Student,
             ):
-                session.execute(delete(registrations))
-            for model in (FeedNotification, Claim, Invite, Wave, Drop, VisitorSession, Student):
                 session.execute(delete(model))
             coordinator = session.get(Coordinator, 1)
             coordinator.clock_offset = 0
