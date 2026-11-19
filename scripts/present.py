@@ -153,8 +153,10 @@ def push_banner(mode: str) -> str:
 
 
 def build_fingerprint(env: dict[str, str]) -> str:
-    """Rebuild only when web sources or public build values change."""
+    """Rebuild when sources or build-time proxy and public values change."""
     digest = hashlib.sha256(DEMO_ENV["NEXT_PUBLIC_API_URL"].encode())
+    origin = env.get("OWL_API_ORIGIN") or "http://127.0.0.1:8017"
+    digest.update(f"OWL_API_ORIGIN={origin}".encode())
     for name in (
         "NEXT_PUBLIC_FIREBASE_CONFIG",
         "NEXT_PUBLIC_FIREBASE_VAPID_KEY",

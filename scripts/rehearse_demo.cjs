@@ -46,6 +46,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     "Never run this capture with live notification transport",
   );
   assert.equal(health.is_demo, true);
+  assert.equal(health.vision, "fixture");
   await request("/demo/reset", "demo-host", "POST");
   mark("clean_reset", { students: 30 });
   const photo = `${out}/synthetic-photo.png`;
@@ -75,6 +76,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         viewport,
         recordVideo: { dir: `${out}/raw`, size: viewport },
       });
+      contexts[name].setDefaultTimeout(20000);
       pages[name] = await contexts[name].newPage();
       origins[name] = performance.now();
       pages[name].on("pageerror", (err) => errors.push(err.message));
@@ -98,7 +100,9 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     }
     await Promise.all(
       Object.entries(pages).map(([name, page]) =>
-        page.goto(`${web}/${name === "projector" ? "dispatch" : name}`),
+        page.goto(
+          `${web}/${name === "projector" ? "dispatch" : name === "student" ? "student?persona=A" : name}`,
+        ),
       ),
     );
     const { host, projector, student } = pages;
@@ -119,12 +123,13 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     await shot("01-host-estimate", host);
     await pause(2500);
     await host.getByTestId("servings-input").fill("2");
+    await host.getByTestId("host-rehearsal-option-DEMO-ORIGIN").click();
     for (const name of ["covered", "two-hours", "untouched"])
       await host.getByTestId(`safety-check-${name}`).check();
     await pause(3000);
     await host.getByTestId("publish-drop-button").click();
-    await text("persona-status-A", "sent");
-    await text("persona-status-C", "sent");
+    await text("persona-status-A", "Invited");
+    await text("persona-status-C", "Invited");
     const { drop_id: dropId } = await request("/demo/active-drop");
     const drop = await request(`/drops/${dropId}`);
     assert.equal(drop.vision_source, "fixture");
@@ -136,11 +141,11 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     );
     assert.match(
       await projector.getByTestId("persona-row-B").innerText(),
-      /allergen_conflict/,
+      /dietary filter/i,
     );
     assert.match(
       await projector.getByTestId("persona-row-D").innerText(),
-      /out_of_range/,
+      /outside current ring/i,
     );
     await shot("02-wave1", projector);
     await pause(5000);
@@ -149,7 +154,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       "3. C sees an invitation",
       "This is C's own browser invite. No physical phone or push receipt is being shown.",
     );
-    await student.getByTestId("switch-demo-student-C").click();
+    await student.goto(`${web}/student?persona=C`);
     await student.locator('[data-testid^="invite-card-"]').waitFor();
     await student
       .locator('[data-testid^="invite-card-"]')
@@ -162,7 +167,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       "4. B has no invitation",
       "The dairy hard filter excludes B before ranking; B receives no simulated invite.",
     );
-    await student.getByTestId("switch-demo-student-B").click();
+    await student.goto(`${web}/student?persona=B`);
     await student.getByTestId("no-invites-card").waitFor();
     await student
       .getByTestId("no-invites-card")
@@ -179,7 +184,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       "5. A holds one serving",
       "The claim uses the real application route. Two available becomes one available plus one held.",
     );
-    await student.getByTestId("switch-demo-student-A").click();
+    await student.goto(`${web}/student?persona=A`);
     const claim = student
       .locator('[data-testid^="claim-invite-button-"]')
       .first();
@@ -202,8 +207,8 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       "Real elapsed waiting: no demo clock advance. Scheduler checks every 10 seconds.",
     );
     await text("dispatch-ring-k", "k = 4");
-    await text("persona-status-C", "expired");
-    await text("persona-status-D", "sent");
+    await text("persona-status-C", "Invite expired");
+    await text("persona-status-D", "Invited");
     mark("wave2_observed", { ring_k: 4 });
     await scene(
       "projector",
@@ -237,7 +242,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       "8. D sees the second-wave invitation",
       "A separate synthetic identity sees only its own invite. Physical push verification remains pending.",
     );
-    await student.getByTestId("switch-demo-student-D").click();
+    await student.goto(`${web}/student?persona=D`);
     await student.locator('[data-testid^="invite-card-"]').waitFor();
     await student
       .locator('[data-testid^="invite-card-"]')
@@ -250,8 +255,13 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       "9. Reset for the next run",
       "Reset clears drops, invites and holds; 30 synthetic students are seeded again.",
     );
-    await host.getByTestId("demo-reset-button").click();
-    await host.getByText("Reset complete:", { exact: false }).waitFor();
+    await projector.getByTestId("presenter-toggle").click();
+    await projector.getByTestId("presenter-load-seeded").click();
+    await projector.getByTestId("presenter-load-seeded").click();
+    await projector
+      .getByTestId("presenter-notice")
+      .filter({ hasText: "Seeded rehearsal loaded" })
+      .waitFor();
     assert.equal((await request("/demo/active-drop")).drop_id, null);
     assert.equal(
       (await request("/students/me/invites", "demo-student-A")).invites.length,

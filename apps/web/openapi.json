@@ -1979,6 +1979,85 @@
         }
       }
     },
+    "/buildings": {
+      "get": {
+        "summary": "Buildings",
+        "description": "List verified campus buildings; public map data needing no location permission.",
+        "operationId": "buildings_buildings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildingsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request Entity Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/demo/areas": {
       "get": {
         "summary": "Areas",
@@ -2480,6 +2559,132 @@
         "required": ["photo"],
         "title": "Body_create_drop_drops_post"
       },
+      "Building": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^ksu-marietta-[a-z0-9]+(-[a-z0-9]+)*$",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "building_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Building Code"
+          },
+          "building_number": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Building Number"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["academic", "student_life", "housing", "other"],
+            "title": "Category"
+          },
+          "latitude": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Longitude"
+          },
+          "verification_status": {
+            "type": "string",
+            "const": "verified",
+            "title": "Verification Status",
+            "default": "verified"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/BuildingSource"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Sources"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "category",
+          "latitude",
+          "longitude",
+          "sources"
+        ],
+        "title": "Building",
+        "description": "A verified campus building; public map data, never a student's location."
+      },
+      "BuildingSource": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "pattern": "^https?://",
+            "title": "Url"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["url", "title"],
+        "title": "BuildingSource"
+      },
+      "BuildingsResponse": {
+        "properties": {
+          "campus": {
+            "type": "string",
+            "const": "marietta",
+            "title": "Campus",
+            "default": "marietta"
+          },
+          "buildings": {
+            "items": {
+              "$ref": "#/components/schemas/Building"
+            },
+            "type": "array",
+            "title": "Buildings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["buildings"],
+        "title": "BuildingsResponse"
+      },
       "ClaimResponse": {
         "properties": {
           "id": {
@@ -2844,7 +3049,7 @@
           },
           "building_code": {
             "type": "string",
-            "maxLength": 40,
+            "maxLength": 80,
             "minLength": 1,
             "title": "Building Code"
           },
@@ -2852,6 +3057,12 @@
             "type": "string",
             "maxLength": 80,
             "title": "Room",
+            "default": ""
+          },
+          "pickup_instructions": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Pickup Instructions",
             "default": ""
           },
           "expires_in_minutes": {
@@ -2895,6 +3106,21 @@
           "room": {
             "type": "string",
             "title": "Room"
+          },
+          "pickup_instructions": {
+            "type": "string",
+            "title": "Pickup Instructions",
+            "default": ""
+          },
+          "building": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Building"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "vision": {
             "$ref": "#/components/schemas/VisionEstimate"
@@ -3122,12 +3348,8 @@
           },
           "area": {
             "type": "string",
-            "enum": [
-              "demo-venue",
-              "demo-next-door",
-              "demo-across-quad",
-              "demo-far-side"
-            ],
+            "maxLength": 80,
+            "minLength": 1,
             "title": "Area"
           },
           "allergens": {
@@ -3290,6 +3512,8 @@
         "properties": {
           "building_code": {
             "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
             "title": "Building Code"
           }
         },
@@ -3397,12 +3621,8 @@
           },
           "area": {
             "type": "string",
-            "enum": [
-              "demo-venue",
-              "demo-next-door",
-              "demo-across-quad",
-              "demo-far-side"
-            ],
+            "maxLength": 80,
+            "minLength": 1,
             "title": "Area"
           },
           "allergens": {
@@ -3745,12 +3965,8 @@
           },
           "area": {
             "type": "string",
-            "enum": [
-              "demo-venue",
-              "demo-next-door",
-              "demo-across-quad",
-              "demo-far-side"
-            ],
+            "maxLength": 80,
+            "minLength": 1,
             "title": "Area"
           },
           "ring_distance": {

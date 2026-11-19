@@ -13,14 +13,16 @@ from services.api import main
 from services.api.providers import fcm
 
 
-@pytest.fixture
-def push_app(monkeypatch, tmp_path):
+@pytest.fixture(params=["fixture", "openrouter"])
+def push_app(monkeypatch, tmp_path, request):
     """Compose the real app in FCM mode with the transport mocked; nothing leaves the test."""
     monkeypatch.setattr(main, "load_dotenv", lambda: None)
     for key, value in {
         "AUTH_MODE": "demo",
         "DEMO_MODE": "true",
-        "VISION_PROVIDER": "fixture",
+        "VISION_PROVIDER": request.param,
+        "OPENROUTER_API_KEY": "synthetic-test-key",
+        "OPENROUTER_VISION_MODEL": "google/gemini-3.8-flash",
         "NOTIFICATION_PROVIDER": "fcm",
         "FCM_ALLOWED_STUDENT_IDS": "",
         "FIREBASE_SERVICE_ACCOUNT_JSON": "{}",
@@ -32,6 +34,25 @@ def push_app(monkeypatch, tmp_path):
     sent: list[dict] = []
 
     def transport(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "openrouter.ai":
+            payload = {
+                "items": [
+                    {"name": "Mock campus pizza", "portion_unit": "slice", "count_estimate": 2}
+                ],
+                "servings_estimate": 2,
+                "servings_low": 1,
+                "servings_high": 3,
+                "allergens_likely": ["dairy", "gluten"],
+                "diet_tags": [],
+                "confidence": 0.9,
+                "notes": "Mock transport only, not measured live vision",
+            }
+            return httpx.Response(
+                200,
+                json={"choices": [{"message": {"content": json.dumps(payload)}}]},
+                request=request,
+            )
+        assert request.url.host == "fcm.googleapis.com"
         sent.append(json.loads(request.content)["message"])
         return httpx.Response(200, json={"name": "projects/x/messages/1"}, request=request)
 
@@ -54,6 +75,9 @@ def publish_two_servings(client: TestClient) -> None:
         headers=bearer("demo-host"),
         files={"photo": ("p.png", pixels.getvalue(), "image/png")},
     ).json()
+    assert drop["vision_source"] == client.get("/health").json()["vision"]
+    if drop["vision_source"] == "openrouter":
+        assert drop["vision"]["items"][0]["name"] == "Mock campus pizza"
     review = {
         "servings_final": 2,
         "allergens_final": ["dairy", "gluten"],

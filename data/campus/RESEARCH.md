@@ -96,9 +96,11 @@ matching OSM building centroid.
 | University Columns 1–10, Activity Center | — | — | see dataset (11 records) | 0.0–2.3 m |
 
 ICM-vs-OSM agreement: 42 comparable records, mean 5.7 m, maximum 19.3 m —
-consistent with pin-vs-centroid placement differences on large buildings, and
-far below the ~57 m width of an H3 resolution-11 cell, so both sources imply
-the same dispatch cell.
+consistent with pin-vs-centroid placement differences on large buildings.
+This is positional agreement only: proximity does not guarantee the same H3
+cell across a cell boundary. The registry computes the resolution-11 H3 cell
+from each chosen dataset coordinate; it does not infer inclusion or coordinate
+accuracy guarantees from these cross-check distances.
 
 Official PPM grid cells (cross-check of location, not used as coordinates):
 Academic M-9, Administration O-7, Architecture P-14, Atrium N-11, Civil and

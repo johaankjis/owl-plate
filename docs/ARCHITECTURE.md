@@ -12,6 +12,15 @@ How Owl Plate fits together. Update this file when the shape of the system chang
 
 ## System overview
 
+Milestone 1 campus locations load from `data/campus/marietta.json` through
+`services/api/campus/registry.py`. Only verified records enter public
+`GET /buildings` and resolution-11 H3 matching. Drops snapshot the building,
+room and pickup instructions. Students choose/check in at buildings without
+GPS; walking links target the chosen building coordinate with no origin.
+The explicitly labeled synthetic directory and seeded A–E rehearsal remain
+separate. Dataset provenance and positional limits live in
+`data/campus/RESEARCH.md`; coordinate agreement does not guarantee H3 inclusion.
+
 ```
  apps/web (Next.js PWA on Vercel, HTTPS)
    /host       camera -> upload -> review estimate -> publish

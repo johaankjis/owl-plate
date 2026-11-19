@@ -328,6 +328,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/buildings": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Buildings
+     * @description List verified campus buildings; public map data needing no location permission.
+     */
+    get: operations["buildings_buildings_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/demo/areas": {
     parameters: {
       query?: never;
@@ -465,6 +485,55 @@ export interface components {
        * @default
        */
       host_note: string;
+    };
+    /**
+     * Building
+     * @description A verified campus building; public map data, never a student's location.
+     */
+    Building: {
+      /** Id */
+      id: string;
+      /** Name */
+      name: string;
+      /** Building Code */
+      building_code?: string | null;
+      /** Building Number */
+      building_number?: string | null;
+      /**
+       * Category
+       * @enum {string}
+       */
+      category: "academic" | "student_life" | "housing" | "other";
+      /** Latitude */
+      latitude: number;
+      /** Longitude */
+      longitude: number;
+      /**
+       * Verification Status
+       * @default verified
+       * @constant
+       */
+      verification_status: "verified";
+      /** Sources */
+      sources: components["schemas"]["BuildingSource"][];
+    };
+    /** BuildingSource */
+    BuildingSource: {
+      /** Url */
+      url: string;
+      /** Title */
+      title: string;
+    };
+    /** BuildingsResponse */
+    BuildingsResponse: {
+      /**
+       * Campus
+       * @default marietta
+       * @constant
+       */
+      campus: "marietta";
+      /** Buildings */
+      buildings: components["schemas"]["Building"][];
     };
     /** ClaimResponse */
     ClaimResponse: {
@@ -668,6 +737,11 @@ export interface components {
        */
       room: string;
       /**
+       * Pickup Instructions
+       * @default
+       */
+      pickup_instructions: string;
+      /**
        * Expires In Minutes
        * @default 45
        */
@@ -690,6 +764,12 @@ export interface components {
       building_code: string;
       /** Room */
       room: string;
+      /**
+       * Pickup Instructions
+       * @default
+       */
+      pickup_instructions: string;
+      building?: components["schemas"]["Building"] | null;
       vision: components["schemas"]["VisionEstimate"];
       /**
        * Vision Source
@@ -788,12 +868,8 @@ export interface components {
     JoinRequest: {
       /** Nickname */
       nickname: string;
-      /**
-       * Area
-       * @enum {string}
-       */
-      area:
-        "demo-venue" | "demo-next-door" | "demo-across-quad" | "demo-far-side";
+      /** Area */
+      area: string;
       /** Allergens */
       allergens?: (
         | "dairy"
@@ -921,12 +997,8 @@ export interface components {
       id: string;
       /** Nickname */
       nickname: string;
-      /**
-       * Area
-       * @enum {string}
-       */
-      area:
-        "demo-venue" | "demo-next-door" | "demo-across-quad" | "demo-far-side";
+      /** Area */
+      area: string;
       /** Allergens */
       allergens: (
         | "dairy"
@@ -1083,12 +1155,8 @@ export interface components {
     VisitorDecision: {
       /** Nickname */
       nickname: string;
-      /**
-       * Area
-       * @enum {string}
-       */
-      area:
-        "demo-venue" | "demo-next-door" | "demo-across-quad" | "demo-far-side";
+      /** Area */
+      area: string;
       /** Ring Distance */
       ring_distance: number | null;
       /** Status */
@@ -2599,6 +2667,80 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  buildings_buildings_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BuildingsResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
         };
       };
       /** @description Service Unavailable */

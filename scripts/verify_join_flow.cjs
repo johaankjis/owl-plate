@@ -46,6 +46,7 @@ async function call(path, token, method = "GET") {
 
   const health = await (await fetch(`${api}/health`)).json();
   assert.equal(health.notifications, "simulated");
+  assert.equal(health.vision, "fixture");
   assert.equal(health.is_demo, true);
   const reset = await fetch(`${api}/demo/reset`, {
     method: "POST",
@@ -66,6 +67,7 @@ async function call(path, token, method = "GET") {
   });
   const open = async (name, viewport) => {
     const context = await browser.newContext({ viewport });
+    context.setDefaultTimeout(20000);
     const page = await context.newPage();
     page.on("pageerror", (e) => errors.push(`${name}: ${e.message}`));
     page.on("console", (m) => {
@@ -128,6 +130,7 @@ async function call(path, token, method = "GET") {
     await host.getByTestId("servings-input").waitFor();
     await host.getByTestId("vision-source-label").waitFor();
     await host.getByTestId("servings-input").fill("2");
+    await host.getByTestId("host-rehearsal-option-DEMO-ORIGIN").click();
     assert.equal(
       await host.getByTestId("publish-drop-button").isDisabled(),
       true,
