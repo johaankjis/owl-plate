@@ -3,6 +3,7 @@
 import logging
 import re
 from collections.abc import Callable
+from uuid import UUID
 
 import httpx
 from cryptography.fernet import Fernet, InvalidToken
@@ -10,6 +11,7 @@ from sqlalchemy import Engine, delete
 from sqlmodel import Field, Session, SQLModel
 
 from services.api.db.session import transaction
+from services.api.providers.notifications import NotificationMode
 
 logger = logging.getLogger(__name__)
 
@@ -75,8 +77,15 @@ class FcmNotifications:
         self.is_allowed = is_allowed
         self.access_token = access_token
 
-    def notify(self, invite_id: str, student_id: str, drop_id: str) -> None:
-        """Send one push per new invite; transport acceptance is not proof of phone receipt."""
+    def notify(
+        self,
+        invite_id: str,
+        student_id: str,
+        drop_id: str,
+        *,
+        mode: NotificationMode = "seeded_waves",
+    ) -> None:
+        """Send one push per new invite or feed drop; acceptance is not proof of receipt."""
         if not self.is_allowed(student_id) or not self.vault.has(student_id):
             logger.info("Simulated notification (no opted-in device)")
             return
@@ -86,7 +95,7 @@ class FcmNotifications:
                 response = client.post(
                     f"https://fcm.googleapis.com/v1/projects/{self.project_id}/messages:send",
                     headers={"Authorization": f"Bearer {self.access_token()}"},
-                    json={"message": push_message(token, invite_id, drop_id)},
+                    json={"message": push_message(token, invite_id, drop_id, mode)},
                 )
                 response.raise_for_status()
         except (httpx.HTTPError, ValueError):
@@ -94,13 +103,39 @@ class FcmNotifications:
         logger.info("Real push accepted by FCM")
 
 
-def push_message(token: str, invite_id: str, drop_id: str) -> dict:
-    """Keep lock-screen text generic; the tap opens this student's own invite."""
+FEED_TTL_SECONDS = 900
+
+
+def push_message(
+    token: str, invite_id: str, drop_id: str, mode: NotificationMode = "seeded_waves"
+) -> dict:
+    """Keep lock-screen text generic; the tap opens the drop or this student's own invite.
+
+    Feed alerts carry only the drop ID and a stable per-drop tag and Web Push topic, so a
+    retried or duplicated send collapses on the device instead of buzzing twice.
+    """
+    if mode == "campus_feed":
+        drop_key = UUID(drop_id).hex  # 32 URL-safe characters, the Web Push Topic limit.
+        return {
+            "token": token,
+            "data": {
+                "title": "Owl Plate: Free food on campus",
+                "body": "New food was just posted. Tap to view it.",
+                "notification_mode": "campus_feed",
+                "drop_id": drop_id,
+                "tag": f"owl-drop-{drop_id}",
+                "url": f"/student?drop={drop_id}",
+            },
+            "webpush": {
+                "headers": {"TTL": str(FEED_TTL_SECONDS), "Urgency": "high", "Topic": drop_key},
+            },
+        }
     return {
         "token": token,
         "data": {
             "title": "Owl Plate: Food nearby",
             "body": "You have a new invite. Tap to view it.",
+            "notification_mode": "seeded_waves",
             "invite_id": invite_id,
             "drop_id": drop_id,
             "url": f"/student?invite={invite_id}",

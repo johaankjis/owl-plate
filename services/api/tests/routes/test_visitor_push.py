@@ -95,20 +95,19 @@ def publish_two_servings(client: TestClient) -> None:
     client.post(f"/drops/{drop['id']}/publish", headers=bearer("demo-host")).raise_for_status()
 
 
-def test_only_opted_in_visitor_gets_one_push_for_their_invite(push_app) -> None:
+def register(client: TestClient, token: str, device: str) -> None:
+    response = client.post("/students/me/push-token", headers=bearer(token), json={"token": device})
+    assert response.status_code == 200
+
+
+def test_feed_push_once_per_opted_in_visitor_per_drop(push_app) -> None:
     app, sent = push_app
+    backend = app.state.backend
     with TestClient(app) as client:
         client.post("/demo/reset", headers=bearer("demo-projector"), json={"scenario": "visitors"})
-        opted = client.post("/sessions", json={"nickname": "Ivy", "area": "demo-venue"}).json()
-        quiet = client.post("/sessions", json={"nickname": "Max", "area": "demo-venue"}).json()
-        assert (
-            client.post(
-                "/students/me/push-token",
-                headers=bearer(opted["token"]),
-                json={"token": "ivy-device"},
-            ).status_code
-            == 200
-        )
+        opted = client.post("/sessions", json={"nickname": "Ivy"}).json()
+        quiet = client.post("/sessions", json={"nickname": "Max"}).json()
+        register(client, opted["token"], "ivy-device")
         seeded = client.post(
             "/students/me/push-token",
             headers=bearer("demo-student-A"),
@@ -118,19 +117,49 @@ def test_only_opted_in_visitor_gets_one_push_for_their_invite(push_app) -> None:
         assert sent == []
 
         publish_two_servings(client)
-        app.state.backend.deliver_notifications()
-        app.state.backend.tick()
-
-        mine = client.get("/students/me/invites", headers=bearer(opted["token"])).json()
-        invite_id = mine["invites"][0]["id"]
+        drop_id = client.get("/students/me/feed", headers=bearer(opted["token"])).json()["drops"][
+            0
+        ]["drop"]["id"]
         assert len(sent) == 1, "exactly one real push, only for the opted-in visitor"
-        assert sent[0]["token"] == "ivy-device"
-        assert sent[0]["data"]["invite_id"] == invite_id
-        assert sent[0]["data"]["url"] == f"/student?invite={invite_id}"
-        assert "Ivy" not in json.dumps(sent[0]) and "Max" not in json.dumps(sent[0])
-        assert client.get("/students/me/invites", headers=bearer(quiet["token"])).json()[
-            "invites"
-        ], "the non-opted visitor is still invited, with a simulated notification"
+        message = sent[0]
+        assert message["token"] == "ivy-device"
+        assert message["data"]["notification_mode"] == "campus_feed"
+        assert message["data"]["drop_id"] == drop_id and "invite_id" not in message["data"]
+        assert message["data"]["url"] == f"/student?drop={drop_id}"
+        assert message["data"]["tag"] == f"owl-drop-{drop_id}"
+        assert message["webpush"]["headers"]["Topic"] == drop_id.replace("-", "")
+        assert "Ivy" not in json.dumps(message) and "Max" not in json.dumps(message)
+
+        late = client.post("/sessions", json={"nickname": "Late"}).json()
+        register(client, late["token"], "late-device")
+        register(client, quiet["token"], "max-device")
+        register(client, opted["token"], "ivy-rotated-device")
+        backend.deliver_notifications()
+        backend.tick()
+        client.post("/demo/tick", headers=bearer("demo-host"), json={"advance_seconds": 120})
+        held = client.post(f"/drops/{drop_id}/reserve", headers=bearer(late["token"])).json()
+        client.post(f"/claims/{held['id']}/release", headers=bearer(late["token"]))
+        client.post(f"/drops/{drop_id}/reserve", headers=bearer(opted["token"]))
+        client.post("/demo/tick", headers=bearer("demo-host"), json={"advance_seconds": 700})
+        client.post(f"/drops/{drop_id}/publish", headers=bearer("demo-host"))
+        client.get("/students/me/feed", headers=bearer(late["token"]))
+        assert len(sent) == 1, "no sends on polls, ticks, late joins, reserve or expiry"
 
         client.delete("/sessions/me", headers=bearer(opted["token"])).raise_for_status()
-        assert not app.state.backend.is_visitor(opted["student"]["id"])
+        assert not backend.is_visitor(opted["student"]["id"])
+
+
+def test_seeded_rehearsal_push_keeps_legacy_invite_payload(push_app) -> None:
+    app, sent = push_app
+    with TestClient(app) as client:
+        client.post("/demo/reset", headers=bearer("demo-projector"), json={"scenario": "seeded"})
+        joined = client.post("/sessions", json={"nickname": "Ivy", "area": "demo-venue"}).json()
+        register(client, joined["token"], "ivy-device")
+        publish_two_servings(client)
+        app.state.backend.tick()
+        mine = client.get("/students/me/invites", headers=bearer(joined["token"])).json()
+        invite_id = mine["invites"][0]["id"]
+        assert len(sent) == 1
+        assert sent[0]["data"]["notification_mode"] == "seeded_waves"
+        assert sent[0]["data"]["invite_id"] == invite_id
+        assert sent[0]["data"]["url"] == f"/student?invite={invite_id}"

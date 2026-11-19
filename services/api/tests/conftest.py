@@ -114,10 +114,9 @@ def campus_path(tmp_path):
     return path
 
 
-@pytest.fixture
-def campus_client(tmp_path, campus_path):
+def _campus_client(tmp_path, campus_path, scenario):
     """HTTP client over a backend whose campus registry came from the temp dataset."""
-    engine = create_database(f"sqlite:///{tmp_path}/campus.db")
+    engine = create_database(f"sqlite:///{tmp_path}/campus-{scenario}.db")
     service = Backend(
         engine,
         analyze=fixture_vision,
@@ -127,9 +126,21 @@ def campus_client(tmp_path, campus_path):
         clock=lambda: datetime(2026, 11, 18, 12, tzinfo=UTC),
         campus=load_registry(campus_path),
     )
-    service.reset(service.actor("demo-host"), "visitors")
+    service.reset(service.actor("demo-host"), scenario)
     app = FastAPI()
     app.include_router(build_router(service))
     with TestClient(app) as client:
         yield client
     engine.dispose()
+
+
+@pytest.fixture
+def campus_client(tmp_path, campus_path):
+    """Explicit seeded rehearsal over real buildings: rings, check-ins and waves."""
+    yield from _campus_client(tmp_path, campus_path, "seeded")
+
+
+@pytest.fixture
+def feed_client(tmp_path, campus_path):
+    """Default visitors scenario: the location-free campus-wide feed."""
+    yield from _campus_client(tmp_path, campus_path, "visitors")

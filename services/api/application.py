@@ -19,6 +19,7 @@ from services.api.db.models import (
     Coordinator,
     DemoSettings,
     Drop,
+    FeedNotification,
     Invite,
     Student,
     VisitorSession,
@@ -27,8 +28,22 @@ from services.api.db.models import (
 from services.api.db.session import transaction
 from services.api.dispatch import CandidateView, DropView, plan_wave
 from services.api.dispatch.config import INITIAL_RING, MAX_RING, RING_STEP
+from services.api.feed import (
+    FEED_STATUSES,
+    MODE_BY_SCENARIO,
+    active_feed_drops,
+    distribution_rows,
+    drop_mode,
+    enqueue_announcements,
+    feed_invite,
+    has_active_hold,
+    own_feed_claim,
+    preference_conflict,
+    unavailable_reason,
+)
 from services.api.schemas.api import (
     BuildingsResponse,
+    CampusDistributionResponse,
     ClaimResponse,
     Counts,
     DemoActiveDropResponse,
@@ -36,8 +51,11 @@ from services.api.schemas.api import (
     DemoResetResponse,
     DemoStatusResponse,
     DispatchResponse,
+    DistributionMode,
     DropEdit,
     DropResponse,
+    FeedDrop,
+    FeedResponse,
     InviteResponse,
     InvitesResponse,
     JoinRequest,
@@ -74,6 +92,7 @@ VisionCallable = Callable[
 ALLERGENS = ["dairy", "egg", "gluten", "peanut", "tree_nut", "soy", "fish", "shellfish", "sesame"]
 RELIGIOUS_DIETS = {"halal", "kosher", "pork_free"}
 SEED_PATH = Path(__file__).resolve().parents[2] / "data/seed/demo.json"
+HOLD_DURATION = timedelta(minutes=10)
 
 
 @dataclass(frozen=True)
@@ -128,7 +147,7 @@ class Backend:
         *,
         analyze: VisionCallable | None = None,
         validate_photo: Callable[[bytes], bytes] | None = None,
-        notify: Callable[[str, str, str], None] | None = None,
+        notify: Callable[..., None] | None = None,
         demo_mode: bool = False,
         auth_mode: str = "",
         clock: Callable[[], datetime] | None = None,
@@ -225,7 +244,12 @@ class Backend:
         self._require_demo()
         return self._session_run(
             lambda session, now: create_session(
-                session, origin=self.origin, now=now, request=request, campus=self.campus
+                session,
+                origin=self.origin,
+                now=now,
+                request=request,
+                campus=self.campus,
+                location_free=self._mode(session) == "campus_feed",
             )
         )
 
@@ -280,6 +304,10 @@ class Backend:
         """Read the presenter-selected scenario, defaulting to v1 behavior."""
         settings = session.get(DemoSettings, 1)
         return settings.scenario if settings else "seeded"
+
+    def _mode(self, session: Session) -> DistributionMode:
+        """Map the presenter scenario to the distribution new publications snapshot."""
+        return MODE_BY_SCENARIO[self._scenario(session)]
 
     def _active_drop(self, session: Session) -> Drop | None:
         """Find the latest non-expired drop so presenters never share browser state."""
@@ -374,6 +402,7 @@ class Backend:
             counts=self._counts(session, drop),
             created_at=timestamp(drop.data["created_at"]),
             expires_at=timestamp(drop.data["expires_at"]) if drop.data["expires_at"] else None,
+            distribution_mode=drop_mode(drop),
             is_demo=self.demo_mode,
         )
 
@@ -453,6 +482,8 @@ class Backend:
                     "created_at": now.isoformat(),
                     "expires_at": None,
                     "expires_in_minutes": 45,
+                    # Provisional for drafts; publication takes the binding snapshot.
+                    "distribution_mode": self._mode(session),
                 },
             )
             session.add(drop)
@@ -577,6 +608,23 @@ class Backend:
             )
         session.flush()
 
+    def _feed_wave(self, session: Session, drop: Drop, now: datetime) -> Wave:
+        """Create the single internal wave that feed reservation invites hang off.
+
+        It satisfies existing foreign keys only; it invites nobody and never widens.
+        """
+        wave = Wave(
+            id=str(uuid4()),
+            drop_id=drop.id,
+            number=1,
+            ring_k=0,
+            planned_at=now.isoformat(),
+            decisions={"invited": {}, "excluded": {}},
+        )
+        session.add(wave)
+        session.flush()
+        return wave
+
     def publish(self, actor: Actor, drop_id: str) -> DropResponse:
         """Commit the first wave once even when a host retries publish."""
 
@@ -593,16 +641,23 @@ class Backend:
                 and safety.untouched
             ):
                 raise DomainError("safety_review_required", "Confirm all three food safety checks.")
+            mode = self._mode(session)
             drop.status = "live"
             drop.data = {
                 **drop.data,
+                "distribution_mode": mode,
+                "published_at": now.isoformat(),
                 "expires_at": (
                     now + timedelta(minutes=drop.data["expires_in_minutes"])
                 ).isoformat(),
             }
             session.add(drop)
             session.flush()
-            self._wave(session, drop, INITIAL_RING, 1, now)
+            if mode == "campus_feed":
+                self._feed_wave(session, drop, now)
+                enqueue_announcements(session, drop, now)
+            else:
+                self._wave(session, drop, INITIAL_RING, 1, now)
             return self._response(session, drop)
 
         result = self._run(operation)
@@ -619,7 +674,7 @@ class Backend:
                 self.require(actor, "projector", demo=True)
                 allowed = True
             if actor.role == "student":
-                allowed |= (
+                allowed |= (drop_mode(drop) == "campus_feed" and drop.status in FEED_STATUSES) or (
                     session.exec(
                         select(Invite).where(
                             Invite.drop_id == drop.id, Invite.student_id == actor.id
@@ -636,6 +691,7 @@ class Backend:
     def invites(self, actor: Actor) -> InvitesResponse:
         """Keep each student's invitation history scoped to their identity."""
         self.require(actor, "student")
+        # Feed reservations ride on internal invites; they belong to /students/me/feed.
         return self._run(
             lambda s, now: InvitesResponse(
                 invites=[
@@ -645,9 +701,113 @@ class Backend:
                         .where(Invite.student_id == actor.id)
                         .order_by(Invite.sent_at, Invite.id)
                     ).all()
+                    if drop_mode(self._get(s, Drop, invite.drop_id)) == "seeded_waves"
                 ]
             )
         )
+
+    def feed(self, actor: Actor) -> FeedResponse:
+        """List every active campus drop, judged against only the caller's preferences."""
+        self.require(actor, "student")
+
+        def operation(session: Session, now: datetime) -> FeedResponse:
+            student = self._get(session, Student, actor.id)
+            listings = []
+            for drop in active_feed_drops(session):
+                claim = own_feed_claim(session, actor.id, drop.id)
+                counts = self._counts(session, drop)
+                reason = unavailable_reason(session, student, drop, claim, counts.available)
+                listings.append(
+                    FeedDrop(
+                        drop=self._response(session, drop),
+                        can_reserve=reason is None,
+                        unavailable_reason=reason,
+                        claim=self._claim_response(claim) if claim else None,
+                    )
+                )
+            return FeedResponse(drops=listings, server_time=now, is_demo=self.demo_mode)
+
+        return self._run(operation)
+
+    def reserve(self, actor: Actor, drop_id: str) -> ClaimResponse:
+        """Hold one serving from the feed atomically; retries return the same hold.
+
+        No invitation, presence or notification is required, and none is created.
+        """
+        self.require(actor, "student")
+
+        def operation(session: Session, now: datetime) -> ClaimResponse:
+            drop = session.get(Drop, drop_id)
+            if drop is None or drop.status == "draft" or drop_mode(drop) != "campus_feed":
+                raise DomainError("not_found", "Not found.", 404)
+            previous = own_feed_claim(session, actor.id, drop.id)
+            if previous and previous.status in {"held", "picked_up"}:
+                return self._claim_response(previous)
+            if drop.status == "expired":
+                raise DomainError("drop_expired", "This food is no longer available.")
+            if previous:
+                raise DomainError("invalid_state", "You already reserved this one.")
+            conflict = preference_conflict(self._get(session, Student, actor.id), drop)
+            if conflict == "allergen_conflict":
+                raise DomainError("allergen_conflict", "This food conflicts with your allergens.")
+            if conflict == "diet_mismatch":
+                raise DomainError(
+                    "diet_mismatch", "This food does not meet your dietary preferences."
+                )
+            if has_active_hold(session, actor.id):
+                raise DomainError("active_claim", "You already have a held spot.")
+            if self._counts(session, drop).available <= 0:
+                raise DomainError("capacity", "You just missed this one. More soon.")
+            held_until = min(now + HOLD_DURATION, timestamp(drop.data["expires_at"]))
+            invite = feed_invite(session, drop.id, actor.id)
+            if invite is None:
+                wave = session.exec(select(Wave).where(Wave.drop_id == drop.id)).first()
+                wave = wave or self._feed_wave(session, drop, now)
+                invite = Invite(
+                    id=str(uuid4()),
+                    drop_id=drop.id,
+                    wave_id=wave.id,
+                    student_id=actor.id,
+                    sent_at=now.isoformat(),
+                    expires_at=held_until.isoformat(),
+                    # Never an outbox entry: reserving must not notify anyone.
+                    notification_sent=True,
+                )
+            invite.status = "claimed"
+            session.add(invite)
+            session.flush()
+            claim = Claim(
+                id=str(uuid4()),
+                invite_id=invite.id,
+                drop_id=drop.id,
+                student_id=actor.id,
+                created_at=now.isoformat(),
+                held_until=held_until.isoformat(),
+            )
+            session.add(claim)
+            self._refresh(session, drop)
+            return self._claim_response(claim)
+
+        return self._run(operation)
+
+    def distribution(self, actor: Actor) -> CampusDistributionResponse:
+        """Projector aggregate of host pickup points; contains no student geography."""
+        self.require(actor, "projector", demo=True)
+
+        def operation(session: Session, now: datetime) -> CampusDistributionResponse:
+            drops = active_feed_drops(session)
+            counts, buildings = distribution_rows(drops, lambda drop: self._counts(session, drop))
+            return CampusDistributionResponse(
+                distribution_mode=self._mode(session),
+                active_drops=len(drops),
+                joined_students=visitor_count(session),
+                counts=counts,
+                buildings=buildings,
+                server_time=now,
+                is_demo=True,
+            )
+
+        return self._run(operation)
 
     def claim(self, actor: Actor, invite_id: str) -> ClaimResponse:
         """Hold capacity atomically and return the existing hold on retry."""
@@ -741,6 +901,8 @@ class Backend:
             now = self._now(session)
             self._expire(session, now)
             for drop in session.exec(select(Drop).where(Drop.status == "live")).all():
+                if drop_mode(drop) == "campus_feed":
+                    continue  # Announced once at publish; the feed never widens or re-sends.
                 waves = session.exec(
                     select(Wave).where(Wave.drop_id == drop.id).order_by(Wave.number)
                 ).all()
@@ -767,6 +929,8 @@ class Backend:
             return
         # Hold coordination while sending to avoid overlapping workers delivering the same entry.
         # Adapters must have bounded timeouts and deduplicate by invite_id for crash recovery.
+        # Feed announcements pass their outbox ID with mode="campus_feed"; a crash between an
+        # accepted send and commit can repeat one, which the stable per-drop topic collapses.
         with transaction(self.engine) as session:
             now = self._now(session)
             for invite in session.exec(
@@ -781,6 +945,19 @@ class Backend:
                 else:
                     invite.notification_sent = True
                     session.add(invite)
+            for record in session.exec(
+                select(FeedNotification).where(FeedNotification.sent == False)
+            ).all():
+                drop = session.get(Drop, record.drop_id)
+                if drop is None or drop.status not in FEED_STATUSES:
+                    continue  # Never announce food that is already gone.
+                try:
+                    self.notify(record.id, record.student_id, record.drop_id, mode="campus_feed")
+                except Exception:  # noqa: BLE001 - adapter failures must not roll back publishes
+                    logger.warning("Notification delivery deferred")
+                else:
+                    record.sent = True
+                    session.add(record)
 
     def active_drop(self, actor: Actor) -> DemoActiveDropResponse:
         """Discover the latest demo drop without sharing browser state or recipient details."""
@@ -800,7 +977,7 @@ class Backend:
                 registrations.name
             ):
                 session.execute(delete(registrations))
-            for model in (Claim, Invite, Wave, Drop, VisitorSession, Student):
+            for model in (FeedNotification, Claim, Invite, Wave, Drop, VisitorSession, Student):
                 session.execute(delete(model))
             coordinator = session.get(Coordinator, 1)
             coordinator.clock_offset = 0
@@ -858,6 +1035,9 @@ class Backend:
         real = self.campus.get(building_code) is not None
 
         def operation(session: Session, now: datetime) -> datetime:
+            if self._mode(session) == "campus_feed":
+                # The feed never records student location; check-ins are seeded rehearsal only.
+                raise DomainError("invalid_state", "Check-ins are not used for the campus feed.")
             student = self._get(session, Student, actor.id)
             until = now + timedelta(hours=2)
             student.data = {
@@ -887,6 +1067,23 @@ class Backend:
                 i.student_id: i
                 for i in session.exec(select(Invite).where(Invite.drop_id == drop.id)).all()
             }
+            mode = drop_mode(drop)
+            if mode == "campus_feed":
+                return DispatchResponse(
+                    drop_id=drop.id,
+                    status=drop.status,
+                    origin_cell=drop.data["origin_cell"],
+                    ring_k=0,
+                    counts=self._counts(session, drop),
+                    waves=[],
+                    personas=[],
+                    visitors=[],
+                    scenario=self._scenario(session),
+                    distribution_mode=mode,
+                    next_wave_at=None,
+                    server_time=now,
+                    is_demo=True,
+                )
             last = waves[-1] if waves else None
             scenario = self._scenario(session)
             personas = []
@@ -943,6 +1140,7 @@ class Backend:
                 personas=personas,
                 visitors=visitors,
                 scenario=scenario,
+                distribution_mode=mode,
                 next_wave_at=next_wave_at,
                 server_time=now,
                 is_demo=True,

@@ -13,6 +13,11 @@ Diet = Literal["vegetarian", "vegan", "halal", "kosher", "pork_free"]
 BuildingCategory = Literal["academic", "student_life", "housing", "other"]
 # A canonical campus building ID or a legacy rehearsal ID; the server validates which.
 LocationId = Annotated[str, Field(min_length=1, max_length=80)]
+# Snapshotted per drop at publication; legacy drops without a snapshot are seeded waves.
+DistributionMode = Literal["campus_feed", "seeded_waves"]
+UnavailableReason = Literal[
+    "allergen_conflict", "diet_mismatch", "active_claim", "capacity", "already_reserved"
+]
 
 
 class ContractModel(BaseModel):
@@ -112,6 +117,7 @@ class DropResponse(ContractModel):
     created_at: datetime
     expires_at: datetime | None
     allergen_notice: str = "may contain, confirm with host"
+    distribution_mode: DistributionMode = "seeded_waves"
     is_demo: bool
 
 
@@ -170,10 +176,14 @@ class DemoAreasResponse(ContractModel):
 
 
 class JoinRequest(ContractModel):
-    """Everything a visitor shares to join; no contact details or real identity."""
+    """Everything a visitor shares to join; no contact details, identity or location.
+
+    ``area`` is deprecated: honored only for explicit seeded rehearsal callers and ignored
+    (never stored) in the campus-feed scenario.
+    """
 
     nickname: str = Field(min_length=1, max_length=24, pattern=r"^[A-Za-z0-9 _.-]+$")
-    area: LocationId
+    area: LocationId | None = None
     allergens: list[Allergen] = Field(default_factory=list)
     diets: list[Diet] = Field(default_factory=list)
 
@@ -181,7 +191,7 @@ class JoinRequest(ContractModel):
 class SessionStudent(ContractModel):
     id: UUID
     nickname: str
-    area: LocationId
+    area: LocationId | None = None
     allergens: list[Allergen]
     diets: list[Diet]
     kind: Literal["visitor"] = "visitor"
@@ -203,7 +213,7 @@ class VisitorDecision(ContractModel):
     """Projector row for a joined visitor; never includes which allergen or diet applied."""
 
     nickname: str
-    area: LocationId
+    area: LocationId | None = None
     ring_distance: int | None
     status: str
     reason_codes: list[str]
@@ -221,7 +231,42 @@ class DispatchResponse(ContractModel):
     personas: list[PersonaDecision]
     visitors: list[VisitorDecision] = Field(default_factory=list)
     scenario: Scenario = "seeded"
+    distribution_mode: DistributionMode = "seeded_waves"
     next_wave_at: datetime | None
+    server_time: datetime
+    is_demo: bool
+
+
+class FeedDrop(ContractModel):
+    """One campus-wide listing judged only against the caller's own preferences."""
+
+    drop: DropResponse
+    can_reserve: bool
+    unavailable_reason: UnavailableReason | None
+    claim: ClaimResponse | None
+
+
+class FeedResponse(ContractModel):
+    drops: list[FeedDrop]
+    server_time: datetime
+    is_demo: bool
+
+
+class BuildingDistribution(ContractModel):
+    """Host pickup aggregate per building; never a student position."""
+
+    building_code: str
+    building: Building | None
+    active_drops: int
+    counts: Counts
+
+
+class CampusDistributionResponse(ContractModel):
+    distribution_mode: DistributionMode
+    active_drops: int
+    joined_students: int
+    counts: Counts
+    buildings: list[BuildingDistribution]
     server_time: datetime
     is_demo: bool
 

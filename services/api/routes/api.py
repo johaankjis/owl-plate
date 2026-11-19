@@ -10,6 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from services.api.application import Actor, Backend, DomainError
 from services.api.schemas.api import (
     BuildingsResponse,
+    CampusDistributionResponse,
     ClaimResponse,
     DemoActiveDropResponse,
     DemoAreasResponse,
@@ -22,6 +23,7 @@ from services.api.schemas.api import (
     DropEdit,
     DropResponse,
     ErrorResponse,
+    FeedResponse,
     InviteResponse,
     InvitesResponse,
     JoinRequest,
@@ -100,6 +102,21 @@ def build_router(
     def dispatch(drop_id: UUID, actor: Identity) -> DispatchResponse:
         """Restrict synthetic map output to the demo projector."""
         return invoke(backend.dispatch, actor, str(drop_id))
+
+    @router.get("/students/me/feed", response_model=FeedResponse)
+    def feed(actor: Identity) -> FeedResponse:
+        """List every active campus drop for the caller; no location is involved."""
+        return invoke(backend.feed, actor)
+
+    @router.post("/drops/{drop_id}/reserve", response_model=ClaimResponse)
+    def reserve(drop_id: UUID, actor: Identity) -> ClaimResponse:
+        """Hold a serving straight from the feed through the atomic service boundary."""
+        return invoke(backend.reserve, actor, str(drop_id))
+
+    @router.get("/distribution", response_model=CampusDistributionResponse)
+    def distribution(actor: Identity) -> CampusDistributionResponse:
+        """Projector aggregate by host building; never student positions."""
+        return invoke(backend.distribution, actor)
 
     @router.get("/students/me/invites", response_model=InvitesResponse)
     def invites(actor: Identity) -> InvitesResponse:

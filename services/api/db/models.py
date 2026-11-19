@@ -63,8 +63,27 @@ class Claim(SQLModel, table=True):
     held_until: str
 
 
+class FeedNotification(SQLModel, table=True):
+    """Durable once-per-student/drop announcement outbox for campus-feed drops.
+
+    The unique pair makes duplicate or concurrent publishes and ticks unable to enqueue
+    a second announcement; nothing about the student's location is recorded.
+    """
+
+    __table_args__ = (UniqueConstraint("drop_id", "student_id"),)
+    id: str = Field(primary_key=True)
+    drop_id: str = Field(foreign_key="drop.id", index=True)
+    student_id: str = Field(foreign_key="student.id", index=True)
+    created_at: str
+    sent: bool = False
+
+
 class VisitorSession(SQLModel, table=True):
-    """Track live visitor joins; only the token digest is ever stored."""
+    """Track live visitor joins; only the token digest is ever stored.
+
+    ``area`` is an empty string for location-free campus-feed joins; the column keeps its
+    original non-null shape so existing local databases need no migration.
+    """
 
     __table_args__ = (UniqueConstraint("token_hash"), UniqueConstraint("nickname_key"))
     sequence: int | None = Field(default=None, primary_key=True)

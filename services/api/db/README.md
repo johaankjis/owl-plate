@@ -23,8 +23,12 @@ app.include_router(build_router(backend))
 
 `analyze(photo: bytes, host_note: str = '') -> tuple[VisionEstimate, Literal['fixture', 'gemini']]`
 is synchronous. `validate_photo(photo: bytes) -> bytes` validates/resizes in memory.
-`notify(invite_id: str, student_id: str, drop_id: str) -> None` is synchronous;
-no external send occurs unless this adapter is supplied. No photo bytes are stored.
+`notify(invite_id: str, student_id: str, drop_id: str, *, mode='seeded_waves') -> None`
+is synchronous; no external send occurs unless this adapter is supplied. No photo bytes
+are stored. Seeded waves pass the legacy invite ID positionally. Campus-feed drops call
+it once per eligible student at publish with the `FeedNotification` outbox ID and
+`mode='campus_feed'`; the push links `/student?drop=<id>` with a stable per-drop tag and
+Web Push topic. Ticks, joins, reservations and registrations never enqueue more.
 Push-token registration returns 503 until manager supplies encrypted storage/access.
 
 The service owns SQLModel table creation via `create_database`; no root wiring changes needed.
