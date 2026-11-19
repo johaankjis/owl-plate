@@ -1,0 +1,1318 @@
+{
+  "schema_version": 1,
+  "campus": "marietta",
+  "buildings": [
+    {
+      "id": "ksu-marietta-academic-building",
+      "name": "Academic Building",
+      "building_code": "H",
+      "building_number": "830",
+      "category": "academic",
+      "latitude": 33.938224,
+      "longitude": -84.520565,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225446888",
+          "title": "OpenStreetMap way 225446888 — H - Academic Building (independent coordinate cross-check)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-administration-building",
+      "name": "Administration Building",
+      "building_code": "B",
+      "building_number": "900",
+      "category": "other",
+      "latitude": 33.939728,
+      "longitude": -84.51972,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225473229",
+          "title": "OpenStreetMap way 225473229 — B - Administration Building (independent coordinate cross-check)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-architecture-building",
+      "name": "Architecture Building",
+      "building_code": "N",
+      "building_number": "640",
+      "category": "academic",
+      "latitude": 33.936323,
+      "longitude": -84.51898,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225446884",
+          "title": "OpenStreetMap way 225446884 — N - Architecture (independent coordinate cross-check)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-atrium-building",
+      "name": "Atrium Building",
+      "building_code": "J",
+      "building_number": "680",
+      "category": "student_life",
+      "latitude": 33.937548,
+      "longitude": -84.520201,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225446898",
+          "title": "OpenStreetMap way 225446898 — J - Atrium Building (independent coordinate cross-check)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-civil-environmental-engineering",
+      "name": "Civil and Environmental Engineering",
+      "building_code": "L",
+      "building_number": "655",
+      "category": "academic",
+      "latitude": 33.935721,
+      "longitude": -84.520279,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225476484",
+          "title": "OpenStreetMap way 225476484 — L - Civil Engineering Technology (independent coordinate cross-check)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-crawford-lab-building",
+      "name": "Crawford Lab Building",
+      "building_code": "E",
+      "building_number": "846",
+      "category": "academic",
+      "latitude": 33.939084,
+      "longitude": -84.521627,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225473227",
+          "title": "OpenStreetMap way 225473227 — E - Crawford Lab Building (independent coordinate cross-check)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-design-1-building",
+      "name": "Design 1 Building",
+      "building_code": "I1",
+      "building_number": "824",
+      "category": "academic",
+      "latitude": 33.938054,
+      "longitude": -84.521294,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225477834",
+          "title": "OpenStreetMap way 225477834 — I1 - Design 1 Building (independent coordinate cross-check)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-design-2-building",
+      "name": "Design 2 Building",
+      "building_code": "I2",
+      "building_number": "820",
+      "category": "academic",
+      "latitude": 33.937812,
+      "longitude": -84.521357,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225491447",
+          "title": "OpenStreetMap way 225491447 — I2 - Design 2 Building (independent coordinate cross-check)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-heatherington-engineering-lab",
+      "name": "Heatherington Engineering Lab",
+      "building_code": "G",
+      "building_number": "834",
+      "category": "academic",
+      "latitude": 33.938466,
+      "longitude": -84.521224,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225473222",
+          "title": "OpenStreetMap way 225473222 — G - Engineering Lab Building (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://www.kennesaw.edu/news/stories/2025/dale-and-ann-heatherington-endowed-chair.php",
+          "title": "KSU News (2025) — Engineering Lab Building renamed Heatherington Engineering Lab"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-engineering-technology-center",
+      "name": "Engineering Technology Center",
+      "building_code": "Q",
+      "building_number": "840",
+      "category": "academic",
+      "latitude": 33.938321,
+      "longitude": -84.522645,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225446894",
+          "title": "OpenStreetMap way 225446894 — Q - Engineering Technology Center (independent coordinate cross-check)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-hornet-hub",
+      "name": "Hornet Hub",
+      "building_code": null,
+      "building_number": "836",
+      "category": "student_life",
+      "latitude": 33.938939,
+      "longitude": -84.52314,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/1504299650",
+          "title": "OpenStreetMap way 1504299650 — New Building - Needs Offical Name (mapped footprint of the Hornet Hub; primary coordinate)"
+        },
+        {
+          "url": "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?singleLine=836%20Polytechnic%20Lane%2C%20Marietta%2C%20GA%2030060&f=json",
+          "title": "ArcGIS World Geocoder PointAddress match for 836 Polytechnic Lane (official Hornet Hub address; road-side point 45 m south of footprint)"
+        },
+        {
+          "url": "https://www.kennesaw.edu/news/stories/2026/hornet-hub-gives-ksu-competition-teams-space-innovate.php",
+          "title": "KSU News (June 2026) — Hornet Hub officially opened on the Marietta Campus"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-lawrence-v-johnson-library",
+      "name": "Lawrence V. Johnson Library",
+      "building_code": "C",
+      "building_number": "910",
+      "category": "academic",
+      "latitude": 33.939215,
+      "longitude": -84.520192,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225446886",
+          "title": "OpenStreetMap way 225446886 — C - Lawrence V. Johnson Library (independent coordinate cross-check)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-mathematics-building",
+      "name": "Mathematics Building",
+      "building_code": "D",
+      "building_number": "850",
+      "category": "academic",
+      "latitude": 33.93994,
+      "longitude": -84.520758,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225473217",
+          "title": "OpenStreetMap way 225473217 — D - Mathematics Building (independent coordinate cross-check)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-shore-innovation-center",
+      "name": "Robin and Doug Shore Innovation Center",
+      "building_code": null,
+      "building_number": "970",
+      "category": "academic",
+      "latitude": 33.939934,
+      "longitude": -84.518824,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?singleLine=970%20Technology%20Way%2C%20Marietta%2C%20GA%2030060&f=json",
+          "title": "ArcGIS World Geocoder PointAddress match for 970 Technology Way (official Shore Innovation Center address; primary coordinate)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/colleges-departments/coles/centers/shore-entrepreneurship-center/index.php",
+          "title": "KSU Shore Entrepreneurship Center — Marietta campus address: Robin and Doug Shore Innovation Center, 970 Technology Way"
+        },
+        {
+          "url": "https://www.kennesaw.edu/news/stories/2026/ksu-opens-robin-and-doug-shore-innovation-center.php",
+          "title": "KSU News (April 2026) — Shore Innovation Center opened; described as rising over Technology Way"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-w-clair-harris-textile-center",
+      "name": "W. Clair Harris Textile Center",
+      "building_code": "M",
+      "building_number": "650",
+      "category": "academic",
+      "latitude": 33.936802,
+      "longitude": -84.519854,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225446895",
+          "title": "OpenStreetMap way 225446895 — M - W. Claire Harris Textile Center (independent coordinate cross-check)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-joe-mack-wilson-student-center",
+      "name": "Joe Mack Wilson Student Center",
+      "building_code": "A",
+      "building_number": "860",
+      "category": "student_life",
+      "latitude": 33.940665,
+      "longitude": -84.520395,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225473219",
+          "title": "OpenStreetMap way 225473219 — A - Joe Mack Wilson Student Center (independent coordinate cross-check)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-event-center",
+      "name": "Event Center",
+      "building_code": "S2",
+      "building_number": "635",
+      "category": "student_life",
+      "latitude": 33.935836,
+      "longitude": -84.518353,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225476499",
+          "title": "OpenStreetMap way 225476499 — S2 - Gymnasium (independent coordinate cross-check)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-recreation-wellness-center",
+      "name": "Recreation and Wellness Center",
+      "building_code": "S1",
+      "building_number": "955",
+      "category": "student_life",
+      "latitude": 33.941248,
+      "longitude": -84.517667,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225470232",
+          "title": "OpenStreetMap way 225470232 — S1 - Recreation and Wellness Center (independent coordinate cross-check)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-stingers-dining-hall",
+      "name": "Stingers Dining Hall",
+      "building_code": "X",
+      "building_number": "806",
+      "category": "student_life",
+      "latitude": 33.937381,
+      "longitude": -84.522317,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225473216",
+          "title": "OpenStreetMap way 225473216 — X - Stingers (independent coordinate cross-check)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-hornet-village-100",
+      "name": "Hornet Village 100",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.936889,
+      "longitude": -84.522161,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225476495",
+          "title": "OpenStreetMap way 225476495 — R701 - Hornet Village 1 (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-hornet-village-200",
+      "name": "Hornet Village 200",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.93648,
+      "longitude": -84.521506,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225476505",
+          "title": "OpenStreetMap way 225476505 — R702 - Hornet Village 2 (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-howell-hall",
+      "name": "Howell Hall",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.938134,
+      "longitude": -84.518943,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225446897",
+          "title": "OpenStreetMap way 225446897 — R1 - Howell Residence Hall (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-housing-residence-life-office",
+      "name": "Housing and Residence Life Office",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.938406,
+      "longitude": -84.518098,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225448610",
+          "title": "OpenStreetMap way 225448610 — R10 - Housing Center (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-university-commons-100",
+      "name": "University Commons 100",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.937855,
+      "longitude": -84.51754,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225456285",
+          "title": "OpenStreetMap way 225456285 — R100 - Commons 100 (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-university-commons-200",
+      "name": "University Commons 200",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.937503,
+      "longitude": -84.517226,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225448605",
+          "title": "OpenStreetMap way 225448605 — R200 - Commons 200 (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-university-commons-300",
+      "name": "University Commons 300",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.93714,
+      "longitude": -84.516943,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225448609",
+          "title": "OpenStreetMap way 225448609 — R300 - Commons 300 (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-university-commons-400",
+      "name": "University Commons 400",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.936825,
+      "longitude": -84.516845,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225448607",
+          "title": "OpenStreetMap way 225448607 — R400 - Commons 400 (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-university-commons-500",
+      "name": "University Commons 500",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.936841,
+      "longitude": -84.517334,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225448608",
+          "title": "OpenStreetMap way 225448608 — R500 - Commons 500 (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-university-commons-600",
+      "name": "University Commons 600",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.937244,
+      "longitude": -84.517529,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225448611",
+          "title": "OpenStreetMap way 225448611 — R600 - Commons 600 (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-university-courtyard-1000",
+      "name": "University Courtyard 1000",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.939297,
+      "longitude": -84.516138,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225442776",
+          "title": "OpenStreetMap way 225442776 — R1000 - Courtyard 1000 (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-university-courtyard-2000",
+      "name": "University Courtyard 2000",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.938906,
+      "longitude": -84.516965,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225442498",
+          "title": "OpenStreetMap way 225442498 — R2000 - Courtyard 2000 (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-university-courtyard-3000",
+      "name": "University Courtyard 3000",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.939247,
+      "longitude": -84.517166,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225442499",
+          "title": "OpenStreetMap way 225442499 — R3000 - Courtyard 3000 (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-university-columns-1",
+      "name": "University Columns 1",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.935767,
+      "longitude": -84.52483,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225473210",
+          "title": "OpenStreetMap way 225473210 — University Columns 1 (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-university-columns-2",
+      "name": "University Columns 2",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.935558,
+      "longitude": -84.524761,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225473207",
+          "title": "OpenStreetMap way 225473207 — University Columns 2 (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-university-columns-3",
+      "name": "University Columns 3",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.935366,
+      "longitude": -84.524683,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225473225",
+          "title": "OpenStreetMap way 225473225 — University Columns 3 (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-university-columns-4",
+      "name": "University Columns 4",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.935151,
+      "longitude": -84.524617,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225473221",
+          "title": "OpenStreetMap way 225473221 — University Columns 4 (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-university-columns-5",
+      "name": "University Columns 5",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.935083,
+      "longitude": -84.524851,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225473211",
+          "title": "OpenStreetMap way 225473211 — University Columns 5 (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-university-columns-6",
+      "name": "University Columns 6",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.93526,
+      "longitude": -84.524991,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225473213",
+          "title": "OpenStreetMap way 225473213 — University Columns 6 (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-university-columns-7",
+      "name": "University Columns 7",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.935454,
+      "longitude": -84.52507,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225473220",
+          "title": "OpenStreetMap way 225473220 — University Columns 7 (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-university-columns-8",
+      "name": "University Columns 8",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.935493,
+      "longitude": -84.525325,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225473228",
+          "title": "OpenStreetMap way 225473228 — University Columns 8 (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-university-columns-9",
+      "name": "University Columns 9",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.935385,
+      "longitude": -84.52558,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225473208",
+          "title": "OpenStreetMap way 225473208 — University Columns 9 (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-university-columns-10",
+      "name": "University Columns 10",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.935186,
+      "longitude": -84.525662,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225473209",
+          "title": "OpenStreetMap way 225473209 — University Columns 10 (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    },
+    {
+      "id": "ksu-marietta-university-columns-activity-center",
+      "name": "University Columns Activity Center",
+      "building_code": null,
+      "building_number": null,
+      "category": "housing",
+      "latitude": 33.934256,
+      "longitude": -84.525614,
+      "verification_status": "verified",
+      "sources": [
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+          "title": "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number"
+        },
+        {
+          "url": "https://maps.kennesaw.edu/",
+          "title": "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+          "title": "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)"
+        },
+        {
+          "url": "https://www.openstreetmap.org/way/225487078",
+          "title": "OpenStreetMap way 225487078 — University Columns Activity Center (independent coordinate cross-check)"
+        },
+        {
+          "url": "https://campus.kennesaw.edu/offices-services/housing/living-options/index.php",
+          "title": "KSU Housing and Residence Life — Living Options (current Marietta housing communities)"
+        }
+      ]
+    }
+  ]
+}
