@@ -1,5 +1,38 @@
 # ARCHITECTURE.md
 
+## Campus-feed successor
+
+`docs/CAMPUS_FEED_CONTRACT.md` supersedes nearby-only behavior for normal
+`visitors` sessions. Students join with a nickname and optional dietary
+preferences, without an area, presence or GPS. `GET /students/me/feed` lists
+all unexpired published campus-feed drops, including disabled incompatible
+choices; `POST /drops/{id}/reserve` needs no invitation. Hosts alone choose
+verified pickup buildings. Release, expiry and pickup share the serialized
+inventory boundary, with one active hold per student across drops.
+
+A drop snapshots `distribution_mode` at publication. Feed publication creates
+one durable announcement per eligible alerts-on joined student/drop, without
+geographic gating or capacity waves. The payload discriminator is
+`notification_mode=campus_feed|seeded_waves`; feed notifications open
+`/student?drop=<id>` with a stable drop tag. Feed reads, late joins, reservations,
+release and ticks do not generate another announcement. The demo projector's
+`GET /distribution` aggregates inventory by host building and never returns
+student geographic rows. Walking links use only the exact pickup destination.
+
+The explicit `seeded` scenario retains `seeded_waves`: deterministic A–E
+personas, pure dispatch planning, hard dietary filters, ring widening and invite
+deep links. The legacy wave model below describes that scenario. Legacy drops
+without a stored mode default to seeded waves. A reset clears sessions, drops,
+holds and outbox consistently while preserving survey rows and keeping survey
+collection off in the demo launcher.
+
+`docs/FEED_HANDOFF.md` records integration status, exact source commits, local
+verification and remaining physical-device/live-provider limits. Fixture/log
+browser evidence never establishes physical push receipt, measured live vision
+accuracy or a paired It tap. The canonical checkout has unrelated dirty cloud
+doc edits: when transferring this clean commit, the manager must preserve and
+reapply those edits if this architecture update overlaps them.
+
 ## Milestone v1 implementation contract
 
 `docs/API_CONTRACT.md` is the frozen implementation reference for the current milestone and resolves the scheduling ambiguities below. In particular: invites do not reserve servings; declining an invite changes its opportunity, not inventory. A tick widens only after the current wave has no outstanding sent invitations. At max ring, remaining food is not marked consumed. Holds and pickups drive inventory counts transactionally.

@@ -598,6 +598,337 @@
         }
       }
     },
+    "/students/me/feed": {
+      "get": {
+        "summary": "Feed",
+        "description": "List every active campus drop for the caller; no location is involved.",
+        "operationId": "feed_students_me_feed_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/drops/{drop_id}/reserve": {
+      "post": {
+        "summary": "Reserve",
+        "description": "Hold a serving straight from the feed through the atomic service boundary.",
+        "operationId": "reserve_drops__drop_id__reserve_post",
+        "parameters": [
+          {
+            "name": "drop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Drop Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/distribution": {
+      "get": {
+        "summary": "Distribution",
+        "description": "Projector aggregate by host building; never student positions.",
+        "operationId": "distribution_distribution_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampusDistributionResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/students/me/invites": {
       "get": {
         "summary": "Invites",
@@ -2643,6 +2974,36 @@
         "title": "Building",
         "description": "A verified campus building; public map data, never a student's location."
       },
+      "BuildingDistribution": {
+        "properties": {
+          "building_code": {
+            "type": "string",
+            "title": "Building Code"
+          },
+          "building": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Building"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "active_drops": {
+            "type": "integer",
+            "title": "Active Drops"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/Counts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["building_code", "building", "active_drops", "counts"],
+        "title": "BuildingDistribution",
+        "description": "Host pickup aggregate per building; never a student position."
+      },
       "BuildingSource": {
         "properties": {
           "url": {
@@ -2684,6 +3045,54 @@
         "type": "object",
         "required": ["buildings"],
         "title": "BuildingsResponse"
+      },
+      "CampusDistributionResponse": {
+        "properties": {
+          "distribution_mode": {
+            "type": "string",
+            "enum": ["campus_feed", "seeded_waves"],
+            "title": "Distribution Mode"
+          },
+          "active_drops": {
+            "type": "integer",
+            "title": "Active Drops"
+          },
+          "joined_students": {
+            "type": "integer",
+            "title": "Joined Students"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/Counts"
+          },
+          "buildings": {
+            "items": {
+              "$ref": "#/components/schemas/BuildingDistribution"
+            },
+            "type": "array",
+            "title": "Buildings"
+          },
+          "server_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Server Time"
+          },
+          "is_demo": {
+            "type": "boolean",
+            "title": "Is Demo"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "distribution_mode",
+          "active_drops",
+          "joined_students",
+          "counts",
+          "buildings",
+          "server_time",
+          "is_demo"
+        ],
+        "title": "CampusDistributionResponse"
       },
       "ClaimResponse": {
         "properties": {
@@ -2975,6 +3384,12 @@
             "title": "Scenario",
             "default": "seeded"
           },
+          "distribution_mode": {
+            "type": "string",
+            "enum": ["campus_feed", "seeded_waves"],
+            "title": "Distribution Mode",
+            "default": "seeded_waves"
+          },
           "next_wave_at": {
             "anyOf": [
               {
@@ -3195,6 +3610,12 @@
             "title": "Allergen Notice",
             "default": "may contain, confirm with host"
           },
+          "distribution_mode": {
+            "type": "string",
+            "enum": ["campus_feed", "seeded_waves"],
+            "title": "Distribution Mode",
+            "default": "seeded_waves"
+          },
           "is_demo": {
             "type": "boolean",
             "title": "Is Demo"
@@ -3246,6 +3667,74 @@
         "type": "object",
         "required": ["detail"],
         "title": "ErrorResponse"
+      },
+      "FeedDrop": {
+        "properties": {
+          "drop": {
+            "$ref": "#/components/schemas/DropResponse"
+          },
+          "can_reserve": {
+            "type": "boolean",
+            "title": "Can Reserve"
+          },
+          "unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "allergen_conflict",
+                  "diet_mismatch",
+                  "active_claim",
+                  "capacity",
+                  "already_reserved"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable Reason"
+          },
+          "claim": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClaimResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["drop", "can_reserve", "unavailable_reason", "claim"],
+        "title": "FeedDrop",
+        "description": "One campus-wide listing judged only against the caller's own preferences."
+      },
+      "FeedResponse": {
+        "properties": {
+          "drops": {
+            "items": {
+              "$ref": "#/components/schemas/FeedDrop"
+            },
+            "type": "array",
+            "title": "Drops"
+          },
+          "server_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Server Time"
+          },
+          "is_demo": {
+            "type": "boolean",
+            "title": "Is Demo"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["drops", "server_time", "is_demo"],
+        "title": "FeedResponse"
       },
       "FoodItem": {
         "properties": {
@@ -3347,9 +3836,16 @@
             "title": "Nickname"
           },
           "area": {
-            "type": "string",
-            "maxLength": 80,
-            "minLength": 1,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Area"
           },
           "allergens": {
@@ -3381,9 +3877,9 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": ["nickname", "area"],
+        "required": ["nickname"],
         "title": "JoinRequest",
-        "description": "Everything a visitor shares to join; no contact details or real identity."
+        "description": "Everything a visitor shares to join; no contact details, identity or location.\n\n``area`` is deprecated: honored only for explicit seeded rehearsal callers and ignored\n(never stored) in the campus-feed scenario."
       },
       "JoinResponse": {
         "properties": {
@@ -3620,9 +4116,16 @@
             "title": "Nickname"
           },
           "area": {
-            "type": "string",
-            "maxLength": 80,
-            "minLength": 1,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Area"
           },
           "allergens": {
@@ -3665,14 +4168,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "id",
-          "nickname",
-          "area",
-          "allergens",
-          "diets",
-          "valid_until"
-        ],
+        "required": ["id", "nickname", "allergens", "diets", "valid_until"],
         "title": "SessionStudent"
       },
       "SurveyAnswers": {
@@ -3964,9 +4460,16 @@
             "title": "Nickname"
           },
           "area": {
-            "type": "string",
-            "maxLength": 80,
-            "minLength": 1,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Area"
           },
           "ring_distance": {
@@ -4018,7 +4521,6 @@
         "type": "object",
         "required": [
           "nickname",
-          "area",
           "ring_distance",
           "status",
           "reason_codes",

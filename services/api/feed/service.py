@@ -81,6 +81,26 @@ def unavailable_reason(
     return None
 
 
+def announcement_eligible(
+    session: Session, record: FeedNotification, drop: Drop, now: datetime
+) -> bool:
+    """Recheck consent and safety before a deferred send; revoked opportunities stay cancelled."""
+    student = session.get(Student, record.student_id)
+    joined = session.exec(
+        select(VisitorSession).where(VisitorSession.student_id == record.student_id)
+    ).first()
+    return bool(
+        student is not None
+        and joined is not None
+        and now < datetime.fromisoformat(student.data["valid_until"])
+        and now < datetime.fromisoformat(drop.data["expires_at"])
+        and not student.data.get("alerts_paused", False)
+        and not preference_conflict(student, drop)
+        and not has_active_hold(session, student.id)
+        and own_feed_claim(session, student.id, drop.id) is None
+    )
+
+
 def _published_at(drop: Drop) -> str:
     return drop.data.get("published_at") or drop.data["created_at"]
 

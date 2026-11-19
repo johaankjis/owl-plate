@@ -5,8 +5,20 @@ const { execFileSync } = require("node:child_process");
 const { chromium } = require(
   process.env.OWL_PLAYWRIGHT_MODULE || "playwright-core",
 );
-const api = process.env.OWL_API_URL || "http://localhost:8017";
-const web = process.env.OWL_WEB_URL || "http://localhost:3017";
+const api = process.env.OWL_API_URL || "http://127.0.0.1:8027";
+const web = process.env.OWL_WEB_URL || "http://127.0.0.1:3027";
+for (const [value, port] of [
+  [web, "3027"],
+  [api, "8027"],
+]) {
+  const url = new URL(value);
+  assert.ok(["localhost", "127.0.0.1"].includes(url.hostname));
+  assert.equal(
+    url.port,
+    port,
+    "Isolated candidate only; never reset the live demo",
+  );
+}
 const out = process.env.OWL_REHEARSAL_ARTIFACTS || "test-results/rehearsal";
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -31,10 +43,14 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       seconds: +((performance.now() - started) / 1000).toFixed(3),
       ...details,
     });
-  async function request(path, token = "demo-host", method = "GET") {
+  async function request(path, token = "demo-host", method = "GET", body) {
     const res = await fetch(`${api}${path}`, {
       method,
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(body ? { "Content-Type": "application/json" } : {}),
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
     });
     assert.equal(res.status, 200, `${method} ${path}`);
     return res.json();
@@ -47,7 +63,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   );
   assert.equal(health.is_demo, true);
   assert.equal(health.vision, "fixture");
-  await request("/demo/reset", "demo-host", "POST");
+  await request("/demo/reset", "demo-host", "POST", { scenario: "seeded" });
   mark("clean_reset", { students: 30 });
   const photo = `${out}/synthetic-photo.png`;
   fs.writeFileSync(
@@ -109,6 +125,15 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       ),
     );
     const { host, projector, student } = pages;
+    await student.getByTestId("student-menu-button").click();
+    assert.equal(
+      await student
+        .locator('[data-testid*="building-selector"], [data-testid*="checkin"]')
+        .count(),
+      0,
+      "No student location controls in seeded menus either",
+    );
+    await student.getByTestId("student-menu-button").click();
     await scene(
       "host",
       "1. Photograph and review",

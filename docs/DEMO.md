@@ -8,11 +8,12 @@ Those records supersede early aspirational demo notes.
 
 ## Run the local demo
 
-Milestone 1 adds the reviewed Marietta building directory as the default
-host/join location selector. Use `docs/CAMPUS_HANDOFF.md` for the isolated
-3027/8027 startup command, Library→Academic acceptance, actual campus browser
-evidence and provenance limits. Explicit synthetic rehearsal remains separate;
-the existing fallback recording still uses unverified synthetic geography.
+The campus-feed successor is specified in `docs/CAMPUS_FEED_CONTRACT.md`;
+`docs/FEED_HANDOFF.md` tracks its integration status and isolated 3027/8027
+commands/evidence. Normal visitors join without location and browse all active
+food drops. Hosts alone select verified pickup buildings. The old A–E seeded
+wave rehearsal and fallback recording remain a separate, explicitly synthetic
+scenario with unverified rehearsal geography.
 
 `make present` builds the web app when its sources change, starts API and web
 together on one browser port (3017; the API stays on loopback behind `/backend`)
@@ -34,18 +35,21 @@ container use `make present-zima` and tunnel port 3017 over SSH.
   at `.secrets/firebase-service-account.json` and `NEXT_PUBLIC_FIREBASE_CONFIG`,
   `NEXT_PUBLIC_FIREBASE_VAPID_KEY` in `.env` (all gitignored); the launcher creates
   `PUSH_TOKEN_ENCRYPTION_KEY`. A joined student taps **Enable notifications** (on
-  iPhone only from the installed Home Screen app); each new invite for that
-  student sends one push that opens `/student?invite=<id>`. Students who did not
-  opt in, and the default launch, stay **simulated**.
-- Visitors open `/join` (or Home → Find food), pick a nickname, a simulated demo
-  area and optional restrictions, then see only their own invites on `/student`.
+  iPhone only from the installed Home Screen app). An eligible feed announcement
+  opens `/student?drop=<id>`; seeded-wave invites retain `/student?invite=<id>`.
+  Students who did not opt in, and the default launch, stay **simulated**.
+- Visitors open `/join` (or Home → Find food), pick a nickname and optional
+  restrictions, then browse the campus feed on `/student`. No student location
+  or GPS is requested. Dietary mismatches remain visible with reserve disabled.
 - The host uses Home → Share food: upload → review (safety checks) → publish.
 - `/dispatch` is the projector view. Presenter controls at the bottom reset for
   live visitors, load the seeded A–E rehearsal (with `/student?persona=X` links),
   and advance the clock.
-- `node scripts/verify_join_flow.cjs` re-checks the four-visitor flow with
-  natural expiry (see the script header). `scripts/rehearse_demo.cjs` and
-  `scripts/browser_smoke.cjs` target the pre-revamp screens.
+- `make verify-feed` checks the actual mobile feed on isolated 3027/8027 only.
+  The old `verify_join_flow.cjs` and `verify_campus_mobile.cjs` names forward to
+  this harness; four-visitor/check-in/ring assumptions no longer apply in normal
+  visitors mode. `make rehearse-seeded` explicitly checks A–E waves and natural
+  invite expiry. `scripts/browser_smoke.cjs` is historical, pre-revamp coverage.
 
 ## What can be shown now
 

@@ -13,7 +13,7 @@ Host alone selects the verified pickup building, room and instructions.
 - Explicit `seeded` scenario is `seeded_waves`: preserve deterministic A–E
   invitations, pure planner, ring widening, diet filtering and old rehearsal.
 - New `JoinRequest` requires nickname only; optional allergens/diets unchanged.
-  Deprecated optional `area` is permitted for legacy *seeded rehearsal* callers
+  Deprecated optional `area` is permitted for legacy _seeded rehearsal_ callers
   only. In campus feed mode ignore it without storing/deriving a student cell;
   public SessionStudent.area is null (allow nullable for old rehearsal responses).
   No student-facing page renders location controls, including menu/check-in.
@@ -108,6 +108,11 @@ Support older invite deep links for seeded compatibility. Provider may include
 both drop_id and invite_id; service worker MUST prefer drop_id for feed messages
 and use stable drop tag, falling back to legacy invite link when appropriate.
 Lock-screen text remains minimal and generic. No food/building/diet/tier/contact.
+The shared payload discriminator is `notification_mode: campus_feed|seeded_waves`
+(FCM data values are strings). Feed payloads contain `drop_id` and no `invite_id`.
+For `campus_feed`, prefer `drop_id` even if an
+`invite_id` is also present, and use the stable drop tag. For `seeded_waves`,
+retain the invite destination/tag; older invite-only payloads still work.
 Backend owns payload fields; frontend owns worker handling.
 
 ## Ownership and checks

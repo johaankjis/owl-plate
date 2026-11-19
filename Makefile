@@ -1,5 +1,5 @@
-PYTHON := .venv/bin/python
-RUFF := .venv/bin/ruff
+PYTHON ?= .venv/bin/python
+RUFF ?= .venv/bin/ruff
 
 .PHONY: setup seed dev test lint types eval demo smoke deck present present-live present-openrouter present-zima present-live-zima present-openrouter-zima demo-reset campus
 setup:
@@ -65,3 +65,10 @@ present-openrouter-zima:
 
 demo-reset:
 	$(PYTHON) -m scripts.present --reset-only
+
+.PHONY: verify-feed rehearse-seeded
+verify-feed:
+	OWL_WEB_URL=http://127.0.0.1:3027 node scripts/verify_campus_feed.cjs
+
+rehearse-seeded:
+	OWL_WEB_URL=http://127.0.0.1:3027 OWL_API_URL=http://127.0.0.1:8027 node scripts/rehearse_demo.cjs

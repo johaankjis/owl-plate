@@ -88,6 +88,66 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/students/me/feed": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Feed
+     * @description List every active campus drop for the caller; no location is involved.
+     */
+    get: operations["feed_students_me_feed_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/drops/{drop_id}/reserve": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Reserve
+     * @description Hold a serving straight from the feed through the atomic service boundary.
+     */
+    post: operations["reserve_drops__drop_id__reserve_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/distribution": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Distribution
+     * @description Projector aggregate by host building; never student positions.
+     */
+    get: operations["distribution_distribution_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/students/me/invites": {
     parameters: {
       query?: never;
@@ -517,6 +577,18 @@ export interface components {
       /** Sources */
       sources: components["schemas"]["BuildingSource"][];
     };
+    /**
+     * BuildingDistribution
+     * @description Host pickup aggregate per building; never a student position.
+     */
+    BuildingDistribution: {
+      /** Building Code */
+      building_code: string;
+      building: components["schemas"]["Building"] | null;
+      /** Active Drops */
+      active_drops: number;
+      counts: components["schemas"]["Counts"];
+    };
     /** BuildingSource */
     BuildingSource: {
       /** Url */
@@ -534,6 +606,28 @@ export interface components {
       campus: "marietta";
       /** Buildings */
       buildings: components["schemas"]["Building"][];
+    };
+    /** CampusDistributionResponse */
+    CampusDistributionResponse: {
+      /**
+       * Distribution Mode
+       * @enum {string}
+       */
+      distribution_mode: "campus_feed" | "seeded_waves";
+      /** Active Drops */
+      active_drops: number;
+      /** Joined Students */
+      joined_students: number;
+      counts: components["schemas"]["Counts"];
+      /** Buildings */
+      buildings: components["schemas"]["BuildingDistribution"][];
+      /**
+       * Server Time
+       * Format: date-time
+       */
+      server_time: string;
+      /** Is Demo */
+      is_demo: boolean;
     };
     /** ClaimResponse */
     ClaimResponse: {
@@ -699,6 +793,12 @@ export interface components {
        * @enum {string}
        */
       scenario: "visitors" | "seeded";
+      /**
+       * Distribution Mode
+       * @default seeded_waves
+       * @enum {string}
+       */
+      distribution_mode: "campus_feed" | "seeded_waves";
       /** Next Wave At */
       next_wave_at: string | null;
       /**
@@ -808,6 +908,12 @@ export interface components {
        * @default may contain, confirm with host
        */
       allergen_notice: string;
+      /**
+       * Distribution Mode
+       * @default seeded_waves
+       * @enum {string}
+       */
+      distribution_mode: "campus_feed" | "seeded_waves";
       /** Is Demo */
       is_demo: boolean;
     };
@@ -821,6 +927,38 @@ export interface components {
     /** ErrorResponse */
     ErrorResponse: {
       detail: components["schemas"]["ErrorDetail"];
+    };
+    /**
+     * FeedDrop
+     * @description One campus-wide listing judged only against the caller's own preferences.
+     */
+    FeedDrop: {
+      drop: components["schemas"]["DropResponse"];
+      /** Can Reserve */
+      can_reserve: boolean;
+      /** Unavailable Reason */
+      unavailable_reason:
+        | (
+            | "allergen_conflict"
+            | "diet_mismatch"
+            | "active_claim"
+            | "capacity"
+            | "already_reserved"
+          )
+        | null;
+      claim: components["schemas"]["ClaimResponse"] | null;
+    };
+    /** FeedResponse */
+    FeedResponse: {
+      /** Drops */
+      drops: components["schemas"]["FeedDrop"][];
+      /**
+       * Server Time
+       * Format: date-time
+       */
+      server_time: string;
+      /** Is Demo */
+      is_demo: boolean;
     };
     /** FoodItem */
     FoodItem: {
@@ -863,13 +1001,16 @@ export interface components {
     };
     /**
      * JoinRequest
-     * @description Everything a visitor shares to join; no contact details or real identity.
+     * @description Everything a visitor shares to join; no contact details, identity or location.
+     *
+     *     ``area`` is deprecated: honored only for explicit seeded rehearsal callers and ignored
+     *     (never stored) in the campus-feed scenario.
      */
     JoinRequest: {
       /** Nickname */
       nickname: string;
       /** Area */
-      area: string;
+      area?: string | null;
       /** Allergens */
       allergens?: (
         | "dairy"
@@ -998,7 +1139,7 @@ export interface components {
       /** Nickname */
       nickname: string;
       /** Area */
-      area: string;
+      area?: string | null;
       /** Allergens */
       allergens: (
         | "dairy"
@@ -1156,7 +1297,7 @@ export interface components {
       /** Nickname */
       nickname: string;
       /** Area */
-      area: string;
+      area?: string | null;
       /** Ring Distance */
       ring_distance: number | null;
       /** Status */
@@ -1565,6 +1706,263 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["DispatchResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  feed_students_me_feed_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["FeedResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  reserve_drops__drop_id__reserve_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        drop_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ClaimResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  distribution_distribution_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CampusDistributionResponse"];
         };
       };
       /** @description Unauthorized */

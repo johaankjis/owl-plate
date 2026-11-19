@@ -328,3 +328,45 @@ def test_live_drop_keeps_its_snapshot_and_reset_clears_feed_state(feed):
         assert session.exec(select(FeedNotification)).all() == []
         assert session.exec(select(Drop)).all() == []
     assert publish_drop(feed, servings=1).distribution_mode == "seeded_waves"
+
+
+@pytest.mark.parametrize("change", ["leave", "pause", "allergen", "diet", "hold"])
+def test_failed_announcement_cancels_if_recipient_is_no_longer_eligible(feed, change):
+    """A deferred transport attempt must respect consent and diet changes before retry."""
+    actor = visitor(feed, "Riley")
+    attempts = []
+
+    def unavailable(*ids, **options):
+        attempts.append(ids)
+        raise RuntimeError("synthetic transport failure")
+
+    feed.notify = unavailable
+    drop = publish_drop(feed, servings=1)
+    assert len(attempts) == 1
+    if change == "leave":
+        feed.leave(actor)
+    elif change == "hold":
+        feed.reserve(actor, str(drop.id))
+    else:
+        feed.preferences(
+            actor,
+            Preferences(
+                allergens=["dairy"] if change == "allergen" else [],
+                diets=["vegan"] if change == "diet" else [],
+                alerts_paused=change == "pause",
+            ),
+        )
+    feed.notify = lambda *ids, **options: attempts.append(ids)
+    feed.tick()
+    assert len(attempts) == 1
+    if change not in {"leave", "hold"}:
+        feed.preferences(actor, Preferences(allergens=[], diets=[], alerts_paused=False))
+        feed.tick()
+        assert len(attempts) == 1, (
+            "cancelled announcements never resurrect after preferences revert"
+        )
+    with Session(feed.engine) as session:
+        rows = session.exec(
+            select(FeedNotification).where(FeedNotification.drop_id == str(drop.id))
+        ).all()
+        assert len(rows) == 1 and rows[0].sent, "retain the unique consumed opportunity"

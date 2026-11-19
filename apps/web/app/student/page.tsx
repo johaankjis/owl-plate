@@ -420,7 +420,7 @@ function StudentContent() {
                 )}
               </div>
               <p
-                data-testid="student-current-area"
+                data-testid="student-subtitle"
                 className="truncate text-xs text-zinc-400"
               >
                 {displaySubtitle}

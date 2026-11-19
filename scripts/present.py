@@ -259,12 +259,12 @@ def run(args: argparse.Namespace) -> None:
         children.append(subprocess.Popen(commands[1], cwd=WEB, env=env, start_new_session=True))
         wait_healthy(f"http://127.0.0.1:{args.api_port}/health")
         wait_healthy(f"http://127.0.0.1:{args.port}/backend/health")
-        reset(args.api_port)
+        reset(args.api_port, args.scenario)
         base = f"http://localhost:{args.port}"
         mode_line = vision_banner(args.vision, vision_env)
         print(
             "\n"
-            "  Owl Plate demo ready (clean state, live-visitor scenario)\n"
+            f"  Owl Plate demo ready (clean state, {args.scenario} scenario)\n"
             f"  Mode: {mode_line} + {push_banner(args.notifications)}\n\n"
             f"  Home       {base}/\n"
             f"  Host       {base}/host\n"

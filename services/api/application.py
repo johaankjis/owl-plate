@@ -32,6 +32,7 @@ from services.api.feed import (
     FEED_STATUSES,
     MODE_BY_SCENARIO,
     active_feed_drops,
+    announcement_eligible,
     distribution_rows,
     drop_mode,
     enqueue_announcements,
@@ -951,6 +952,12 @@ class Backend:
                 drop = session.get(Drop, record.drop_id)
                 if drop is None or drop.status not in FEED_STATUSES:
                     continue  # Never announce food that is already gone.
+                if not announcement_eligible(session, record, drop, now):
+                    # Consume cancelled opportunities without transport; keep their unique pair
+                    # so restoring consent/preferences cannot resurrect a stale announcement.
+                    record.sent = True
+                    session.add(record)
+                    continue
                 try:
                     self.notify(record.id, record.student_id, record.drop_id, mode="campus_feed")
                 except Exception:  # noqa: BLE001 - adapter failures must not roll back publishes
