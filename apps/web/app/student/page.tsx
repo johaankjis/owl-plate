@@ -1,6 +1,12 @@
 "use client";
 
-import React, { Suspense, useCallback, useEffect, useState } from "react";
+import React, {
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DemoHeader } from "../../components/DemoHeader";
 import { AllergenListDisplay } from "../../components/AllergenBadge";
@@ -8,10 +14,12 @@ import {
   ALLERGENS,
   ALLERGEN_WARNING_TEXT,
   DIETS,
+  PICKUP_CONFIRMATION_NOTICE,
   type Allergen,
   type Diet,
   type FeedDrop,
   type InviteResponse,
+  type PickupVerification,
   type SessionStudent,
 } from "../../lib/types/api";
 import {
@@ -20,11 +28,14 @@ import {
   getMyFeed,
   getMyInvites,
   getMySession,
+  getPickupVerification,
   INITIAL_DATA_SOURCE,
   leaveDemoSession,
   pickupClaim,
   releaseClaim,
+  requestPickupReview,
   reserveDrop,
+  submitPickupPhoto,
   updateMyPreferences,
   type DataSourceMode,
 } from "../../lib/api-client";
@@ -39,14 +50,21 @@ import { usePushOptIn } from "../../lib/push";
 import { PushOptIn } from "../../components/PushOptIn";
 import {
   formatDropResponseLocation,
+  formatPickupConfidencePercent,
+  formatPickupMatchStatusLabel,
+  formatPickupVerificationSourceLabel,
   formatUnavailableReason,
+  generatePickupRequestId,
   getDropPickupInstructions,
   getDropWalkingDirectionsUrl,
+  resolvePickupVerificationActions,
   resolveStudentCardState,
   resolveStudentFeedView,
+  revokePreviewObjectUrl,
   SEEDED_PERSONA_AREA_LABELS,
   summarizeDropFood,
   summarizeDropItems,
+  validatePickupPhotoFile,
 } from "./student-helpers";
 
 function StudentContent() {
@@ -69,6 +87,16 @@ function StudentContent() {
   const [feedDrops, setFeedDrops] = useState<FeedDrop[]>([]);
   const [feedLoaded, setFeedLoaded] = useState<boolean>(false);
 
+  // Milestone 2: Photo-assisted pickup verification state for active held campus-feed claim
+  const [pickupVerification, setPickupVerification] =
+    useState<PickupVerification | null>(null);
+  const [pickupPhotoFile, setPickupPhotoFile] = useState<File | null>(null);
+  const [pickupRequestId, setPickupRequestId] = useState<string | null>(null);
+  const [pickupPreviewUrl, setPickupPreviewUrl] = useState<string | null>(null);
+  const [pickupError, setPickupError] = useState<string | null>(null);
+  const pickupFileInputRef = useRef<HTMLInputElement | null>(null);
+  const pickupPreviewUrlRef = useRef<string | null>(null);
+
   // Editable preferences & alert pause for joined visitor
   const [prefAllergens, setPrefAllergens] = useState<Allergen[]>([]);
   const [prefDiets, setPrefDiets] = useState<Diet[]>([]);
@@ -84,6 +112,29 @@ function StudentContent() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [nowTick, setNowTick] = useState<number>(() => Date.now());
   const push = usePushOptIn(authToken, seededPersona !== null);
+
+  const clearSelectedPickupPhoto = useCallback(() => {
+    if (pickupPreviewUrlRef.current) {
+      revokePreviewObjectUrl(pickupPreviewUrlRef.current);
+      pickupPreviewUrlRef.current = null;
+    }
+    setPickupPreviewUrl(null);
+    setPickupPhotoFile(null);
+    setPickupRequestId(null);
+    if (pickupFileInputRef.current) {
+      pickupFileInputRef.current.value = "";
+    }
+  }, []);
+
+  // Revoke any local preview object URL on unmount so photos are never retained
+  useEffect(() => {
+    return () => {
+      if (pickupPreviewUrlRef.current) {
+        revokePreviewObjectUrl(pickupPreviewUrlRef.current);
+        pickupPreviewUrlRef.current = null;
+      }
+    };
+  }, []);
 
   const onApiError = useCallback(
     (err: unknown, fallbackMessage: string) => {
@@ -185,6 +236,55 @@ function StudentContent() {
     }
   }, [authChecked, authToken, loadFeed, loadInvites, seededPersona]);
 
+  // Identify active held claim on campus feed and poll GET /claims/{id}/pickup-verification
+  const activeFeedHoldClaimId = !seededPersona
+    ? (feedDrops.find((fd) => fd.claim?.status === "held")?.claim?.id ?? null)
+    : null;
+
+  const loadPickupVerification = useCallback(
+    async (claimId: string) => {
+      if (!authToken || seededPersona) return;
+      try {
+        const res = await getPickupVerification(claimId, authToken);
+        setPickupVerification(res.data.verification);
+        setSourceMode(res.source);
+      } catch (err) {
+        const status =
+          typeof err === "object" && err !== null && "status" in err
+            ? (err as { status?: unknown }).status
+            : undefined;
+        if (status === 404) {
+          setPickupVerification(null);
+          return;
+        }
+        onApiError(err, "Could not load pickup verification status");
+      }
+    },
+    [authToken, onApiError, seededPersona],
+  );
+
+  useEffect(() => {
+    if (!authChecked || !authToken || seededPersona || !activeFeedHoldClaimId) {
+      setPickupVerification(null);
+      clearSelectedPickupPhoto();
+      setPickupError(null);
+      return;
+    }
+
+    void loadPickupVerification(activeFeedHoldClaimId);
+    const intervalId = setInterval(() => {
+      void loadPickupVerification(activeFeedHoldClaimId);
+    }, 2000);
+    return () => clearInterval(intervalId);
+  }, [
+    activeFeedHoldClaimId,
+    authChecked,
+    authToken,
+    clearSelectedPickupPhoto,
+    loadPickupVerification,
+    seededPersona,
+  ]);
+
   // 1s tick to keep hold and expiry countdowns responsive
   useEffect(() => {
     const timer = setInterval(() => {
@@ -197,6 +297,7 @@ function StudentContent() {
     if (!authToken) return;
     setBusyId(dropId);
     setErrorMessage(null);
+    setPickupError(null);
     try {
       const res = await reserveDrop(dropId, authToken);
       setSourceMode(res.source);
@@ -243,9 +344,12 @@ function StudentContent() {
     if (!authToken) return;
     setBusyId(claimId);
     setErrorMessage(null);
+    setPickupError(null);
     try {
       const res = await releaseClaim(claimId, authToken);
       setSourceMode(res.source);
+      clearSelectedPickupPhoto();
+      setPickupVerification(null);
       if (seededPersona) {
         await loadInvites();
       } else {
@@ -258,20 +362,160 @@ function StudentContent() {
     }
   };
 
-  const handlePickupClaim = async (claimId: string) => {
+  const uploadSelectedPickupPhoto = async (
+    claimId: string,
+    file: File,
+    requestId: string,
+  ) => {
     if (!authToken) return;
+    setBusyId(`pickup-photo:${claimId}`);
+    setErrorMessage(null);
+    setPickupError(null);
+    try {
+      const res = await submitPickupPhoto(claimId, file, requestId, authToken);
+      setSourceMode(res.source);
+      setPickupVerification(res.data);
+      // Immediately revoke temporary preview object URL and discard local file after upload
+      clearSelectedPickupPhoto();
+      await loadFeed();
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Could not verify pickup photo. Please try again.";
+      setPickupError(msg);
+      if (!seededPersona) {
+        const authResult = handleUnauthorizedError(err);
+        if (authResult.isUnauthorized) {
+          router.replace(authResult.redirectTo);
+          return;
+        }
+      }
+      await loadFeed();
+      await loadPickupVerification(claimId);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleSelectPickupPhoto = (
+    claimId: string,
+    file: File | null | undefined,
+  ) => {
+    setErrorMessage(null);
+    setPickupError(null);
+    if (!file) return;
+
+    const validation = validatePickupPhotoFile(file);
+    if (!validation.valid) {
+      clearSelectedPickupPhoto();
+      setPickupError(validation.error);
+      return;
+    }
+
+    // Revoke any previous preview URL before creating a new one
+    if (pickupPreviewUrlRef.current) {
+      revokePreviewObjectUrl(pickupPreviewUrlRef.current);
+      pickupPreviewUrlRef.current = null;
+    }
+
+    // New request_id UUID per selected photo, stable on network retry of the same selection
+    const freshRequestId = generatePickupRequestId();
+    setPickupPhotoFile(file);
+    setPickupRequestId(freshRequestId);
+
+    if (
+      typeof URL !== "undefined" &&
+      typeof URL.createObjectURL === "function"
+    ) {
+      try {
+        const objUrl = URL.createObjectURL(file);
+        pickupPreviewUrlRef.current = objUrl;
+        setPickupPreviewUrl(objUrl);
+      } catch {
+        setPickupPreviewUrl(null);
+      }
+    }
+
+    void uploadSelectedPickupPhoto(claimId, file, freshRequestId);
+  };
+
+  const handleRetrySamePickupPhoto = async (claimId: string) => {
+    if (!pickupPhotoFile || !pickupRequestId) {
+      pickupFileInputRef.current?.click();
+      return;
+    }
+    await uploadSelectedPickupPhoto(claimId, pickupPhotoFile, pickupRequestId);
+  };
+
+  const handleOpenPickupCamera = () => {
+    setErrorMessage(null);
+    setPickupError(null);
+    clearSelectedPickupPhoto();
+    pickupFileInputRef.current?.click();
+  };
+
+  const handleRequestHostReview = async (
+    claimId: string,
+    verificationId: string,
+  ) => {
+    if (!authToken) return;
+    setBusyId(`pickup-review:${claimId}`);
+    setErrorMessage(null);
+    setPickupError(null);
+    try {
+      const res = await requestPickupReview(claimId, verificationId, authToken);
+      setSourceMode(res.source);
+      setPickupVerification(res.data);
+      await loadFeed();
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Could not request host review.";
+      setPickupError(msg);
+      onApiError(err, "Could not request host review");
+      await loadFeed();
+      await loadPickupVerification(claimId);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handlePickupClaim = async (
+    claimId: string,
+    verificationId?: string | null,
+  ) => {
+    if (!authToken) return;
+    if (!seededPersona && !verificationId) {
+      setPickupError(
+        "Photo-assisted verification is required before completing pickup.",
+      );
+      return;
+    }
     setBusyId(claimId);
     setErrorMessage(null);
+    setPickupError(null);
     try {
-      const res = await pickupClaim(claimId, authToken);
+      const res = await pickupClaim(
+        claimId,
+        authToken,
+        verificationId ? { verification_id: verificationId } : undefined,
+      );
       setSourceMode(res.source);
+      clearSelectedPickupPhoto();
       if (seededPersona) {
         await loadInvites();
       } else {
         await loadFeed();
       }
     } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Could not confirm pickup";
+      setPickupError(msg);
       onApiError(err, "Could not confirm pickup");
+      if (!seededPersona) {
+        await loadFeed();
+        await loadPickupVerification(claimId);
+      }
     } finally {
       setBusyId(null);
     }
@@ -669,8 +913,8 @@ function StudentContent() {
                     </p>
                   )}
                   <p className="text-xs text-zinc-300">
-                    Pickup needs no ID or proof. Just head over before your hold
-                    ends.
+                    Head over before your hold ends, then take a quick food-only
+                    photo (no student ID or people) to confirm pickup.
                   </p>
                   {getDropWalkingDirectionsUrl(
                     feedView.activeHold.feedDrop.drop,
@@ -740,33 +984,311 @@ function StudentContent() {
                   compact={true}
                 />
 
-                <div className="space-y-2.5 pt-1">
-                  <button
-                    type="button"
-                    data-testid="pickup-confirm-button"
-                    disabled={busyId !== null}
-                    onClick={() =>
-                      void handlePickupClaim(feedView.activeHold!.claim.id)
-                    }
-                    className="min-h-[52px] w-full rounded-xl bg-owl-gold px-5 py-3.5 text-base font-extrabold text-owl-black shadow-md transition hover:bg-owl-goldDark disabled:opacity-50"
-                  >
-                    {busyId === feedView.activeHold.claim.id
-                      ? "Confirming..."
-                      : "Confirm picked up (demo)"}
-                  </button>
+                {/* Photo-assisted pickup confirmation flow */}
+                {(() => {
+                  const activeClaim = feedView.activeHold.claim;
+                  const holdRemaining = formatRemainingTime(
+                    activeClaim.held_until,
+                    nowIso,
+                  );
+                  const holdIsActive =
+                    activeClaim.status === "held" &&
+                    holdRemaining !== "Expired";
+                  const actions = resolvePickupVerificationActions(
+                    pickupVerification,
+                    holdIsActive,
+                  );
+                  const currentVerification = pickupVerification;
+                  const isUploadingPhoto =
+                    busyId === `pickup-photo:${activeClaim.id}`;
+                  const isRequestingReview =
+                    busyId === `pickup-review:${activeClaim.id}`;
+                  const isCompletingPickup = busyId === activeClaim.id;
 
-                  <button
-                    type="button"
-                    data-testid="pickup-release-button"
-                    disabled={busyId !== null}
-                    onClick={() =>
-                      void handleReleaseClaim(feedView.activeHold!.claim.id)
-                    }
-                    className="min-h-[44px] w-full rounded-xl border border-zinc-800 bg-transparent px-4 py-2.5 text-xs font-semibold text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200 disabled:opacity-50"
-                  >
-                    Release hold
-                  </button>
-                </div>
+                  return (
+                    <div
+                      data-testid="pickup-confirmation-section"
+                      className="space-y-3 rounded-xl border border-emerald-500/30 bg-owl-black/80 p-4"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <div className="text-xs font-extrabold uppercase tracking-wide text-emerald-300">
+                            Photo-assisted pickup confirmation
+                          </div>
+                          <p className="text-xs text-zinc-300">
+                            Step 1: Take a photo of the food only (no people).
+                            Step 2: Complete pickup once verified.
+                          </p>
+                        </div>
+                        {currentVerification?.source && (
+                          <span
+                            data-testid="pickup-verification-source"
+                            className="rounded-full border border-owl-gold/30 bg-owl-gold/10 px-2.5 py-0.5 text-[11px] font-semibold text-owl-gold"
+                          >
+                            {formatPickupVerificationSourceLabel(
+                              currentVerification.source,
+                            )}
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-[11px] text-zinc-400">
+                        Privacy: Your photo is processed in memory for a
+                        de-identified food match check and is never saved or
+                        shown to the host.
+                      </p>
+
+                      {/* Hidden camera / file input */}
+                      <input
+                        ref={pickupFileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png"
+                        capture="environment"
+                        data-testid="pickup-photo-input"
+                        disabled={busyId !== null || !holdIsActive}
+                        onChange={(e) =>
+                          handleSelectPickupPhoto(
+                            activeClaim.id,
+                            e.target.files?.[0] ?? null,
+                          )
+                        }
+                        className="sr-only"
+                      />
+
+                      {/* Temporary local preview while uploading (revoked immediately after upload) */}
+                      {pickupPreviewUrl && (
+                        <div
+                          data-testid="pickup-photo-temp-preview"
+                          className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-owl-slate/70 p-2.5 text-xs text-zinc-300"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={pickupPreviewUrl}
+                            alt="Temporary pickup food preview"
+                            className="h-12 w-12 rounded-md object-cover"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="font-semibold text-white">
+                              Checking food photo...
+                            </div>
+                            <div className="text-[11px] text-zinc-400">
+                              Temporary local preview is discarded right after
+                              upload.
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {pickupError && (
+                        <div
+                          role="alert"
+                          data-testid="pickup-verification-error"
+                          className="space-y-2 rounded-lg border border-rose-500/40 bg-rose-950/30 px-3 py-2.5 text-xs text-rose-200"
+                        >
+                          <p>{pickupError}</p>
+                          {pickupPhotoFile && pickupRequestId && (
+                            <button
+                              type="button"
+                              data-testid="pickup-retry-same-photo-button"
+                              disabled={busyId !== null || !holdIsActive}
+                              onClick={() =>
+                                void handleRetrySamePickupPhoto(activeClaim.id)
+                              }
+                              className="inline-flex min-h-[36px] items-center justify-center rounded-lg border border-rose-400/50 bg-rose-500/20 px-3 py-1.5 text-xs font-bold text-rose-100 transition hover:bg-rose-500/30 disabled:opacity-50"
+                            >
+                              Retry upload with same photo
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Verification status / result card */}
+                      {currentVerification && (
+                        <div
+                          data-testid="pickup-verification-card"
+                          data-status={currentVerification.status}
+                          data-match-status={
+                            currentVerification.match_status ?? ""
+                          }
+                          data-review-status={
+                            currentVerification.review_status ?? "not_requested"
+                          }
+                          className={`space-y-2 rounded-xl border p-3.5 text-xs ${
+                            currentVerification.status === "processing"
+                              ? "border-owl-gold/40 bg-owl-gold/10 text-zinc-100"
+                              : currentVerification.match_status ===
+                                    "consistent" && actions.canCompletePickup
+                                ? "border-emerald-500/50 bg-emerald-950/30 text-emerald-100"
+                                : currentVerification.review_status ===
+                                    "approved"
+                                  ? "border-emerald-500/50 bg-emerald-950/30 text-emerald-100"
+                                  : currentVerification.match_status ===
+                                      "inconsistent"
+                                    ? "border-rose-500/40 bg-rose-950/30 text-rose-100"
+                                    : "border-amber-500/40 bg-amber-950/30 text-amber-100"
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span
+                              data-testid="pickup-verification-status-badge"
+                              className="font-extrabold uppercase tracking-wide"
+                            >
+                              {currentVerification.status === "processing"
+                                ? "Analyzing food photo..."
+                                : currentVerification.review_status ===
+                                    "approved"
+                                  ? "Approved by host override"
+                                  : currentVerification.review_status ===
+                                      "pending"
+                                    ? "Host review pending"
+                                    : currentVerification.review_status ===
+                                        "rejected"
+                                      ? "Host review declined — retake photo"
+                                      : currentVerification.status === "failed"
+                                        ? "Verification unavailable"
+                                        : formatPickupMatchStatusLabel(
+                                            currentVerification.match_status,
+                                          )}
+                            </span>
+
+                            {formatPickupConfidencePercent(
+                              currentVerification.confidence,
+                            ) && (
+                              <span
+                                data-testid="pickup-verification-confidence"
+                                className="rounded-md bg-owl-black/60 px-2 py-0.5 text-[11px] font-bold"
+                              >
+                                Confidence:{" "}
+                                {formatPickupConfidencePercent(
+                                  currentVerification.confidence,
+                                )}
+                              </span>
+                            )}
+                          </div>
+
+                          {currentVerification.explanation && (
+                            <p
+                              data-testid="pickup-verification-explanation"
+                              className="leading-relaxed text-zinc-200"
+                            >
+                              {currentVerification.explanation}
+                            </p>
+                          )}
+
+                          {currentVerification.review_status === "pending" && (
+                            <p
+                              data-testid="pickup-review-pending-note"
+                              className="rounded-lg border border-amber-400/30 bg-owl-black/50 px-2.5 py-2 text-[11px] text-amber-200"
+                            >
+                              Waiting for the host to review the de-identified
+                              assessment. You can also take a clearer food photo
+                              while waiting.
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Mandatory Photo-assisted confirmation notice */}
+                      <p
+                        data-testid="pickup-confirmation-notice"
+                        className="rounded-lg border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-[11px] font-medium leading-relaxed text-amber-200"
+                      >
+                        {actions.notice}
+                      </p>
+
+                      {/* Primary / Retry Photo & Review / Complete Pickup actions */}
+                      <div className="space-y-2 pt-1">
+                        {/* Step 1: Take or retake photo */}
+                        {(!currentVerification || actions.canRetryPhoto) && (
+                          <button
+                            type="button"
+                            data-testid={
+                              currentVerification
+                                ? "pickup-retry-photo-button"
+                                : "pickup-photo-trigger-button"
+                            }
+                            disabled={
+                              busyId !== null ||
+                              !holdIsActive ||
+                              actions.phase === "processing"
+                            }
+                            onClick={handleOpenPickupCamera}
+                            className={`min-h-[48px] w-full rounded-xl px-4 py-3 text-sm font-extrabold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                              actions.canCompletePickup
+                                ? "border border-zinc-700 bg-owl-slate text-zinc-200 hover:border-zinc-500"
+                                : "bg-owl-gold text-owl-black shadow-md hover:bg-owl-goldDark"
+                            }`}
+                          >
+                            {isUploadingPhoto
+                              ? "Uploading & verifying photo..."
+                              : actions.phase === "processing"
+                                ? "Verifying food photo..."
+                                : currentVerification
+                                  ? "Retake / choose another food photo"
+                                  : "Confirm pickup \u2014 take food photo"}
+                          </button>
+                        )}
+
+                        {/* Optional host review request when uncertain or inconsistent */}
+                        {actions.canRequestHostReview &&
+                          actions.verificationId && (
+                            <button
+                              type="button"
+                              data-testid="pickup-request-review-button"
+                              disabled={busyId !== null || !holdIsActive}
+                              onClick={() =>
+                                void handleRequestHostReview(
+                                  activeClaim.id,
+                                  actions.verificationId!,
+                                )
+                              }
+                              className="min-h-[44px] w-full rounded-xl border border-amber-400/50 bg-amber-500/15 px-4 py-2.5 text-xs font-extrabold text-amber-200 transition hover:bg-amber-500/25 disabled:opacity-50"
+                            >
+                              {isRequestingReview
+                                ? "Requesting host review..."
+                                : "Request host review (de-identified)"}
+                            </button>
+                          )}
+
+                        {/* Step 2: Explicit separate pickup completion button (ONLY enabled when consistent ready >= 0.8) */}
+                        <button
+                          type="button"
+                          data-testid="pickup-confirm-button"
+                          disabled={
+                            busyId !== null ||
+                            !actions.canCompletePickup ||
+                            !actions.verificationId
+                          }
+                          onClick={() =>
+                            void handlePickupClaim(
+                              activeClaim.id,
+                              actions.verificationId,
+                            )
+                          }
+                          className="min-h-[52px] w-full rounded-xl bg-emerald-400 px-5 py-3.5 text-base font-extrabold text-owl-black shadow-md transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 disabled:opacity-60"
+                        >
+                          {isCompletingPickup
+                            ? "Completing pickup..."
+                            : actions.canCompletePickup
+                              ? "Complete pickup"
+                              : "Complete pickup (requires verified food photo)"}
+                        </button>
+
+                        <button
+                          type="button"
+                          data-testid="pickup-release-button"
+                          disabled={busyId !== null}
+                          onClick={() =>
+                            void handleReleaseClaim(activeClaim.id)
+                          }
+                          className="min-h-[44px] w-full rounded-xl border border-zinc-800 bg-transparent px-4 py-2.5 text-xs font-semibold text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200 disabled:opacity-50"
+                        >
+                          Release hold
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
               </article>
             )}
 
@@ -994,8 +1516,25 @@ function StudentContent() {
                       {isOwnHeld ? (
                         <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-3.5 py-2.5 text-xs font-semibold text-emerald-200">
                           Your 10-minute pickup hold is active above. Use
-                          &ldquo;Confirm picked up&rdquo; or &ldquo;Release
+                          &ldquo;Confirm pickup&rdquo; or &ldquo;Release
                           hold&rdquo; on your hold card.
+                        </div>
+                      ) : isOwnPickedUp ? (
+                        <div className="space-y-2 pt-1">
+                          <p
+                            data-testid={`feed-drop-unavailable-${drop.id}`}
+                            data-reason={unavailable_reason ?? "picked_up"}
+                            className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-3.5 py-2.5 text-xs font-semibold text-emerald-200"
+                          >
+                            {unavailableExplanation ??
+                              "You picked up from this drop."}
+                          </p>
+                          <p
+                            data-testid="pickup-confirmation-notice"
+                            className="rounded-lg border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-[11px] font-medium leading-relaxed text-amber-200"
+                          >
+                            {PICKUP_CONFIRMATION_NOTICE}
+                          </p>
                         </div>
                       ) : (
                         <div className="space-y-2 pt-1">
@@ -1236,9 +1775,12 @@ function StudentContent() {
                       {activeSeededPickupInstructions}
                     </p>
                   )}
-                  <p className="text-xs text-zinc-300">
-                    Pickup needs no ID or proof. Just head over before your hold
-                    ends.
+                  <p
+                    data-testid="legacy-seeded-rehearsal-note"
+                    className="text-xs text-amber-300"
+                  >
+                    Legacy seeded persona rehearsal (?persona=A..E): direct
+                    rehearsal pickup requires no photo body.
                   </p>
                   {activeSeededDirectionsUrl && (
                     <div className="pt-1">
@@ -1314,7 +1856,7 @@ function StudentContent() {
                   >
                     {busyId === cardState.activeClaim.id
                       ? "Confirming..."
-                      : "Confirm picked up (demo)"}
+                      : "Confirm picked up (legacy seeded rehearsal)"}
                   </button>
 
                   <button

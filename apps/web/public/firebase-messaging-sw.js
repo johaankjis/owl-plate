@@ -1,8 +1,11 @@
 /**
  * Owl Plate service worker for Firebase Cloud Messaging web push.
  *
- * Privacy (docs/PRIVACY_SAFETY.md & docs/CAMPUS_FEED_CONTRACT.md):
- * - The push carries generic lock-screen text plus `notification_mode`, `drop_id`
+ * Privacy (docs/PRIVACY_SAFETY.md, docs/CAMPUS_FEED_CONTRACT.md & docs/PICKUP_CONFIRMATION_CONTRACT.md):
+ * - When `notification_mode === "host_pickup"`, routes to `/host?drop=<drop_id>` (or `/host`),
+ *   uses title `"Owl Plate: Pickup update"`, allows generic food/count body text without student data,
+ *   and enforces a stable tag bounded to 32 characters.
+ * - For student alerts, the push carries generic lock-screen text plus `notification_mode`, `drop_id`
  *   (or legacy `invite_id`) only. Never carries credentials, food, building, diet, or tier data.
  * - When `notification_mode === "campus_feed"` (or only `drop_id` is provided),
  *   prefers `drop_id`, routes to `/student?drop=<drop_id>`, and uses stable tag `owl-drop-<drop_id>`.
@@ -27,6 +30,22 @@ function readPush(event) {
   }
 }
 
+function sanitizeHostNotificationBody(rawBody) {
+  const fallback =
+    "A serving was marked collected. Tap to view updated pickup counts.";
+  if (typeof rawBody !== "string") return fallback;
+  const trimmed = rawBody.trim();
+  if (!trimmed) return fallback;
+  if (
+    /demo-session-|demo-student-|Bearer\s+|@|\bstudent\b|\bnickname\b|\bclaim_id\b|\bclaim-[a-z0-9-]+|\btoken\b/i.test(
+      trimmed,
+    )
+  ) {
+    return fallback;
+  }
+  return trimmed.slice(0, 180);
+}
+
 function resolveNotificationTarget(data) {
   const safe = data || {};
   const rawMode =
@@ -41,6 +60,27 @@ function resolveNotificationTarget(data) {
     typeof safe.invite_id === "string" && safe.invite_id.trim().length > 0
       ? safe.invite_id.trim()
       : null;
+  const notificationId =
+    typeof safe.notification_id === "string" &&
+    safe.notification_id.trim().length > 0
+      ? safe.notification_id.trim()
+      : null;
+  const rawTag =
+    typeof safe.tag === "string" && safe.tag.trim().length > 0
+      ? safe.tag.trim()
+      : null;
+
+  if (rawMode === "host_pickup") {
+    const rawIdForTag = notificationId || dropId || "update";
+    const cleanSuffix = rawIdForTag.replace(/[^a-zA-Z0-9-]/g, "").slice(-24);
+    const derivedTag = (rawTag || `owl-hp-${cleanSuffix}`).slice(0, 32);
+    return {
+      title: "Owl Plate: Pickup update",
+      body: sanitizeHostNotificationBody(safe.body),
+      tag: derivedTag,
+      url: dropId ? `/host?drop=${encodeURIComponent(dropId)}` : "/host",
+    };
+  }
 
   const isCampusFeed =
     rawMode === "campus_feed" ||

@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { DemoHeader } from "../../components/DemoHeader";
 import { AllergenListDisplay } from "../../components/AllergenBadge";
+import { PushOptIn } from "../../components/PushOptIn";
 import {
   BuildingSelector,
   type RehearsalOption,
@@ -11,25 +13,31 @@ import {
   ALLERGENS,
   ALLERGEN_WARNING_TEXT,
   DIETS,
+  PICKUP_CONFIRMATION_NOTICE,
   RELIGIOUS_DIETS,
   type Allergen,
   type Building,
   type Diet,
   type DropEdit,
   type DropResponse,
+  type HostPickupReview,
   type SafetyReview,
 } from "../../lib/types/api";
 import {
   createDrop,
+  decideHostPickupReview,
   getBuildings,
   getDrop,
   getActiveDrop,
+  getHostPickupReviews,
   publishDrop,
   updateDrop,
   INITIAL_DATA_SOURCE,
   type DataSourceMode,
 } from "../../lib/api-client";
 import { filterVerifiedBuildings } from "../../lib/buildings";
+import { usePushOptIn } from "../../lib/push";
+import { formatRemainingTime } from "../../lib/time";
 import {
   buildPickupCompanionUrl,
   formatHostCounts,
@@ -39,9 +47,11 @@ import {
   HOST_REHEARSAL_CODE,
   isLiveVisionSource,
   resolveDefaultHostBuildingId,
+  resolveHostReviewActionGuard,
   resolveHostStep,
   restoreHostDropState,
   shouldPollHostCounts,
+  shouldPollHostPickupReviews,
   type HostViewStep,
 } from "./host-helpers";
 
@@ -56,13 +66,22 @@ const HOST_REHEARSAL_OPTIONS: ReadonlyArray<RehearsalOption> = [
   },
 ];
 
-export default function HostPage() {
+function HostPageContent() {
+  const searchParams = useSearchParams();
+  const linkedDropId = searchParams.get("drop");
+
   const [sourceMode, setSourceMode] =
     useState<DataSourceMode>(INITIAL_DATA_SOURCE);
   const [drop, setDrop] = useState<DropResponse | null>(null);
   const [viewStep, setViewStep] = useState<HostViewStep>("upload");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [hostNote, setHostNote] = useState<string>("");
+  const [linkedDropError, setLinkedDropError] = useState<string | null>(null);
+  const [pickupReviews, setPickupReviews] = useState<HostPickupReview[]>([]);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [nowTick, setNowTick] = useState<number>(() => Date.now());
+
+  const hostPush = usePushOptIn(HOST_CREDENTIAL, { role: "host" });
 
   // Verified campus buildings directory
   const [buildings, setBuildings] = useState<Building[]>([]);
@@ -94,6 +113,15 @@ export default function HostPage() {
   const [visionErrorMessage, setVisionErrorMessage] = useState<string | null>(
     null,
   );
+
+  // Tick every second while viewing counts so review hold timers stay current
+  useEffect(() => {
+    if (viewStep !== "counts") return;
+    const timer = setInterval(() => {
+      setNowTick(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [viewStep]);
 
   const loadCampusBuildings = useCallback(async () => {
     setBuildingsLoading(true);
@@ -144,20 +172,38 @@ export default function HostPage() {
     [],
   );
 
-  // Restore active drop on mount via GET /demo/active-drop then GET /drops/{id}
+  const loadPickupReviewsForDrop = useCallback(async (dropId: string) => {
+    try {
+      const res = await getHostPickupReviews(dropId, HOST_CREDENTIAL);
+      setSourceMode(res.source);
+      setPickupReviews(res.data.reviews);
+    } catch {
+      // Keep existing queued reviews displayed on transient poll failure
+    }
+  }, []);
+
+  // Restore active drop on mount (or /host?drop=<UUID> deep link via backend ACL)
   useEffect(() => {
     let active = true;
+    setLinkedDropError(null);
     restoreHostDropState(
       () => getActiveDrop(HOST_CREDENTIAL),
       (dropId) => getDrop(dropId, HOST_CREDENTIAL),
+      linkedDropId,
     )
       .then((restored) => {
         if (!active) return;
         setSourceMode(restored.source);
         setDrop(restored.drop);
         setViewStep(restored.step);
+        setLinkedDropError(restored.linkedDropError ?? null);
         if (restored.drop) {
           syncFormFromDrop(restored.drop, buildings);
+          if (restored.step === "counts") {
+            void loadPickupReviewsForDrop(restored.drop.id);
+          }
+        } else {
+          setPickupReviews([]);
         }
       })
       .catch((err) => {
@@ -170,9 +216,9 @@ export default function HostPage() {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncFormFromDrop]);
+  }, [syncFormFromDrop, linkedDropId, loadPickupReviewsForDrop]);
 
-  // Poll GET /drops/{id} (demo-host) every 2 s while the counts panel is open
+  // Poll GET /drops/{id} and GET /drops/{id}/pickup-reviews (demo-host) every 2 s while counts panel is open
   const activeDropId = drop?.id ?? null;
   const activeDropStatus = drop?.status ?? null;
 
@@ -188,16 +234,21 @@ export default function HostPage() {
     let cancelled = false;
     const poll = async () => {
       try {
-        const res = await getDrop(activeDropId, HOST_CREDENTIAL);
+        const [dropRes, reviewsRes] = await Promise.all([
+          getDrop(activeDropId, HOST_CREDENTIAL),
+          getHostPickupReviews(activeDropId, HOST_CREDENTIAL),
+        ]);
         if (cancelled) return;
-        setSourceMode(res.source);
-        setDrop(res.data);
-        setViewStep(resolveHostStep(res.data));
+        setSourceMode(dropRes.source);
+        setDrop(dropRes.data);
+        setViewStep(resolveHostStep(dropRes.data));
+        setPickupReviews(reviewsRes.data.reviews);
       } catch {
-        // Keep current counts displayed on transient poll failure
+        // Keep current counts and reviews displayed on transient poll failure
       }
     };
 
+    void poll();
     const intervalId = setInterval(() => {
       void poll();
     }, HOST_POLL_INTERVAL_MS);
@@ -315,6 +366,7 @@ export default function HostPage() {
       setStatusMessage(
         `Got it. About ${published.data.servings_final} servings. We'll send it to the right people.`,
       );
+      await loadPickupReviewsForDrop(published.data.id);
     } catch (err) {
       setErrorMessage(
         err instanceof Error ? err.message : "Failed to publish drop",
@@ -324,9 +376,63 @@ export default function HostPage() {
     }
   };
 
+  const handleReviewDecision = async (
+    verificationId: string,
+    decision: "approve" | "reject",
+  ) => {
+    if (!drop) return;
+    setBusyAction(`review:${verificationId}:${decision}`);
+    setReviewError(null);
+    setErrorMessage(null);
+    try {
+      await decideHostPickupReview(
+        drop.id,
+        verificationId,
+        decision,
+        HOST_CREDENTIAL,
+      );
+      const [dropRes, reviewsRes] = await Promise.all([
+        getDrop(drop.id, HOST_CREDENTIAL),
+        getHostPickupReviews(drop.id, HOST_CREDENTIAL),
+      ]);
+      setSourceMode(dropRes.source);
+      setDrop(dropRes.data);
+      setViewStep(resolveHostStep(dropRes.data));
+      setPickupReviews(reviewsRes.data.reviews);
+      setStatusMessage(
+        decision === "approve"
+          ? "Pickup approved by human override. Aggregate counts updated."
+          : "Pickup review rejected. The student's hold remains active to retry a clearer photo.",
+      );
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Could not submit pickup review decision.";
+      setReviewError(msg);
+      // Refresh drop and reviews so stale/expired/superseded state is reflected
+      try {
+        const [dropRes, reviewsRes] = await Promise.all([
+          getDrop(drop.id, HOST_CREDENTIAL),
+          getHostPickupReviews(drop.id, HOST_CREDENTIAL),
+        ]);
+        setSourceMode(dropRes.source);
+        setDrop(dropRes.data);
+        setViewStep(resolveHostStep(dropRes.data));
+        setPickupReviews(reviewsRes.data.reviews);
+      } catch {
+        // Ignore refresh error
+      }
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   const currentStep = viewStep === "upload" ? 1 : viewStep === "review" ? 2 : 3;
   const formattedCounts = drop ? formatHostCounts(drop.counts) : null;
   const isPollingCounts = shouldPollHostCounts(drop, viewStep);
+  const isPollingReviews = shouldPollHostPickupReviews(drop, viewStep);
+  const nowIso = new Date(nowTick).toISOString();
 
   return (
     <div className="min-h-screen bg-owl-black text-zinc-100">
@@ -377,6 +483,24 @@ export default function HostPage() {
             </li>
           </ol>
         </section>
+
+        {/* Optional Host Push Notification Opt-In / Opt-Out */}
+        <PushOptIn
+          role="host"
+          state={hostPush.state}
+          onEnable={() => void hostPush.enable()}
+          onDisable={() => void hostPush.disable()}
+        />
+
+        {linkedDropError && (
+          <div
+            role="alert"
+            data-testid="host-deep-link-error"
+            className="rounded-xl border border-amber-500/40 bg-amber-950/30 px-4 py-3 text-sm text-amber-200"
+          >
+            {linkedDropError}
+          </div>
+        )}
 
         {statusMessage && (
           <div
@@ -1000,6 +1124,158 @@ export default function HostPage() {
               </div>
             </div>
 
+            {/* De-identified Host Pickup Review Queue */}
+            <div
+              data-testid="host-pickup-reviews-panel"
+              className="space-y-3 rounded-xl border border-zinc-800 bg-owl-black/70 p-4"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-extrabold text-white">
+                    De-identified pickup review requests ({pickupReviews.length}
+                    )
+                  </h3>
+                  <p className="text-xs text-zinc-400">
+                    Pickup photos are not retained and student identities are
+                    hidden. You see the de-identified AI food-match assessment
+                    and listing metadata only.
+                  </p>
+                </div>
+                {isPollingReviews && (
+                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300">
+                    Live queue
+                  </span>
+                )}
+              </div>
+
+              {reviewError && (
+                <div
+                  role="alert"
+                  data-testid="host-review-error"
+                  className="rounded-lg border border-rose-500/40 bg-rose-950/30 px-3 py-2 text-xs text-rose-200"
+                >
+                  {reviewError}
+                </div>
+              )}
+
+              {pickupReviews.length === 0 ? (
+                <p
+                  data-testid="host-pickup-reviews-empty"
+                  className="rounded-lg border border-zinc-800 bg-owl-slate/60 px-3 py-2.5 text-xs text-zinc-400"
+                >
+                  No queued pickup reviews right now. When a student requests
+                  help on an uncertain photo match, a de-identified card will
+                  appear here.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {pickupReviews.map((rev) => {
+                    const guard = resolveHostReviewActionGuard(rev, nowIso);
+                    const holdLeft = formatRemainingTime(
+                      rev.held_until,
+                      nowIso,
+                    );
+                    const confidencePct =
+                      rev.confidence !== null && rev.confidence !== undefined
+                        ? `${Math.round(rev.confidence * 100)}%`
+                        : "N/A";
+                    const isApproving =
+                      busyAction === `review:${rev.id}:approve`;
+                    const isRejecting =
+                      busyAction === `review:${rev.id}:reject`;
+
+                    return (
+                      <article
+                        key={rev.id}
+                        data-testid={`host-review-card-${rev.id}`}
+                        data-match-status={rev.match_status}
+                        className="space-y-2.5 rounded-xl border border-amber-500/30 bg-owl-slate p-3.5 text-xs"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span
+                              data-testid={`host-review-match-${rev.id}`}
+                              className={`rounded-full px-2.5 py-0.5 text-[11px] font-extrabold uppercase ${
+                                rev.match_status === "inconsistent"
+                                  ? "bg-rose-500/20 text-rose-300"
+                                  : "bg-amber-500/20 text-amber-300"
+                              }`}
+                            >
+                              {rev.match_status} match ({confidencePct})
+                            </span>
+                            <span
+                              data-testid={`host-review-source-${rev.id}`}
+                              className="rounded-full border border-zinc-700 bg-owl-black px-2 py-0.5 text-[11px] font-semibold text-zinc-300"
+                            >
+                              {getVisionSourceLabel(rev.source)}
+                            </span>
+                          </div>
+                          <span
+                            data-testid={`host-review-hold-left-${rev.id}`}
+                            className="rounded-full bg-owl-black px-2.5 py-0.5 text-[11px] font-bold text-owl-gold"
+                          >
+                            Hold: {holdLeft}
+                          </span>
+                        </div>
+
+                        {rev.explanation && (
+                          <p
+                            data-testid={`host-review-explanation-${rev.id}`}
+                            className="leading-relaxed text-zinc-200"
+                          >
+                            {rev.explanation}
+                          </p>
+                        )}
+
+                        <p
+                          data-testid={`host-review-notice-${rev.id}`}
+                          className="rounded-lg border border-amber-500/25 bg-amber-950/20 px-2.5 py-1.5 text-[11px] text-amber-200"
+                        >
+                          {rev.notice || PICKUP_CONFIRMATION_NOTICE}
+                        </p>
+
+                        {guard.staleReason && (
+                          <p
+                            data-testid={`host-review-guard-${rev.id}`}
+                            className="rounded-lg border border-rose-500/30 bg-rose-950/30 px-2.5 py-1.5 text-[11px] font-semibold text-rose-200"
+                          >
+                            {guard.staleReason}
+                          </p>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-2 pt-1">
+                          <button
+                            type="button"
+                            data-testid={`host-review-approve-${rev.id}`}
+                            disabled={busyAction !== null || !guard.canAct}
+                            onClick={() =>
+                              void handleReviewDecision(rev.id, "approve")
+                            }
+                            className="min-h-[42px] rounded-xl bg-emerald-400 px-3 py-2 text-xs font-extrabold text-owl-black transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            {isApproving
+                              ? "Approving..."
+                              : "Approve pickup (human override)"}
+                          </button>
+                          <button
+                            type="button"
+                            data-testid={`host-review-reject-${rev.id}`}
+                            disabled={busyAction !== null || !guard.canAct}
+                            onClick={() =>
+                              void handleReviewDecision(rev.id, "reject")
+                            }
+                            className="min-h-[42px] rounded-xl border border-zinc-700 bg-owl-black px-3 py-2 text-xs font-bold text-zinc-200 transition hover:border-rose-400 hover:text-rose-200 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            {isRejecting ? "Rejecting..." : "Reject"}
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <div className="rounded-xl border border-owl-gold/30 bg-owl-black/60 p-4">
               {pickupCompanionUrl ? (
                 <a
@@ -1071,5 +1347,19 @@ export default function HostPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function HostPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-owl-black p-6 text-sm text-zinc-400">
+          Loading...
+        </div>
+      }
+    >
+      <HostPageContent />
+    </Suspense>
   );
 }

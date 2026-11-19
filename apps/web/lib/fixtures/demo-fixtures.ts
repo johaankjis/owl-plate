@@ -35,11 +35,21 @@ import type {
   FeedDrop,
   FeedResponse,
   FeedUnavailableReason,
+  HostPickupReview,
+  HostPickupReviewDecision,
+  HostPickupReviewStatus,
+  HostPickupReviewsResponse,
   InviteResponse,
   InvitesResponse,
   JoinRequest,
   JoinResponse,
   PersonaDecision,
+  PickupClaimRequest,
+  PickupMatchStatus,
+  PickupReviewStatus,
+  PickupVerification,
+  PickupVerificationResponse,
+  PickupVerificationStatus,
   Preferences,
   PresenceRequest,
   PresenceResponse,
@@ -54,6 +64,8 @@ import type {
 import {
   ALLERGENS,
   ALLERGEN_WARNING_TEXT,
+  PICKUP_CONFIRMATION_NOTICE,
+  PICKUP_CONSISTENT_CONFIDENCE_THRESHOLD,
   RELIGIOUS_DIETS,
 } from "../types/api";
 
@@ -161,19 +173,53 @@ interface InternalClaim {
   heldUntil: string;
 }
 
+interface InternalPickupVerification {
+  id: string;
+  claimId: string;
+  dropId: string;
+  requestId: string;
+  attemptOrder: number;
+  status: PickupVerificationStatus;
+  matchStatus: PickupMatchStatus | null;
+  confidence: number | null;
+  explanation: string;
+  source: "fixture" | "openrouter";
+  createdAt: string;
+  reviewStatus: PickupReviewStatus;
+}
+
+export interface InternalHostOutboxEvent {
+  notification_id: string;
+  notification_mode: "host_pickup";
+  drop_id: string;
+  claim_id: string;
+  title: string;
+  body: string;
+  url: string;
+  tag: string;
+  created_at: string;
+  delivered_to_host: boolean;
+}
+
 interface OfflineFixtureStore {
   serverTimeIso: string;
   clockOffsetSeconds: number;
   scenario: DemoScenario;
   activeDropId: string;
   drops: Record<string, DropResponse>;
+  dropOwnerByDropId: Record<string, string>;
   wavesByDrop: Record<string, WaveResponse[]>;
   invites: Record<string, InternalInvite>;
   claims: Record<string, InternalClaim>;
+  verifications: Record<string, InternalPickupVerification>;
+  attemptCounter: number;
+  pickupFixtureStatusOverride: PickupMatchStatus | null;
   personas: Record<"A" | "B" | "C" | "D" | "E", InternalPersonaConfig>;
   visitorsByToken: Record<string, InternalVisitorSession>;
   presenceUntilByToken: Record<string, string>;
   pushRegisteredByToken: Record<string, boolean>;
+  hostPushRegisteredByHostId: Record<string, boolean>;
+  hostOutboxByClaimId: Record<string, InternalHostOutboxEvent>;
 }
 
 let memoryStore: OfflineFixtureStore | null = null;
@@ -269,13 +315,19 @@ function createInitialStore(
     scenario,
     activeDropId: "",
     drops: {},
+    dropOwnerByDropId: {},
     wavesByDrop: {},
     invites: {},
     claims: {},
+    verifications: {},
+    attemptCounter: 0,
+    pickupFixtureStatusOverride: null,
     personas: createInitialPersonas(scenario),
     visitorsByToken: {},
     presenceUntilByToken: {},
     pushRegisteredByToken: {},
+    hostPushRegisteredByHostId: {},
+    hostOutboxByClaimId: {},
   };
 }
 
@@ -302,6 +354,24 @@ function loadStore(): OfflineFixtureStore {
     }
     if (typeof parsed.clockOffsetSeconds !== "number") {
       parsed.clockOffsetSeconds = 0;
+    }
+    if (!parsed.dropOwnerByDropId) {
+      parsed.dropOwnerByDropId = {};
+    }
+    if (!parsed.verifications) {
+      parsed.verifications = {};
+    }
+    if (typeof parsed.attemptCounter !== "number") {
+      parsed.attemptCounter = 0;
+    }
+    if (parsed.pickupFixtureStatusOverride === undefined) {
+      parsed.pickupFixtureStatusOverride = null;
+    }
+    if (!parsed.hostPushRegisteredByHostId) {
+      parsed.hostPushRegisteredByHostId = {};
+    }
+    if (!parsed.hostOutboxByClaimId) {
+      parsed.hostOutboxByClaimId = {};
     }
     return parsed;
   } catch {
@@ -534,6 +604,31 @@ function expireDeadlines(store: OfflineFixtureStore): void {
         claim.status = "expired";
       }
     }
+    if (claim.status === "expired" || claim.status === "released") {
+      for (const v of Object.values(store.verifications)) {
+        if (v.claimId === claim.id) {
+          if (v.status === "processing") {
+            v.status = "failed";
+          }
+          if (
+            v.reviewStatus === "pending" ||
+            v.reviewStatus === "not_requested"
+          ) {
+            v.reviewStatus = "expired";
+          }
+        }
+      }
+    }
+  }
+  for (const v of Object.values(store.verifications)) {
+    if (v.status === "processing") {
+      const ageMs = nowMs - new Date(v.createdAt).getTime();
+      if (ageMs >= 120 * 1000) {
+        v.status = "failed";
+        v.explanation =
+          "Simulated assessment timed out after 120 seconds. Please retry.";
+      }
+    }
   }
   for (const dropId of Object.keys(store.drops)) {
     recomputeCounts(store, dropId);
@@ -738,6 +833,7 @@ export function fixtureLeaveSession(
   }
 
   delete store.visitorsByToken[credential];
+  expireDeadlines(store);
   saveStore(store);
   return { status: "left" };
 }
@@ -754,7 +850,10 @@ export function fixtureGetDemoStatus(): DemoStatusResponse {
   };
 }
 
-export function fixtureCreateDrop(hostNote?: string): DropResponse {
+export function fixtureCreateDrop(
+  hostNote?: string,
+  credential: AuthToken = "demo-host",
+): DropResponse {
   const store = loadStore();
   const now = new Date(store.serverTimeIso);
   const existingCount = Object.keys(store.drops).length + 1;
@@ -794,6 +893,7 @@ export function fixtureCreateDrop(hostNote?: string): DropResponse {
     is_demo: true,
   };
   store.drops[id] = newDrop;
+  store.dropOwnerByDropId[id] = credential;
   store.wavesByDrop[id] = [];
   store.activeDropId = id;
   saveStore(store);
@@ -917,12 +1017,21 @@ export function fixturePublishDrop(dropId: string): DropResponse {
   return drop;
 }
 
-export function fixtureGetDrop(dropId: string): DropResponse {
+export function fixtureGetDrop(
+  dropId: string,
+  credential?: AuthToken,
+): DropResponse {
   const store = loadStore();
   expireDeadlines(store);
-  const drop = store.drops[dropId] ?? store.drops[store.activeDropId];
+  const drop = store.drops[dropId];
   if (!drop) {
     throw new FixtureContractError(404, "not_found", "Drop not found");
+  }
+  if (credential && credential.startsWith("demo-host")) {
+    const owner = store.dropOwnerByDropId[drop.id] ?? "demo-host";
+    if (owner !== credential) {
+      throw new FixtureContractError(404, "not_found", "Drop not found");
+    }
   }
   recomputeCounts(store, drop.id);
   return drop;
@@ -1291,6 +1400,7 @@ export function fixtureDeclineInvite(
   if (inv.claimId && store.claims[inv.claimId]) {
     store.claims[inv.claimId]!.status = "released";
   }
+  expireDeadlines(store);
   recomputeCounts(store, inv.dropId);
   saveStore(store);
   return buildInviteResponse(store, inv);
@@ -1313,6 +1423,7 @@ export function fixtureReleaseClaim(
     }
   }
   claim.status = "released";
+  expireDeadlines(store);
   recomputeCounts(store, claim.dropId);
   saveStore(store);
   return {
@@ -1324,9 +1435,106 @@ export function fixtureReleaseClaim(
   };
 }
 
+function recordHostPickupOutboxOnce(
+  store: OfflineFixtureStore,
+  claim: InternalClaim,
+  drop: DropResponse,
+  countsAtCommit: Counts,
+): void {
+  if (store.hostOutboxByClaimId[claim.id]) {
+    return;
+  }
+  const ownerHostId = store.dropOwnerByDropId[drop.id] ?? "demo-host";
+  const isHostOptedIn = Boolean(store.hostPushRegisteredByHostId[ownerHostId]);
+  const firstItemName =
+    drop.vision.items[0]?.name?.trim() || "shared event food";
+  const availLabel =
+    countsAtCommit.available === 1
+      ? "1 serving available."
+      : `${countsAtCommit.available} servings available.`;
+  const shortClaimSuffix = claim.id.replace(/[^a-zA-Z0-9]/g, "").slice(-16);
+  const tag = `owl-hp-${shortClaimSuffix}`.slice(0, 32);
+
+  store.hostOutboxByClaimId[claim.id] = {
+    notification_id: `notif-hp-${claim.id}`,
+    notification_mode: "host_pickup",
+    drop_id: drop.id,
+    claim_id: claim.id,
+    title: "Owl Plate: Pickup update",
+    body: `A serving of ${firstItemName} was marked collected. ${availLabel}`,
+    url: `/host?drop=${encodeURIComponent(drop.id)}`,
+    tag,
+    created_at: store.serverTimeIso,
+    delivered_to_host: isHostOptedIn,
+  };
+}
+
+function getLatestAttemptForClaim(
+  store: OfflineFixtureStore,
+  claimId: string,
+): InternalPickupVerification | null {
+  const attempts = Object.values(store.verifications)
+    .filter((v) => v.claimId === claimId)
+    .sort((a, b) => b.attemptOrder - a.attemptOrder);
+  return attempts[0] ?? null;
+}
+
+function deriveCanConfirm(
+  store: OfflineFixtureStore,
+  v: InternalPickupVerification,
+): boolean {
+  const claim = store.claims[v.claimId];
+  if (!claim || claim.status !== "held") return false;
+  const drop = store.drops[claim.dropId];
+  if (!drop || drop.status === "expired") return false;
+  const nowMs = new Date(store.serverTimeIso).getTime();
+  if (nowMs >= new Date(claim.heldUntil).getTime()) return false;
+  if (drop.expires_at && nowMs >= new Date(drop.expires_at).getTime()) {
+    return false;
+  }
+  const latest = getLatestAttemptForClaim(store, v.claimId);
+  if (!latest || latest.id !== v.id) return false;
+  if (v.status !== "ready" || v.matchStatus !== "consistent") return false;
+  if (
+    v.confidence === null ||
+    !Number.isFinite(v.confidence) ||
+    v.confidence < PICKUP_CONSISTENT_CONFIDENCE_THRESHOLD
+  ) {
+    return false;
+  }
+  if (
+    v.reviewStatus === "rejected" ||
+    v.reviewStatus === "superseded" ||
+    v.reviewStatus === "expired"
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function serializePickupVerification(
+  store: OfflineFixtureStore,
+  v: InternalPickupVerification,
+): PickupVerification {
+  return {
+    id: v.id,
+    claim_id: v.claimId,
+    status: v.status,
+    match_status: v.matchStatus,
+    confidence: v.confidence,
+    explanation: v.explanation,
+    source: v.source,
+    created_at: v.createdAt,
+    review_status: v.reviewStatus,
+    can_confirm: deriveCanConfirm(store, v),
+    notice: PICKUP_CONFIRMATION_NOTICE,
+  };
+}
+
 export function fixturePickupClaim(
   claimId: string,
   credential?: AuthToken,
+  req?: PickupClaimRequest,
 ): ClaimResponse {
   const store = loadStore();
   expireDeadlines(store);
@@ -1340,8 +1548,74 @@ export function fixturePickupClaim(
       throw new FixtureContractError(404, "not_found", "Claim not found");
     }
   }
+  // Idempotent retry if already picked_up
+  if (claim.status === "picked_up") {
+    return {
+      id: claim.id,
+      invite_id: claim.inviteId,
+      drop_id: claim.dropId,
+      status: claim.status,
+      held_until: claim.heldUntil,
+    };
+  }
+  if (claim.status !== "held") {
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      "This pickup hold is no longer active.",
+    );
+  }
+  const drop = store.drops[claim.dropId];
+  const nowMs = new Date(store.serverTimeIso).getTime();
+  if (
+    !drop ||
+    drop.status === "expired" ||
+    nowMs >= new Date(claim.heldUntil).getTime() ||
+    (drop.expires_at && nowMs >= new Date(drop.expires_at).getTime())
+  ) {
+    claim.status = "expired";
+    expireDeadlines(store);
+    saveStore(store);
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      "Your pickup hold has expired.",
+    );
+  }
+
+  const mode = drop.distribution_mode ?? "seeded_waves";
+  const verificationId = req?.verification_id?.trim() || null;
+
+  if (mode === "campus_feed") {
+    if (!verificationId) {
+      throw new FixtureContractError(
+        409,
+        "pickup_verification_required",
+        "Photo-assisted verification is required before completing a campus feed pickup.",
+      );
+    }
+    const v = store.verifications[verificationId];
+    if (!v || v.claimId !== claim.id || !deriveCanConfirm(store, v)) {
+      throw new FixtureContractError(
+        409,
+        "invalid_state",
+        "The latest photo assessment is not eligible to confirm pickup.",
+      );
+    }
+  } else if (verificationId) {
+    const v = store.verifications[verificationId];
+    if (!v || v.claimId !== claim.id || !deriveCanConfirm(store, v)) {
+      throw new FixtureContractError(
+        409,
+        "invalid_state",
+        "The specified photo verification is not valid for this claim.",
+      );
+    }
+  }
+
   claim.status = "picked_up";
-  recomputeCounts(store, claim.dropId);
+  const countsAtCommit = recomputeCounts(store, claim.dropId);
+  recordHostPickupOutboxOnce(store, claim, drop, countsAtCommit);
   saveStore(store);
   return {
     id: claim.id,
@@ -1729,4 +2003,575 @@ export function fixtureRegisterPushToken(
   store.pushRegisteredByToken[credential] = req.token.length > 0;
   saveStore(store);
   return { registered: true };
+}
+
+function assertHostRole(credential: AuthToken): string {
+  if (!credential || !credential.startsWith("demo-host")) {
+    throw new FixtureContractError(
+      403,
+      "forbidden",
+      "Host role is required for this endpoint.",
+    );
+  }
+  return credential;
+}
+
+function assertOwnDropForHost(
+  store: OfflineFixtureStore,
+  dropId: string,
+  credential: AuthToken,
+): DropResponse {
+  const hostId = assertHostRole(credential);
+  const drop = store.drops[dropId];
+  if (!drop) {
+    throw new FixtureContractError(404, "not_found", "Drop not found.");
+  }
+  const owner = store.dropOwnerByDropId[drop.id] ?? "demo-host";
+  if (owner !== hostId) {
+    throw new FixtureContractError(404, "not_found", "Drop not found.");
+  }
+  return drop;
+}
+
+export function fixtureRegisterHostPushToken(
+  credential: AuthToken,
+  req: PushTokenRequest,
+): PushTokenResponse {
+  const store = loadStore();
+  const hostId = assertHostRole(credential);
+  const token = req.token?.trim() ?? "";
+  if (!token) {
+    throw new FixtureContractError(
+      422,
+      "validation_error",
+      "Push token is required.",
+    );
+  }
+  store.hostPushRegisteredByHostId[hostId] = true;
+  saveStore(store);
+  return { registered: true };
+}
+
+export function fixtureGetHostPushTokenStatus(
+  credential: AuthToken,
+): PushTokenResponse {
+  const store = loadStore();
+  const hostId = assertHostRole(credential);
+  const registered = Boolean(store.hostPushRegisteredByHostId[hostId]);
+  return { registered };
+}
+
+export function fixtureDeleteHostPushToken(
+  credential: AuthToken,
+): PushTokenResponse {
+  const store = loadStore();
+  const hostId = assertHostRole(credential);
+  store.hostPushRegisteredByHostId[hostId] = false;
+  saveStore(store);
+  return { registered: false };
+}
+
+export function fixtureSetPickupFixtureStatus(
+  status: PickupMatchStatus | null,
+): void {
+  const store = loadStore();
+  store.pickupFixtureStatusOverride = status;
+  saveStore(store);
+}
+
+function resolveFixtureMatchResult(
+  store: OfflineFixtureStore,
+  drop: DropResponse,
+  rawStatus?: PickupMatchStatus | null,
+  rawConfidence?: number | null,
+): {
+  matchStatus: PickupMatchStatus;
+  confidence: number;
+  explanation: string;
+} {
+  const envStatus =
+    typeof process !== "undefined" &&
+    process.env?.PICKUP_FIXTURE_STATUS &&
+    (process.env.PICKUP_FIXTURE_STATUS === "consistent" ||
+      process.env.PICKUP_FIXTURE_STATUS === "uncertain" ||
+      process.env.PICKUP_FIXTURE_STATUS === "inconsistent")
+      ? (process.env.PICKUP_FIXTURE_STATUS as PickupMatchStatus)
+      : null;
+
+  const targetStatus: PickupMatchStatus =
+    rawStatus ?? store.pickupFixtureStatusOverride ?? envStatus ?? "consistent";
+
+  const itemSummary =
+    drop.vision.items.map((i) => i.name).join(", ") || "shared event trays";
+
+  let defaultConfidence = 0.89;
+  if (targetStatus === "uncertain") {
+    defaultConfidence = 0.64;
+  } else if (targetStatus === "inconsistent") {
+    defaultConfidence = 0.22;
+  }
+
+  const rawConf =
+    typeof rawConfidence === "number" && Number.isFinite(rawConfidence)
+      ? Math.max(0, Math.min(1, rawConfidence))
+      : defaultConfidence;
+
+  // Threshold 0.8: Consistent confidence below 0.8 becomes uncertain
+  const normalizedStatus: PickupMatchStatus =
+    targetStatus === "consistent" &&
+    rawConf < PICKUP_CONSISTENT_CONFIDENCE_THRESHOLD
+      ? "uncertain"
+      : targetStatus;
+
+  let explanation = "";
+  if (normalizedStatus === "consistent") {
+    explanation = `Simulated demo assessment (no image pixels retained or analyzed): matches host listing (${itemSummary}).`;
+  } else if (normalizedStatus === "uncertain") {
+    explanation = `Simulated demo assessment (no image pixels retained or analyzed): comparison with host listing (${itemSummary}) is uncertain (confidence ${Math.round(rawConf * 100)}% < 80% threshold). You can retry with a clearer photo or request host review.`;
+  } else {
+    explanation = `Simulated demo assessment (no image pixels retained or analyzed): does not match host listing (${itemSummary}). Retry with a photo of the listed food or request host review.`;
+  }
+
+  return {
+    matchStatus: normalizedStatus,
+    confidence: rawConf,
+    explanation: explanation.slice(0, 500),
+  };
+}
+
+export interface FixturePhotoOptions {
+  /** Metadata only; image bytes are never read or retained. */
+  mimeType?: string;
+  byteSize?: number;
+  /** Simulate an in-flight processing state before resolving. */
+  keepProcessing?: boolean;
+  /** Optional explicit confidence override to test threshold 0.8 normalization. */
+  confidence?: number;
+  /** Optional explicit match status override for unit tests. */
+  matchStatus?: PickupMatchStatus;
+}
+
+export function fixtureSubmitPickupPhoto(
+  claimId: string,
+  requestId: string,
+  credential: AuthToken,
+  options?: FixturePhotoOptions,
+): PickupVerification {
+  const store = loadStore();
+  expireDeadlines(store);
+  const resolved = resolveStudentIdentity(store, credential);
+
+  const cleanReqId = requestId?.trim() ?? "";
+  if (!cleanReqId) {
+    throw new FixtureContractError(
+      422,
+      "validation_error",
+      "request_id UUID is required.",
+    );
+  }
+
+  // Validate active/unexpired own held claim and unexpired drop BEFORE any model/assessment call
+  const claim = store.claims[claimId];
+  if (!claim || claim.recipientKey !== resolved.recipientKey) {
+    throw new FixtureContractError(404, "not_found", "Claim not found.");
+  }
+  if (claim.status !== "held") {
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      "Pickup photo verification requires an active held spot.",
+    );
+  }
+  const drop = store.drops[claim.dropId];
+  const nowMs = new Date(store.serverTimeIso).getTime();
+  if (
+    !drop ||
+    drop.status === "expired" ||
+    nowMs >= new Date(claim.heldUntil).getTime() ||
+    (drop.expires_at && nowMs >= new Date(drop.expires_at).getTime())
+  ) {
+    claim.status = "expired";
+    expireDeadlines(store);
+    saveStore(store);
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      "Your pickup hold or the drop has expired.",
+    );
+  }
+
+  // Validate file metadata bounds (JPEG/PNG only, 10 MiB max) without retaining bytes
+  if (options?.mimeType) {
+    const mime = options.mimeType.toLowerCase();
+    if (mime !== "image/jpeg" && mime !== "image/png" && mime !== "image/jpg") {
+      throw new FixtureContractError(
+        422,
+        "unsupported_image",
+        "Only JPEG and PNG food photos are supported.",
+      );
+    }
+  }
+  if (
+    typeof options?.byteSize === "number" &&
+    options.byteSize > 10 * 1024 * 1024
+  ) {
+    throw new FixtureContractError(
+      422,
+      "image_too_large",
+      "Photo exceeds the 10 MiB limit.",
+    );
+  }
+  if (typeof options?.byteSize === "number" && options.byteSize <= 0) {
+    throw new FixtureContractError(
+      422,
+      "invalid_image",
+      "Selected photo file is empty.",
+    );
+  }
+
+  // Check existing attempts for this claim
+  const claimAttempts = Object.values(store.verifications)
+    .filter((v) => v.claimId === claim.id)
+    .sort((a, b) => b.attemptOrder - a.attemptOrder);
+
+  const sameKeyAttempt = claimAttempts.find((v) => v.requestId === cleanReqId);
+  if (sameKeyAttempt) {
+    saveStore(store);
+    return serializePickupVerification(store, sameKeyAttempt);
+  }
+
+  const activeProcessing = claimAttempts.find((v) => v.status === "processing");
+  if (activeProcessing) {
+    throw new FixtureContractError(
+      409,
+      "verification_in_progress",
+      "A photo verification attempt is already in progress for this hold.",
+    );
+  }
+
+  // Supersede any older pending review or previous ready attempts
+  for (const prev of claimAttempts) {
+    if (
+      prev.reviewStatus === "pending" ||
+      prev.reviewStatus === "not_requested"
+    ) {
+      prev.reviewStatus = "superseded";
+    }
+  }
+
+  store.attemptCounter += 1;
+  const attemptOrder = store.attemptCounter;
+  const verificationId = `ver-${claim.id.slice(0, 12)}-${attemptOrder}`;
+
+  if (options?.keepProcessing) {
+    const processingAttempt: InternalPickupVerification = {
+      id: verificationId,
+      claimId: claim.id,
+      dropId: drop.id,
+      requestId: cleanReqId,
+      attemptOrder,
+      status: "processing",
+      matchStatus: null,
+      confidence: null,
+      explanation: "Comparing photo against host listing items...",
+      source: "fixture",
+      createdAt: store.serverTimeIso,
+      reviewStatus: "not_requested",
+    };
+    store.verifications[verificationId] = processingAttempt;
+    saveStore(store);
+    return serializePickupVerification(store, processingAttempt);
+  }
+
+  const resolvedMatch = resolveFixtureMatchResult(
+    store,
+    drop,
+    options?.matchStatus,
+    options?.confidence,
+  );
+
+  const readyAttempt: InternalPickupVerification = {
+    id: verificationId,
+    claimId: claim.id,
+    dropId: drop.id,
+    requestId: cleanReqId,
+    attemptOrder,
+    status: "ready",
+    matchStatus: resolvedMatch.matchStatus,
+    confidence: resolvedMatch.confidence,
+    explanation: resolvedMatch.explanation,
+    source: "fixture",
+    createdAt: store.serverTimeIso,
+    reviewStatus: "not_requested",
+  };
+  store.verifications[verificationId] = readyAttempt;
+  saveStore(store);
+  return serializePickupVerification(store, readyAttempt);
+}
+
+export function fixtureCompleteProcessingVerification(
+  verificationId: string,
+  options?: {
+    matchStatus?: PickupMatchStatus;
+    confidence?: number;
+    fail?: boolean;
+  },
+): PickupVerification {
+  const store = loadStore();
+  expireDeadlines(store);
+  const v = store.verifications[verificationId];
+  if (!v) {
+    throw new FixtureContractError(
+      404,
+      "not_found",
+      "Verification attempt not found.",
+    );
+  }
+  const latest = getLatestAttemptForClaim(store, v.claimId);
+  if (!latest || latest.id !== v.id) {
+    // Late result cannot overwrite a newer attempt
+    return serializePickupVerification(store, v);
+  }
+  const claim = store.claims[v.claimId];
+  const drop = store.drops[v.dropId];
+  if (!claim || claim.status !== "held" || !drop || drop.status === "expired") {
+    v.status = "failed";
+    v.reviewStatus = "expired";
+    saveStore(store);
+    return serializePickupVerification(store, v);
+  }
+  if (options?.fail) {
+    v.status = "failed";
+    v.matchStatus = null;
+    v.confidence = null;
+    v.explanation =
+      "Photo verification could not be completed. Please try again.";
+    saveStore(store);
+    return serializePickupVerification(store, v);
+  }
+  const resolvedMatch = resolveFixtureMatchResult(
+    store,
+    drop,
+    options?.matchStatus,
+    options?.confidence,
+  );
+  v.status = "ready";
+  v.matchStatus = resolvedMatch.matchStatus;
+  v.confidence = resolvedMatch.confidence;
+  v.explanation = resolvedMatch.explanation;
+  saveStore(store);
+  return serializePickupVerification(store, v);
+}
+
+export function fixtureGetPickupVerification(
+  claimId: string,
+  credential: AuthToken,
+): PickupVerificationResponse {
+  const store = loadStore();
+  expireDeadlines(store);
+  const resolved = resolveStudentIdentity(store, credential);
+  const claim = store.claims[claimId];
+  if (!claim || claim.recipientKey !== resolved.recipientKey) {
+    throw new FixtureContractError(404, "not_found", "Claim not found.");
+  }
+  const latest = getLatestAttemptForClaim(store, claim.id);
+  saveStore(store);
+  return {
+    verification: latest ? serializePickupVerification(store, latest) : null,
+  };
+}
+
+export function fixtureRequestPickupReview(
+  claimId: string,
+  verificationId: string,
+  credential: AuthToken,
+): PickupVerification {
+  const store = loadStore();
+  expireDeadlines(store);
+  const resolved = resolveStudentIdentity(store, credential);
+  const claim = store.claims[claimId];
+  if (!claim || claim.recipientKey !== resolved.recipientKey) {
+    throw new FixtureContractError(404, "not_found", "Claim not found.");
+  }
+  if (claim.status !== "held") {
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      "Host review requires an active held spot.",
+    );
+  }
+  const latest = getLatestAttemptForClaim(store, claim.id);
+  if (!latest || latest.id !== verificationId || latest.status !== "ready") {
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      "Only the latest ready verification attempt can be sent for host review.",
+    );
+  }
+  if (
+    latest.matchStatus !== "uncertain" &&
+    latest.matchStatus !== "inconsistent"
+  ) {
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      "Only uncertain or inconsistent photo assessments can request host review.",
+    );
+  }
+  if (
+    latest.reviewStatus === "rejected" ||
+    latest.reviewStatus === "expired" ||
+    latest.reviewStatus === "superseded"
+  ) {
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      "This verification attempt can no longer request host review. Take a new photo first.",
+    );
+  }
+  // Idempotent if already pending or approved
+  if (latest.reviewStatus === "not_requested") {
+    latest.reviewStatus = "pending";
+  }
+  saveStore(store);
+  return serializePickupVerification(store, latest);
+}
+
+function serializeHostPickupReview(
+  v: InternalPickupVerification,
+  claim: InternalClaim,
+): HostPickupReview {
+  const status: HostPickupReviewStatus =
+    v.reviewStatus === "not_requested" ? "pending" : v.reviewStatus;
+  return {
+    id: v.id,
+    drop_id: v.dropId,
+    match_status: v.matchStatus ?? "uncertain",
+    confidence: v.confidence ?? 0,
+    explanation: v.explanation,
+    source: v.source,
+    created_at: v.createdAt,
+    held_until: claim.heldUntil,
+    review_status: status,
+    notice: PICKUP_CONFIRMATION_NOTICE,
+  };
+}
+
+export function fixtureGetHostPickupReviews(
+  dropId: string,
+  credential: AuthToken = "demo-host",
+): HostPickupReviewsResponse {
+  const store = loadStore();
+  expireDeadlines(store);
+  const drop = assertOwnDropForHost(store, dropId, credential);
+
+  const pendingReviews: HostPickupReview[] = [];
+  for (const v of Object.values(store.verifications)) {
+    if (v.dropId !== drop.id) continue;
+    if (v.status !== "ready" || v.reviewStatus !== "pending") continue;
+    const latest = getLatestAttemptForClaim(store, v.claimId);
+    if (!latest || latest.id !== v.id) continue;
+    const claim = store.claims[v.claimId];
+    if (!claim || claim.status !== "held") continue;
+    pendingReviews.push(serializeHostPickupReview(v, claim));
+  }
+
+  pendingReviews.sort((a, b) => a.created_at.localeCompare(b.created_at));
+  saveStore(store);
+  return {
+    reviews: pendingReviews,
+    server_time: store.serverTimeIso,
+  };
+}
+
+export function fixtureDecideHostPickupReview(
+  dropId: string,
+  verificationId: string,
+  decision: HostPickupReviewDecision,
+  credential: AuthToken = "demo-host",
+): HostPickupReview {
+  const store = loadStore();
+  expireDeadlines(store);
+  const drop = assertOwnDropForHost(store, dropId, credential);
+
+  const v = store.verifications[verificationId];
+  if (!v || v.dropId !== drop.id) {
+    throw new FixtureContractError(
+      404,
+      "not_found",
+      "Pickup review not found for this drop.",
+    );
+  }
+  const claim = store.claims[v.claimId];
+  if (!claim) {
+    throw new FixtureContractError(
+      404,
+      "not_found",
+      "Pickup review not found.",
+    );
+  }
+
+  // Idempotent retry of the same decision
+  if (decision === "approve" && v.reviewStatus === "approved") {
+    return serializeHostPickupReview(v, claim);
+  }
+  if (decision === "reject" && v.reviewStatus === "rejected") {
+    return serializeHostPickupReview(v, claim);
+  }
+
+  // Contradictory decision or stale/expired/superseded review -> 409
+  if (v.reviewStatus !== "pending") {
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      `Review is already ${v.reviewStatus} and cannot be changed.`,
+    );
+  }
+
+  const latest = getLatestAttemptForClaim(store, v.claimId);
+  if (!latest || latest.id !== v.id) {
+    v.reviewStatus = "superseded";
+    saveStore(store);
+    throw new FixtureContractError(
+      409,
+      "review_superseded",
+      "A newer photo verification attempt superseded this review.",
+    );
+  }
+
+  const nowMs = new Date(store.serverTimeIso).getTime();
+  if (
+    claim.status !== "held" ||
+    drop.status === "expired" ||
+    nowMs >= new Date(claim.heldUntil).getTime() ||
+    (drop.expires_at && nowMs >= new Date(drop.expires_at).getTime())
+  ) {
+    v.reviewStatus = "expired";
+    expireDeadlines(store);
+    saveStore(store);
+    throw new FixtureContractError(
+      409,
+      "hold_expired",
+      "The student's hold expired or was released before this review could be completed.",
+    );
+  }
+
+  if (decision === "approve") {
+    // Explicit human override consumes active unexpired hold transactionally, preserving AI match_status
+    v.reviewStatus = "approved";
+    claim.status = "picked_up";
+    const countsAtCommit = recomputeCounts(store, drop.id);
+    recordHostPickupOutboxOnce(store, claim, drop, countsAtCommit);
+  } else {
+    // Rejection leaves hold active until existing expiry and allows a new photo
+    v.reviewStatus = "rejected";
+  }
+
+  saveStore(store);
+  return serializeHostPickupReview(v, claim);
+}
+
+export function fixtureGetHostOutboxEvents(): InternalHostOutboxEvent[] {
+  const store = loadStore();
+  return Object.values(store.hostOutboxByClaimId);
 }

@@ -654,3 +654,281 @@ test("location-free joinDemoSession omits area and getMyFeed, reserveDrop, and g
     ],
   );
 });
+
+test("Milestone 2 pickup photo, verification poll, review request, explicit pickup completion, host review queue/decision, and host push-token routes match contract", async () => {
+  const requests = [];
+  const claimId = "00000000-0000-4000-8000-000000000501";
+  const dropId = "00000000-0000-4000-8000-000000000101";
+  const verificationId = "00000000-0000-4000-8000-000000000701";
+  const requestId = "11111111-2222-4333-8444-555555555555";
+
+  const { api, calls } = loadClient({
+    fetch: async (url, options) => {
+      const parsed = new URL(url);
+      const isMultipart = options.body instanceof FormData;
+      requests.push({
+        method: options.method,
+        pathname: parsed.pathname,
+        auth: options.headers.get("Authorization"),
+        isMultipart,
+        photoName: isMultipart ? options.body.get("photo")?.name : null,
+        requestIdField: isMultipart ? options.body.get("request_id") : null,
+        body: !isMultipart && options.body ? JSON.parse(options.body) : null,
+      });
+
+      if (
+        parsed.pathname === `/claims/${claimId}/pickup-photo` &&
+        options.method === "POST"
+      ) {
+        return Response.json({
+          id: verificationId,
+          claim_id: claimId,
+          status: "ready",
+          match_status: "consistent",
+          confidence: 0.91,
+          explanation: "Visible food trays match the listing.",
+          source: "openrouter",
+          created_at: "2026-11-18T17:02:00Z",
+          review_status: "not_requested",
+          can_confirm: true,
+          notice:
+            "Photo-assisted confirmation. A photo cannot independently establish physical pickup or food safety.",
+        });
+      }
+
+      if (
+        parsed.pathname === `/claims/${claimId}/pickup-verification` &&
+        options.method === "GET"
+      ) {
+        return Response.json({
+          verification: {
+            id: verificationId,
+            claim_id: claimId,
+            status: "ready",
+            match_status: "uncertain",
+            confidence: 0.62,
+            explanation: "Closed container.",
+            source: "openrouter",
+            created_at: "2026-11-18T17:02:00Z",
+            review_status: "not_requested",
+            can_confirm: false,
+            notice:
+              "Photo-assisted confirmation. A photo cannot independently establish physical pickup or food safety.",
+          },
+        });
+      }
+
+      if (
+        parsed.pathname === `/claims/${claimId}/pickup-review` &&
+        options.method === "POST"
+      ) {
+        return Response.json({
+          id: verificationId,
+          claim_id: claimId,
+          status: "ready",
+          match_status: "uncertain",
+          confidence: 0.62,
+          explanation: "Closed container.",
+          source: "openrouter",
+          created_at: "2026-11-18T17:02:00Z",
+          review_status: "pending",
+          can_confirm: false,
+          notice:
+            "Photo-assisted confirmation. A photo cannot independently establish physical pickup or food safety.",
+        });
+      }
+
+      if (
+        parsed.pathname === `/claims/${claimId}/pickup` &&
+        options.method === "POST"
+      ) {
+        return Response.json({
+          id: claimId,
+          invite_id: "inv-1",
+          drop_id: dropId,
+          status: "picked_up",
+          held_until: "2026-11-18T17:10:00Z",
+        });
+      }
+
+      if (
+        parsed.pathname === `/drops/${dropId}/pickup-reviews` &&
+        options.method === "GET"
+      ) {
+        return Response.json({
+          reviews: [
+            {
+              id: verificationId,
+              drop_id: dropId,
+              match_status: "uncertain",
+              confidence: 0.62,
+              explanation: "Closed container.",
+              source: "openrouter",
+              review_status: "pending",
+              created_at: "2026-11-18T17:02:00Z",
+              held_until: "2026-11-18T17:10:00Z",
+              notice:
+                "Photo-assisted confirmation. A photo cannot independently establish physical pickup or food safety.",
+            },
+          ],
+          server_time: "2026-11-18T17:02:04Z",
+        });
+      }
+
+      if (
+        parsed.pathname ===
+          `/drops/${dropId}/pickup-reviews/${verificationId}` &&
+        options.method === "POST"
+      ) {
+        return Response.json({
+          id: verificationId,
+          drop_id: dropId,
+          match_status: "uncertain",
+          confidence: 0.62,
+          explanation: "Closed container.",
+          source: "openrouter",
+          review_status: "approved",
+          created_at: "2026-11-18T17:02:00Z",
+          held_until: "2026-11-18T17:10:00Z",
+          notice:
+            "Photo-assisted confirmation. A photo cannot independently establish physical pickup or food safety.",
+        });
+      }
+
+      if (parsed.pathname === "/hosts/me/push-token") {
+        if (options.method === "POST") {
+          return Response.json({ registered: true });
+        }
+        if (options.method === "GET") {
+          return Response.json({ registered: true });
+        }
+        if (options.method === "DELETE") {
+          return Response.json({ registered: false });
+        }
+      }
+
+      throw new Error(`Unexpected path: ${parsed.pathname}`);
+    },
+  });
+
+  const photoFile = new File(
+    [new Uint8Array([137, 80, 78, 71])],
+    "pickup.png",
+    { type: "image/png" },
+  );
+
+  const photoRes = await api.submitPickupPhoto(
+    claimId,
+    photoFile,
+    requestId,
+    "demo-session-stu-1",
+  );
+  assert.equal(photoRes.data.can_confirm, true);
+  assert.equal(photoRes.data.id, verificationId);
+  assert.ok(calls.deadlines[0] >= 60000);
+
+  const pollRes = await api.getPickupVerification(
+    claimId,
+    "demo-session-stu-1",
+  );
+  assert.equal(pollRes.data.verification.match_status, "uncertain");
+
+  const revReqRes = await api.requestPickupReview(
+    claimId,
+    verificationId,
+    "demo-session-stu-1",
+  );
+  assert.equal(revReqRes.data.review_status, "pending");
+
+  const pickupRes = await api.pickupClaim(claimId, "demo-session-stu-1", {
+    verification_id: verificationId,
+  });
+  assert.equal(pickupRes.data.status, "picked_up");
+
+  const hostReviewsRes = await api.getHostPickupReviews(dropId, "demo-host");
+  assert.equal(hostReviewsRes.data.reviews.length, 1);
+
+  const decideRes = await api.decideHostPickupReview(
+    dropId,
+    verificationId,
+    "approve",
+    "demo-host",
+  );
+  assert.equal(decideRes.data.review_status, "approved");
+
+  const pushPost = await api.registerHostPushToken(
+    {
+      token: "fcm-host-token-12345678901234567890",
+      platform: "web",
+    },
+    "demo-host",
+  );
+  assert.equal(pushPost.data.registered, true);
+
+  const pushGet = await api.getHostPushTokenStatus("demo-host");
+  assert.equal(pushGet.data.registered, true);
+
+  const pushDel = await api.deleteHostPushToken("demo-host");
+  assert.equal(pushDel.data.registered, false);
+
+  assert.equal(requests[0].isMultipart, true);
+  assert.equal(requests[0].photoName, "pickup.png");
+  assert.equal(requests[0].requestIdField, requestId);
+  assert.equal(requests[0].auth, "Bearer demo-session-stu-1");
+  assert.deepEqual(requests[2].body, { verification_id: verificationId });
+  assert.deepEqual(requests[3].body, { verification_id: verificationId });
+  assert.equal(requests[4].auth, "Bearer demo-host");
+  assert.deepEqual(requests[5].body, { decision: "approve" });
+  assert.equal(requests[6].pathname, "/hosts/me/push-token");
+  assert.equal(requests[6].method, "POST");
+  assert.equal(requests[7].method, "GET");
+  assert.equal(requests[8].method, "DELETE");
+  assert.equal(calls.fixtures, 0);
+});
+
+test("submitPickupPhoto and pickupClaim surface 503/409 errors without silent fixture fallback", async () => {
+  const { api, calls } = loadClient({
+    fetch: async (url) => {
+      const parsed = new URL(url);
+      if (parsed.pathname.endsWith("/pickup-photo")) {
+        return Response.json(
+          {
+            detail: {
+              code: "vision_unavailable",
+              message: "OpenRouter pickup verification failed.",
+            },
+          },
+          { status: 503 },
+        );
+      }
+      return Response.json(
+        {
+          detail: {
+            code: "pickup_verification_required",
+            message:
+              "Photo-assisted verification is required before completing pickup.",
+          },
+        },
+        { status: 409 },
+      );
+    },
+  });
+
+  await assert.rejects(
+    api.submitPickupPhoto(
+      "claim-1",
+      new File([new Uint8Array([1, 2, 3])], "food.jpg", {
+        type: "image/jpeg",
+      }),
+      "11111111-2222-4333-8444-555555555555",
+      "demo-session-1",
+    ),
+    (err) => err.status === 503 && err.code === "vision_unavailable",
+  );
+
+  await assert.rejects(
+    api.pickupClaim("claim-1", "demo-session-1"),
+    (err) => err.status === 409 && err.code === "pickup_verification_required",
+  );
+  assert.equal(calls.fixtures, 0);
+});

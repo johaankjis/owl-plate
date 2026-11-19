@@ -461,3 +461,283 @@ test("formatHostDropLocation uses drop.building.name or directory match, and fal
     "DEMO-ORIGIN, Room 214",
   );
 });
+
+test("restoreHostDropState supports authorized /host?drop=<UUID> deep link and blocks foreign or missing drops without exposing foreign data", async () => {
+  const helpers = loadHostHelpers();
+  const { fixtures } = loadFixturesModule();
+
+  fixtures.fixtureDemoReset({ scenario: "visitors" });
+
+  // Host creates and publishes own drop
+  const ownDraft = fixtures.fixtureCreateDrop("pizza", "demo-host");
+  fixtures.fixtureUpdateDrop(ownDraft.id, {
+    servings_final: 3,
+    allergens_final: ["dairy", "gluten"],
+    diet_tags_final: [],
+    building_code: "BLDG-A",
+    room: "101",
+    pickup_instructions: "",
+    expires_in_minutes: 45,
+    safety_review: {
+      covered_and_temperature_safe: true,
+      served_within_two_hours: true,
+      untouched: true,
+      ingredient_information_checked: false,
+      religious_diets_confirmed: false,
+    },
+  });
+  const ownLive = fixtures.fixturePublishDrop(ownDraft.id);
+
+  // Another host creates a foreign drop
+  const foreignDraft = fixtures.fixtureCreateDrop("salad", "demo-host-foreign");
+
+  // 1. Authorized /host?drop=<ownLive.id> loads own drop directly on counts view without calling fetchActiveDrop
+  let activeDropCalled = 0;
+  const restoredOwn = await helpers.restoreHostDropState(
+    async () => {
+      activeDropCalled++;
+      return { data: { drop_id: ownLive.id }, source: "offline_fixture" };
+    },
+    async (id) => ({
+      data: fixtures.fixtureGetDrop(id, "demo-host"),
+      source: "offline_fixture",
+    }),
+    ownLive.id,
+  );
+  assert.equal(activeDropCalled, 0);
+  assert.equal(restoredOwn.step, "counts");
+  assert.equal(restoredOwn.drop?.id, ownLive.id);
+  assert.equal(restoredOwn.linkedDropError, null);
+
+  // 2. Foreign /host?drop=<foreignDraft.id> throws 404 from fixtureGetDrop(id, "demo-host") and never displays foreign drop data
+  const restoredForeign = await helpers.restoreHostDropState(
+    async () => ({
+      data: { drop_id: ownLive.id },
+      source: "offline_fixture",
+    }),
+    async (id) => ({
+      data: fixtures.fixtureGetDrop(id, "demo-host"),
+      source: "offline_fixture",
+    }),
+    foreignDraft.id,
+  );
+  assert.notEqual(restoredForeign.drop?.id, foreignDraft.id);
+  assert.equal(restoredForeign.drop?.id, ownLive.id);
+  assert.ok(restoredForeign.linkedDropError);
+});
+
+test("Milestone 2 host pickup review queue is de-identified, enforces ACLs, handles approve/reject/idempotency/contradictions, and emits once-only host pickup notifications", () => {
+  const helpers = loadHostHelpers();
+  const { fixtures } = loadFixturesModule();
+
+  fixtures.fixtureDemoReset({ scenario: "visitors" });
+
+  // Host push registration status starts disabled, can be enabled, and resets on demo reset
+  assert.equal(
+    fixtures.fixtureGetHostPushTokenStatus("demo-host").registered,
+    false,
+  );
+  assert.equal(
+    fixtures.fixtureRegisterHostPushToken("demo-host", {
+      token: "fcm-host-token-12345678901234567890",
+      platform: "web",
+    }).registered,
+    true,
+  );
+  assert.equal(
+    fixtures.fixtureGetHostPushTokenStatus("demo-host").registered,
+    true,
+  );
+
+  // Student tokens are rejected with 403 on host push-token endpoints
+  const stuA = fixtures.fixtureJoinSession({
+    nickname: "ReviewStuA",
+    allergens: [],
+    diets: [],
+  });
+  const stuB = fixtures.fixtureJoinSession({
+    nickname: "ReviewStuB",
+    allergens: [],
+    diets: [],
+  });
+  assert.throws(
+    () => fixtures.fixtureGetHostPushTokenStatus(stuA.token),
+    (err) => err.status === 403 && err.code === "forbidden",
+  );
+
+  // Host creates and publishes a 2-serving drop
+  const draft = fixtures.fixtureCreateDrop("tacos", "demo-host");
+  fixtures.fixtureUpdateDrop(draft.id, {
+    servings_final: 2,
+    allergens_final: draft.allergens_final,
+    diet_tags_final: draft.diet_tags_final,
+    building_code: "BLDG-A",
+    room: "214",
+    pickup_instructions: "",
+    expires_in_minutes: 45,
+    safety_review: {
+      covered_and_temperature_safe: true,
+      served_within_two_hours: true,
+      untouched: true,
+      ingredient_information_checked: false,
+      religious_diets_confirmed: false,
+    },
+  });
+  const pub = fixtures.fixturePublishDrop(draft.id);
+
+  // Student A reserves and submits an uncertain photo, then requests host review
+  const claimA = fixtures.fixtureReserveDrop(pub.id, stuA.token);
+  const verA = fixtures.fixtureSubmitPickupPhoto(
+    claimA.id,
+    "22222222-2222-4222-8222-222222222222",
+    stuA.token,
+    {
+      matchStatus: "uncertain",
+      confidence: 0.65,
+    },
+  );
+  fixtures.fixtureRequestPickupReview(claimA.id, verA.id, stuA.token);
+
+  // Wrong role (student token) cannot read host review queue (403)
+  assert.throws(
+    () => fixtures.fixtureGetHostPickupReviews(pub.id, stuA.token),
+    (err) => err.status === 403 && err.code === "forbidden",
+  );
+  // Foreign host cannot read or decide another host's review queue (404)
+  assert.throws(
+    () => fixtures.fixtureGetHostPickupReviews(pub.id, "demo-host-other"),
+    (err) => err.status === 404 && err.code === "not_found",
+  );
+
+  // Own host polls review queue -> receives de-identified review card (no student id/nickname/claim_id/photo)
+  const queue1 = fixtures.fixtureGetHostPickupReviews(pub.id, "demo-host");
+  assert.equal(queue1.reviews.length, 1);
+  const revCard = queue1.reviews[0];
+  assert.equal(revCard.id, verA.id);
+  assert.equal(revCard.match_status, "uncertain");
+  assert.equal(revCard.review_status, "pending");
+  assert.equal("claim_id" in revCard, false);
+  assert.equal("student_id" in revCard, false);
+  assert.equal("nickname" in revCard, false);
+  assert.equal("photo" in revCard, false);
+
+  const guardActive = helpers.resolveHostReviewActionGuard(
+    revCard,
+    queue1.server_time,
+  );
+  assert.equal(guardActive.canAct, true);
+  assert.equal(guardActive.staleReason, null);
+
+  // Host rejects first -> review_status becomes "rejected", claim remains "held" so student can retry
+  const rejected = fixtures.fixtureDecideHostPickupReview(
+    pub.id,
+    verA.id,
+    "reject",
+    "demo-host",
+  );
+  assert.equal(rejected.review_status, "rejected");
+  // Idempotent retry of same reject decision returns 200 rejected
+  const rejectedIdem = fixtures.fixtureDecideHostPickupReview(
+    pub.id,
+    verA.id,
+    "reject",
+    "demo-host",
+  );
+  assert.equal(rejectedIdem.review_status, "rejected");
+  // Contradictory approve after reject returns 409 invalid_state
+  assert.throws(
+    () =>
+      fixtures.fixtureDecideHostPickupReview(
+        pub.id,
+        verA.id,
+        "approve",
+        "demo-host",
+      ),
+    (err) => err.status === 409 && err.code === "invalid_state",
+  );
+
+  // Student A's hold is still active; Student A submits a second uncertain photo and requests review
+  const verA2 = fixtures.fixtureSubmitPickupPhoto(
+    claimA.id,
+    "33333333-3333-4333-8333-333333333333",
+    stuA.token,
+    {
+      matchStatus: "inconsistent",
+      confidence: 0.35,
+    },
+  );
+  fixtures.fixtureRequestPickupReview(claimA.id, verA2.id, stuA.token);
+
+  // Host approves -> human override marks claim picked_up, updates drop counts, and emits once-only host_pickup outbox event
+  const approved = fixtures.fixtureDecideHostPickupReview(
+    pub.id,
+    verA2.id,
+    "approve",
+    "demo-host",
+  );
+  assert.equal(approved.review_status, "approved");
+
+  // Idempotent retry of approve returns same approved state and does not duplicate outbox notification
+  const approvedIdem = fixtures.fixtureDecideHostPickupReview(
+    pub.id,
+    verA2.id,
+    "approve",
+    "demo-host",
+  );
+  assert.equal(approvedIdem.review_status, "approved");
+
+  const dropAfterApprove = fixtures.fixtureGetDrop(pub.id, "demo-host");
+  assert.deepEqual(
+    { ...dropAfterApprove.counts },
+    {
+      total: 2,
+      available: 1,
+      held: 0,
+      picked_up: 1,
+    },
+  );
+
+  const outboxAfterApprove = fixtures.fixtureGetHostOutboxEvents();
+  assert.equal(outboxAfterApprove.length, 1);
+  assert.equal(outboxAfterApprove[0].notification_mode, "host_pickup");
+  assert.equal(outboxAfterApprove[0].drop_id, pub.id);
+  assert.equal(outboxAfterApprove[0].url, `/host?drop=${pub.id}`);
+  assert.ok(outboxAfterApprove[0].tag.length <= 32);
+  assert.ok(outboxAfterApprove[0].body.includes("1 serving available."));
+
+  // Student B reserves the remaining serving, requests review, then lets the hold expire before host decides
+  const claimB = fixtures.fixtureReserveDrop(pub.id, stuB.token);
+  const verB = fixtures.fixtureSubmitPickupPhoto(
+    claimB.id,
+    "44444444-4444-4444-8444-444444444444",
+    stuB.token,
+    {
+      matchStatus: "uncertain",
+      confidence: 0.55,
+    },
+  );
+  fixtures.fixtureRequestPickupReview(claimB.id, verB.id, stuB.token);
+
+  // Advance clock 601s so Student B's 10-minute hold expires
+  fixtures.fixtureDemoTick({ advance_seconds: 601 });
+  assert.throws(
+    () =>
+      fixtures.fixtureDecideHostPickupReview(
+        pub.id,
+        verB.id,
+        "approve",
+        "demo-host",
+      ),
+    (err) =>
+      err.status === 409 &&
+      (err.code === "invalid_state" || err.code === "hold_expired"),
+  );
+
+  // Demo reset clears host push registrations, verifications, and outbox
+  fixtures.fixtureDemoReset({ scenario: "visitors" });
+  assert.equal(
+    fixtures.fixtureGetHostPushTokenStatus("demo-host").registered,
+    false,
+  );
+  assert.equal(fixtures.fixtureGetHostOutboxEvents().length, 0);
+});

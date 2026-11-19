@@ -2,6 +2,9 @@ import type {
   Building,
   Counts,
   DropResponse,
+  HostPickupReview,
+  PickupMatchStatus,
+  PickupVerificationSource,
   VisionSource,
 } from "../../lib/types/api";
 import { filterVerifiedBuildings } from "../../lib/buildings";
@@ -129,6 +132,21 @@ export function shouldPollHostCounts(
 }
 
 /**
+ * Returns true when the host page should actively poll GET /drops/{id}/pickup-reviews
+ * for the host's own published drop.
+ */
+export function shouldPollHostPickupReviews(
+  drop: DropResponse | null,
+  step: HostViewStep = resolveHostStep(drop),
+): boolean {
+  if (!drop) return false;
+  return (
+    step === "counts" &&
+    (drop.status === "live" || drop.status === "claimed_out")
+  );
+}
+
+/**
  * Formats each count value as a number-only string for the host count elements.
  */
 export function formatHostCounts(counts: Counts): {
@@ -146,8 +164,11 @@ export function formatHostCounts(counts: Counts): {
 }
 
 /**
- * Restores the current host drop state on page reload via GET /demo/active-drop
- * followed by GET /drops/{id}.
+ * Restores the current host drop state on page load or `/host?drop=<UUID>` deep link:
+ * - If `linkedDropId` is provided, loads THAT specific drop via `fetchDrop(linkedDropId)`.
+ *   If backend returns 404/403 (foreign, unauthorized, or missing drop), sets `linkedDropError`
+ *   and falls back to the host's own active drop (or upload step) without rendering foreign data.
+ * - Otherwise queries `GET /demo/active-drop` followed by `GET /drops/{id}`.
  */
 export async function restoreHostDropState<TSource>(
   fetchActiveDrop: () => Promise<{
@@ -157,11 +178,61 @@ export async function restoreHostDropState<TSource>(
   fetchDrop: (
     dropId: string,
   ) => Promise<{ data: DropResponse; source: TSource }>,
+  linkedDropId?: string | null,
 ): Promise<{
   drop: DropResponse | null;
   step: HostViewStep;
   source: TSource;
+  linkedDropError?: string | null;
 }> {
+  const cleanLinkedId = linkedDropId?.trim() || null;
+  if (cleanLinkedId) {
+    try {
+      const linkedRes = await fetchDrop(cleanLinkedId);
+      const step = resolveHostStep(linkedRes.data);
+      return {
+        drop: step === "upload" ? null : linkedRes.data,
+        step,
+        source: linkedRes.source,
+        linkedDropError:
+          linkedRes.data.status === "expired" ? "That drop has expired." : null,
+      };
+    } catch (err) {
+      const status =
+        typeof err === "object" && err !== null && "status" in err
+          ? (err as { status?: unknown }).status
+          : undefined;
+      const errMsg =
+        status === 404 || status === 403
+          ? "That drop is unavailable or belongs to another host."
+          : err instanceof Error
+            ? err.message
+            : "Could not load linked drop.";
+      try {
+        const activeRes = await fetchActiveDrop();
+        const activeDropId = activeRes.data.drop_id;
+        if (!activeDropId || activeDropId === cleanLinkedId) {
+          return {
+            drop: null,
+            step: "upload",
+            source: activeRes.source,
+            linkedDropError: errMsg,
+          };
+        }
+        const dropRes = await fetchDrop(activeDropId);
+        const step = resolveHostStep(dropRes.data);
+        return {
+          drop: step === "upload" ? null : dropRes.data,
+          step,
+          source: dropRes.source,
+          linkedDropError: errMsg,
+        };
+      } catch {
+        throw err;
+      }
+    }
+  }
+
   const activeRes = await fetchActiveDrop();
   const activeDropId = activeRes.data.drop_id;
   if (!activeDropId) {
@@ -169,6 +240,7 @@ export async function restoreHostDropState<TSource>(
       drop: null,
       step: "upload",
       source: activeRes.source,
+      linkedDropError: null,
     };
   }
   const dropRes = await fetchDrop(activeDropId);
@@ -177,5 +249,97 @@ export async function restoreHostDropState<TSource>(
     drop: step === "upload" ? null : dropRes.data,
     step,
     source: dropRes.source,
+    linkedDropError: null,
+  };
+}
+
+/**
+ * Formats a host pickup review's provider source into an honest UI badge label.
+ */
+export function formatHostReviewSourceLabel(
+  source: PickupVerificationSource,
+): string {
+  if (source === "openrouter") {
+    return "Live Gemini via OpenRouter";
+  }
+  return "Simulated demo assessment";
+}
+
+/**
+ * Formats a host pickup review's match_status into a concise badge label.
+ */
+export function formatHostReviewMatchLabel(
+  matchStatus: PickupMatchStatus,
+): string {
+  if (matchStatus === "consistent") {
+    return "Consistent";
+  }
+  if (matchStatus === "uncertain") {
+    return "Uncertain";
+  }
+  return "Inconsistent";
+}
+
+/**
+ * Formats a host pickup review confidence value (0..1) into a percentage string.
+ */
+export function formatHostReviewConfidence(confidence: number): string {
+  if (!Number.isFinite(confidence)) return "0%";
+  const clamped = Math.max(0, Math.min(1, confidence));
+  return `${Math.round(clamped * 100)}%`;
+}
+
+export interface HostReviewActionGuard {
+  canAct: boolean;
+  staleReason: string | null;
+}
+
+/**
+ * Determines whether a host can approve or reject a queued review item,
+ * showing stale/expiry guards if the hold expired or the review is no longer pending.
+ */
+export function resolveHostReviewActionGuard(
+  review: Pick<HostPickupReview, "review_status" | "held_until">,
+  nowIso: string,
+): HostReviewActionGuard {
+  if (review.review_status === "approved") {
+    return {
+      canAct: false,
+      staleReason: "Approved (human override recorded).",
+    };
+  }
+  if (review.review_status === "rejected") {
+    return {
+      canAct: false,
+      staleReason: "Rejected (student hold remains active until expiry).",
+    };
+  }
+  if (review.review_status === "superseded") {
+    return {
+      canAct: false,
+      staleReason: "Superseded by a newer student photo attempt.",
+    };
+  }
+  if (review.review_status === "expired") {
+    return {
+      canAct: false,
+      staleReason: "Hold expired before review completion.",
+    };
+  }
+  const nowMs = new Date(nowIso).getTime();
+  const heldUntilMs = new Date(review.held_until).getTime();
+  if (
+    Number.isFinite(nowMs) &&
+    Number.isFinite(heldUntilMs) &&
+    nowMs >= heldUntilMs
+  ) {
+    return {
+      canAct: false,
+      staleReason: "Hold expired — approval is disabled.",
+    };
+  }
+  return {
+    canAct: true,
+    staleReason: null,
   };
 }

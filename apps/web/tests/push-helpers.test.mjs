@@ -30,12 +30,55 @@ test("iPhone Safari tab must use the Home Screen app for push", () => {
   assert.equal(needsHomeScreen(ANDROID, false), false);
 });
 
-test("push opt-in flag is per session token", () => {
+test("push opt-in flag is per session token and per role", () => {
   assert.notEqual(
     pushFlagKey("demo-session-aaaaaaaaaaaaaaaaaaaaaaaa1"),
     pushFlagKey("demo-session-aaaaaaaaaaaaaaaaaaaaaaaa2"),
   );
+  assert.notEqual(
+    pushFlagKey("demo-host", "host"),
+    pushFlagKey("demo-host", "student"),
+  );
   assert.ok(pushFlagKey("demo-session-x").startsWith("owl-plate.push."));
+  assert.ok(
+    pushFlagKey("demo-host", "host").startsWith("owl-plate.push.host."),
+  );
+});
+
+test("resolvePushNotificationTarget handles host_pickup with /host?drop=<UUID>, 32-char tag bound, and sanitized food/count body without student data", () => {
+  const dropId = "00000000-0000-4000-8000-000000000101";
+  const verificationId = "12345678-90ab-4cde-8f01-234567890abc";
+
+  const hostPickup = resolvePushNotificationTarget({
+    notification_mode: "host_pickup",
+    drop_id: dropId,
+    verification_id: verificationId,
+    tag: `owl-p-${verificationId}-extra-chars-beyond-32`,
+    body: "Pizza pickup confirmed. 2 servings available.",
+    url: `/host?drop=${dropId}`,
+  });
+
+  assert.equal(hostPickup.mode, "host_pickup");
+  assert.equal(hostPickup.url, `/host?drop=${dropId}`);
+  assert.equal(hostPickup.title, "Owl Plate: Pickup update");
+  assert.equal(
+    hostPickup.body,
+    "Pizza pickup confirmed. 2 servings available.",
+  );
+  assert.ok(hostPickup.tag.length <= 32);
+
+  // If a payload attempts to leak student, claim, or token info in body, it falls back to generic de-identified text
+  const scrubbedHostPickup = resolvePushNotificationTarget({
+    notification_mode: "host_pickup",
+    drop_id: dropId,
+    body: "Student Scrappy (claim_id 999) picked up Pizza.",
+  });
+  assert.equal(scrubbedHostPickup.mode, "host_pickup");
+  assert.equal(scrubbedHostPickup.url, `/host?drop=${dropId}`);
+  assert.equal(
+    scrubbedHostPickup.body,
+    "A serving was marked collected. Tap to view updated pickup counts.",
+  );
 });
 
 test("resolvePushNotificationTarget prefers drop_id in campus_feed mode with stable drop tag and minimal lock-screen text", () => {
@@ -86,7 +129,7 @@ test("resolvePushNotificationTarget prefers drop_id in campus_feed mode with sta
   assert.equal(legacyNoMode.url, `/student?invite=${inviteId}`);
 });
 
-test("firebase-messaging-sw.js prefers drop_id for campus_feed and preserves invite fallback for seeded_waves", async () => {
+test("firebase-messaging-sw.js prefers drop_id for campus_feed, supports host_pickup -> /host?drop=<UUID>, and preserves invite fallback for seeded_waves", async () => {
   const swSource = readFileSync(
     new URL("../public/firebase-messaging-sw.js", import.meta.url),
     "utf8",
@@ -181,5 +224,50 @@ test("firebase-messaging-sw.js prefers drop_id for campus_feed and preserves inv
   assert.equal(
     shownNotifications[1].options.data.url,
     "/student?invite=inv-uuid-456",
+  );
+
+  // 3. Host pickup push routes to /host?drop=<UUID> with generic food/count text and <= 32-char tag
+  listeners.push({
+    data: {
+      json: () => ({
+        data: {
+          notification_mode: "host_pickup",
+          drop_id: "drop-uuid-123",
+          verification_id: "12345678-90ab-4cde-8f01-234567890abc",
+          tag: "owl-p-1234567890ab4cde8f01234567",
+          body: "Tacos pickup confirmed. 1 serving available.",
+        },
+      }),
+    },
+    waitUntil: (p) => {
+      pendingPromise = p;
+    },
+  });
+  await pendingPromise;
+  assert.equal(shownNotifications.length, 3);
+  assert.equal(shownNotifications[2].title, "Owl Plate: Pickup update");
+  assert.equal(
+    shownNotifications[2].options.body,
+    "Tacos pickup confirmed. 1 serving available.",
+  );
+  assert.ok(shownNotifications[2].options.tag.length <= 32);
+  assert.equal(
+    shownNotifications[2].options.data.url,
+    "/host?drop=drop-uuid-123",
+  );
+
+  listeners.notificationclick({
+    notification: {
+      data: shownNotifications[2].options.data,
+      close: () => {},
+    },
+    waitUntil: (p) => {
+      clickPromise = p;
+    },
+  });
+  await clickPromise;
+  assert.equal(
+    openedUrls[1],
+    "https://owlplate.example.edu/host?drop=drop-uuid-123",
   );
 });

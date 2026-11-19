@@ -6,7 +6,14 @@ import type {
   FeedDrop,
   FeedUnavailableReason,
   InviteResponse,
+  PickupMatchStatus,
+  PickupVerification,
+  PickupVerificationSource,
   SeededPersonaLabel,
+} from "../../lib/types/api";
+import {
+  PICKUP_CONFIRMATION_NOTICE,
+  PICKUP_CONSISTENT_CONFIDENCE_THRESHOLD,
 } from "../../lib/types/api";
 import { FIXTURE_DEMO_AREAS } from "../../lib/fixtures/demo-fixtures";
 import {
@@ -346,5 +353,295 @@ export function resolveStudentCardState(
     activeInvite: null,
     activeClaim: null,
     collapsedLines: buildCollapsedInviteLines(invites, null),
+  };
+}
+
+/**
+ * Generates a RFC 4122 v4 UUID for `request_id` per selected pickup photo.
+ * Uses `crypto.randomUUID()` when available, with a deterministic-format fallback.
+ */
+export function generatePickupRequestId(): string {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (ch) => {
+    const r = (Math.random() * 16) | 0;
+    const v = ch === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+export interface PickupPhotoValidationResult {
+  valid: boolean;
+  error: string | null;
+}
+
+export const MAX_PICKUP_PHOTO_BYTES = 10 * 1024 * 1024; // 10 MiB
+
+/**
+ * Validates a selected pickup photo client-side before upload (JPEG/PNG only, 10 MiB max).
+ */
+export function validatePickupPhotoFile(
+  file: Pick<File, "type" | "size" | "name"> | null | undefined,
+): PickupPhotoValidationResult {
+  if (!file) {
+    return {
+      valid: false,
+      error: "Choose or take a JPEG or PNG photo of the food first.",
+    };
+  }
+  const mime = (file.type || "").toLowerCase();
+  const name = (file.name || "").toLowerCase();
+  const isJpegOrPng =
+    mime === "image/jpeg" ||
+    mime === "image/png" ||
+    mime === "image/jpg" ||
+    (!mime &&
+      (name.endsWith(".jpg") ||
+        name.endsWith(".jpeg") ||
+        name.endsWith(".png")));
+
+  if (!isJpegOrPng) {
+    return {
+      valid: false,
+      error: "Only JPEG and PNG food photos are supported.",
+    };
+  }
+  if (typeof file.size === "number" && file.size <= 0) {
+    return {
+      valid: false,
+      error: "Selected photo file is empty.",
+    };
+  }
+  if (typeof file.size === "number" && file.size > MAX_PICKUP_PHOTO_BYTES) {
+    return {
+      valid: false,
+      error: "Photo exceeds the 10 MiB size limit. Choose a smaller image.",
+    };
+  }
+  return { valid: true, error: null };
+}
+
+/**
+ * Revokes a temporary blob object URL if present so local previews are never retained.
+ */
+export function revokePreviewObjectUrl(
+  previewUrl: string | null | undefined,
+  revokeFn?: (url: string) => void,
+): void {
+  if (!previewUrl) return;
+  const revoker =
+    revokeFn ??
+    (typeof URL !== "undefined" && typeof URL.revokeObjectURL === "function"
+      ? (u: string) => URL.revokeObjectURL(u)
+      : null);
+  if (revoker) {
+    try {
+      revoker(previewUrl);
+    } catch {
+      // ignore invalid object URL errors
+    }
+  }
+}
+
+/**
+ * Formats the verification provider source into an honest UI label.
+ */
+export function formatPickupVerificationSourceLabel(
+  source: PickupVerificationSource,
+): string {
+  if (source === "openrouter") {
+    return "Live Gemini via OpenRouter";
+  }
+  return "Simulated demo assessment";
+}
+
+/**
+ * Formats a match_status into a user-facing badge title.
+ */
+export function formatPickupMatchStatusLabel(
+  matchStatus: PickupMatchStatus | null,
+): string {
+  if (matchStatus === "consistent") {
+    return "Consistent with listing";
+  }
+  if (matchStatus === "uncertain") {
+    return "Uncertain match";
+  }
+  if (matchStatus === "inconsistent") {
+    return "Inconsistent with listing";
+  }
+  return "Assessment pending";
+}
+
+/**
+ * Formats a 0..1 confidence score as a percentage string (e.g. "89%").
+ */
+export function formatPickupConfidencePercent(
+  confidence: number | null | undefined,
+): string | null {
+  if (typeof confidence !== "number" || !Number.isFinite(confidence)) {
+    return null;
+  }
+  const clamped = Math.max(0, Math.min(1, confidence));
+  return `${Math.round(clamped * 100)}%`;
+}
+
+export interface PickupVerificationActionState {
+  phase:
+    | "idle"
+    | "processing"
+    | "consistent_ready"
+    | "needs_retry_or_review"
+    | "review_pending"
+    | "review_approved"
+    | "review_rejected"
+    | "expired_or_superseded"
+    | "failed";
+  canCompletePickup: boolean;
+  canRequestHostReview: boolean;
+  canRetryPhoto: boolean;
+  verificationId: string | null;
+  notice: string;
+}
+
+/**
+ * Pure state machine that derives what actions are enabled on a student's held campus-feed card
+ * from the latest `PickupVerification` and claim/drop expiry state.
+ *
+ * Rules (docs/PICKUP_CONFIRMATION_CONTRACT.md):
+ * - Direct feed pickup without a verified consistent result is NEVER enabled.
+ * - `canCompletePickup` requires `verification.status === "ready"`, `match_status === "consistent"`,
+ *   `confidence >= 0.8` (if provided), `can_confirm === true`, active held claim, and not rejected/superseded/expired.
+ * - `uncertain` or `inconsistent` results never enable direct student completion; they only allow retry
+ *   with a new photo or `POST /claims/{id}/pickup-review` (when `review_status === "not_requested"`).
+ */
+export function resolvePickupVerificationActions(
+  verification: PickupVerification | null | undefined,
+  claimHeldAndUnexpired = true,
+): PickupVerificationActionState {
+  const notice = verification?.notice?.trim() || PICKUP_CONFIRMATION_NOTICE;
+
+  if (!claimHeldAndUnexpired) {
+    return {
+      phase: "expired_or_superseded",
+      canCompletePickup: false,
+      canRequestHostReview: false,
+      canRetryPhoto: false,
+      verificationId: verification?.id ?? null,
+      notice,
+    };
+  }
+
+  if (!verification) {
+    return {
+      phase: "idle",
+      canCompletePickup: false,
+      canRequestHostReview: false,
+      canRetryPhoto: true,
+      verificationId: null,
+      notice,
+    };
+  }
+
+  if (verification.status === "processing") {
+    return {
+      phase: "processing",
+      canCompletePickup: false,
+      canRequestHostReview: false,
+      canRetryPhoto: false,
+      verificationId: verification.id,
+      notice,
+    };
+  }
+
+  if (verification.status === "failed") {
+    return {
+      phase: "failed",
+      canCompletePickup: false,
+      canRequestHostReview: false,
+      canRetryPhoto: true,
+      verificationId: verification.id,
+      notice,
+    };
+  }
+
+  if (
+    verification.review_status === "expired" ||
+    verification.review_status === "superseded"
+  ) {
+    return {
+      phase: "expired_or_superseded",
+      canCompletePickup: false,
+      canRequestHostReview: false,
+      canRetryPhoto: true,
+      verificationId: verification.id,
+      notice,
+    };
+  }
+
+  if (verification.review_status === "approved") {
+    return {
+      phase: "review_approved",
+      canCompletePickup: false,
+      canRequestHostReview: false,
+      canRetryPhoto: false,
+      verificationId: verification.id,
+      notice,
+    };
+  }
+
+  if (verification.review_status === "rejected") {
+    return {
+      phase: "review_rejected",
+      canCompletePickup: false,
+      canRequestHostReview: false,
+      canRetryPhoto: true,
+      verificationId: verification.id,
+      notice,
+    };
+  }
+
+  if (verification.review_status === "pending") {
+    return {
+      phase: "review_pending",
+      canCompletePickup: false,
+      canRequestHostReview: false,
+      canRetryPhoto: true,
+      verificationId: verification.id,
+      notice,
+    };
+  }
+
+  const meetsThreshold =
+    typeof verification.confidence === "number" &&
+    Number.isFinite(verification.confidence) &&
+    verification.confidence >= PICKUP_CONSISTENT_CONFIDENCE_THRESHOLD;
+
+  if (
+    verification.match_status === "consistent" &&
+    meetsThreshold &&
+    verification.can_confirm
+  ) {
+    return {
+      phase: "consistent_ready",
+      canCompletePickup: true,
+      canRequestHostReview: false,
+      canRetryPhoto: true,
+      verificationId: verification.id,
+      notice,
+    };
+  }
+
+  return {
+    phase: "needs_retry_or_review",
+    canCompletePickup: false,
+    canRequestHostReview: verification.review_status === "not_requested",
+    canRetryPhoto: true,
+    verificationId: verification.id,
+    notice,
   };
 }

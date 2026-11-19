@@ -27,10 +27,16 @@ import type {
   DropResponse,
   ErrorDetail,
   FeedResponse,
+  HostPickupReview,
+  HostPickupReviewDecision,
+  HostPickupReviewsResponse,
   InviteResponse,
   InvitesResponse,
   JoinRequest,
   JoinResponse,
+  PickupClaimRequest,
+  PickupVerification,
+  PickupVerificationResponse,
   Preferences,
   PresenceRequest,
   PresenceResponse,
@@ -42,7 +48,9 @@ import type {
 import {
   fixtureClaimInvite,
   fixtureCreateDrop,
+  fixtureDecideHostPickupReview,
   fixtureDeclineInvite,
+  fixtureDeleteHostPushToken,
   fixtureDemoReset,
   fixtureDemoTick,
   fixtureGetBuildings,
@@ -51,16 +59,22 @@ import {
   fixtureGetDispatch,
   fixtureGetDistribution,
   fixtureGetDrop,
+  fixtureGetHostPickupReviews,
+  fixtureGetHostPushTokenStatus,
   fixtureGetMyFeed,
   fixtureGetMyInvites,
   fixtureGetMySession,
+  fixtureGetPickupVerification,
   fixtureJoinSession,
   fixtureLeaveSession,
   fixturePickupClaim,
   fixturePublishDrop,
+  fixtureRegisterHostPushToken,
   fixtureRegisterPushToken,
   fixtureReleaseClaim,
+  fixtureRequestPickupReview,
   fixtureReserveDrop,
+  fixtureSubmitPickupPhoto,
   fixtureUpdateDrop,
   fixtureUpdatePreferences,
   fixtureUpdatePresence,
@@ -291,7 +305,7 @@ export async function createDrop(
     "/drops",
     { method: "POST", body: form },
     credential,
-    () => fixtureCreateDrop(hostNote),
+    () => fixtureCreateDrop(hostNote, credential),
     65000,
   );
 }
@@ -329,7 +343,7 @@ export async function getDrop(
     `/drops/${encodeURIComponent(dropId)}`,
     { method: "GET" },
     credential,
-    () => fixtureGetDrop(dropId),
+    () => fixtureGetDrop(dropId, credential),
   );
 }
 
@@ -383,12 +397,109 @@ export async function releaseClaim(
 export async function pickupClaim(
   claimId: string,
   credential: AuthToken,
+  req?: PickupClaimRequest,
 ): Promise<ApiResult<ClaimResponse>> {
+  const hasVerificationId = Boolean(req?.verification_id?.trim());
   return request<ClaimResponse>(
     `/claims/${encodeURIComponent(claimId)}/pickup`,
-    { method: "POST" },
+    {
+      method: "POST",
+      ...(hasVerificationId
+        ? {
+            body: JSON.stringify({
+              verification_id: req!.verification_id!.trim(),
+            }),
+          }
+        : {}),
+    },
     credential,
-    () => fixturePickupClaim(claimId, credential),
+    () => fixturePickupClaim(claimId, credential, req),
+  );
+}
+
+export async function submitPickupPhoto(
+  claimId: string,
+  photo: File,
+  requestId: string,
+  credential: AuthToken,
+): Promise<ApiResult<PickupVerification>> {
+  const form = new FormData();
+  form.append("photo", photo);
+  form.append("request_id", requestId.trim());
+
+  return request<PickupVerification>(
+    `/claims/${encodeURIComponent(claimId)}/pickup-photo`,
+    { method: "POST", body: form },
+    credential,
+    () =>
+      fixtureSubmitPickupPhoto(claimId, requestId, credential, {
+        mimeType: photo.type || undefined,
+        byteSize: typeof photo.size === "number" ? photo.size : undefined,
+      }),
+    65000,
+  );
+}
+
+export async function getPickupVerification(
+  claimId: string,
+  credential: AuthToken,
+): Promise<ApiResult<PickupVerificationResponse>> {
+  return request<PickupVerificationResponse>(
+    `/claims/${encodeURIComponent(claimId)}/pickup-verification`,
+    { method: "GET" },
+    credential,
+    () => fixtureGetPickupVerification(claimId, credential),
+  );
+}
+
+export async function requestPickupReview(
+  claimId: string,
+  verificationId: string,
+  credential: AuthToken,
+): Promise<ApiResult<PickupVerification>> {
+  return request<PickupVerification>(
+    `/claims/${encodeURIComponent(claimId)}/pickup-review`,
+    {
+      method: "POST",
+      body: JSON.stringify({ verification_id: verificationId.trim() }),
+    },
+    credential,
+    () => fixtureRequestPickupReview(claimId, verificationId, credential),
+  );
+}
+
+export async function getHostPickupReviews(
+  dropId: string,
+  credential: AuthToken = "demo-host",
+): Promise<ApiResult<HostPickupReviewsResponse>> {
+  return request<HostPickupReviewsResponse>(
+    `/drops/${encodeURIComponent(dropId)}/pickup-reviews`,
+    { method: "GET" },
+    credential,
+    () => fixtureGetHostPickupReviews(dropId, credential),
+  );
+}
+
+export async function decideHostPickupReview(
+  dropId: string,
+  verificationId: string,
+  decision: HostPickupReviewDecision,
+  credential: AuthToken = "demo-host",
+): Promise<ApiResult<HostPickupReview>> {
+  return request<HostPickupReview>(
+    `/drops/${encodeURIComponent(dropId)}/pickup-reviews/${encodeURIComponent(verificationId)}`,
+    {
+      method: "POST",
+      body: JSON.stringify({ decision }),
+    },
+    credential,
+    () =>
+      fixtureDecideHostPickupReview(
+        dropId,
+        verificationId,
+        decision,
+        credential,
+      ),
   );
 }
 
@@ -437,6 +548,40 @@ export async function registerPushToken(
     { method: "POST", body: JSON.stringify(req) },
     credential,
     () => fixtureRegisterPushToken(credential, req),
+  );
+}
+
+export async function registerHostPushToken(
+  req: PushTokenRequest,
+  credential: AuthToken = "demo-host",
+): Promise<ApiResult<PushTokenResponse>> {
+  return request<PushTokenResponse>(
+    "/hosts/me/push-token",
+    { method: "POST", body: JSON.stringify(req) },
+    credential,
+    () => fixtureRegisterHostPushToken(credential, req),
+  );
+}
+
+export async function getHostPushTokenStatus(
+  credential: AuthToken = "demo-host",
+): Promise<ApiResult<PushTokenResponse>> {
+  return request<PushTokenResponse>(
+    "/hosts/me/push-token",
+    { method: "GET" },
+    credential,
+    () => fixtureGetHostPushTokenStatus(credential),
+  );
+}
+
+export async function deleteHostPushToken(
+  credential: AuthToken = "demo-host",
+): Promise<ApiResult<PushTokenResponse>> {
+  return request<PushTokenResponse>(
+    "/hosts/me/push-token",
+    { method: "DELETE" },
+    credential,
+    () => fixtureDeleteHostPushToken(credential),
   );
 }
 

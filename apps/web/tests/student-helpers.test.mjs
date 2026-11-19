@@ -479,11 +479,38 @@ test("campus feed lifecycle in fixtures supports location-free join, multi-drop 
     "You released your hold on this drop (one reservation per drop).",
   );
 
-  // Now Student A (with alerts_paused = true) can reserve Drop 2 and confirm pickup
+  // Now Student A (with alerts_paused = true) can reserve Drop 2 and confirm pickup via photo-assisted verification
   const claimA2 = fixtures.fixtureReserveDrop(pub2.id, studentA.token);
   assert.equal(claimA2.status, "held");
-  const pickedA2 = fixtures.fixturePickupClaim(claimA2.id, studentA.token);
+  // Direct campus-feed pickup without verification_id is rejected with 409 pickup_verification_required
+  assert.throws(
+    () => fixtures.fixturePickupClaim(claimA2.id, studentA.token),
+    (err) => err.status === 409 && err.code === "pickup_verification_required",
+  );
+  // Submit consistent pickup photo and then complete pickup with verification_id
+  const verifyA2 = fixtures.fixtureSubmitPickupPhoto(
+    claimA2.id,
+    "11111111-1111-4111-8111-111111111111",
+    studentA.token,
+    {
+      mimeType: "image/jpeg",
+      byteSize: 2048,
+    },
+  );
+  assert.equal(verifyA2.can_confirm, true);
+  assert.equal(verifyA2.match_status, "consistent");
+  const pickedA2 = fixtures.fixturePickupClaim(claimA2.id, studentA.token, {
+    verification_id: verifyA2.id,
+  });
   assert.equal(pickedA2.status, "picked_up");
+  // Idempotent retry of pickup returns the same picked_up claim
+  const pickedA2Retry = fixtures.fixturePickupClaim(
+    claimA2.id,
+    studentA.token,
+    { verification_id: verifyA2.id },
+  );
+  assert.equal(pickedA2Retry.id, pickedA2.id);
+  assert.equal(pickedA2Retry.status, "picked_up");
 
   // Current dietary preferences are enforced at reserve time if Student B updates preferences
   fixtures.fixtureUpdatePreferences(studentB.token, {
@@ -640,4 +667,233 @@ test("student helpers format real building name, room, pickup instructions, and 
     studentHelpers.formatStudentAreaLabel("demo-venue", [verifiedBuilding]),
     "Event venue (demo)",
   );
+});
+
+test("Milestone 2 photo-assisted pickup verification state machine enforces 0.8 threshold, idempotency, concurrency/timeout guards, and local preview URL revocation", () => {
+  const { studentHelpers, fixtures } = loadStudentHelpersAndFixtures();
+
+  // 1. Pure helpers: request_id UUID generation, file validation, object URL revocation
+  const reqId1 = studentHelpers.generatePickupRequestId();
+  const reqId2 = studentHelpers.generatePickupRequestId();
+  assert.match(
+    reqId1,
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+  );
+  assert.notEqual(reqId1, reqId2);
+
+  assert.equal(
+    studentHelpers.validatePickupPhotoFile({
+      name: "food.jpg",
+      size: 1024,
+      type: "image/jpeg",
+    }).valid,
+    true,
+  );
+  assert.equal(
+    studentHelpers.validatePickupPhotoFile({
+      name: "empty.png",
+      size: 0,
+      type: "image/png",
+    }).valid,
+    false,
+  );
+  assert.equal(
+    studentHelpers.validatePickupPhotoFile({
+      name: "huge.png",
+      size: 11 * 1024 * 1024,
+      type: "image/png",
+    }).valid,
+    false,
+  );
+  assert.equal(
+    studentHelpers.validatePickupPhotoFile({
+      name: "doc.pdf",
+      size: 512,
+      type: "application/pdf",
+    }).valid,
+    false,
+  );
+
+  const revokedUrls = [];
+  studentHelpers.revokePreviewObjectUrl(
+    "blob:https://owlplate.edu/temp-123",
+    (u) => revokedUrls.push(u),
+  );
+  assert.deepEqual(revokedUrls, ["blob:https://owlplate.edu/temp-123"]);
+
+  // 2. Fixture verification lifecycle
+  fixtures.fixtureDemoReset({ scenario: "visitors" });
+  const student = fixtures.fixtureJoinSession({
+    nickname: "VerifyOwl",
+    allergens: [],
+    diets: [],
+  });
+  const draft = fixtures.fixtureCreateDrop("pizza");
+  fixtures.fixtureUpdateDrop(draft.id, {
+    servings_final: 2,
+    allergens_final: ["dairy", "gluten"],
+    diet_tags_final: [],
+    building_code: "BLDG-A",
+    room: "101",
+    pickup_instructions: "",
+    expires_in_minutes: 45,
+    safety_review: {
+      covered_and_temperature_safe: true,
+      served_within_two_hours: true,
+      untouched: true,
+      ingredient_information_checked: false,
+      religious_diets_confirmed: false,
+    },
+  });
+  const pub = fixtures.fixturePublishDrop(draft.id);
+  const claim = fixtures.fixtureReserveDrop(pub.id, student.token);
+
+  // Before any photo attempt, GET /claims/{id}/pickup-verification returns { verification: null }
+  const initialVer = fixtures.fixtureGetPickupVerification(
+    claim.id,
+    student.token,
+  );
+  assert.equal(initialVer.verification, null);
+  const idleActions = studentHelpers.resolvePickupVerificationActions(
+    initialVer.verification,
+    true,
+  );
+  assert.equal(idleActions.canCompletePickup, false);
+  assert.equal(
+    idleActions.notice,
+    "Photo-assisted confirmation. A photo cannot independently establish physical pickup or food safety.",
+  );
+
+  // Low confidence (< 0.8) with raw "consistent" is normalized to "uncertain" and can_confirm: false
+  const lowConf = fixtures.fixtureSubmitPickupPhoto(
+    claim.id,
+    studentHelpers.generatePickupRequestId(),
+    student.token,
+    {
+      matchStatus: "consistent",
+      confidence: 0.79,
+    },
+  );
+  assert.equal(lowConf.match_status, "uncertain");
+  assert.equal(lowConf.can_confirm, false);
+  const lowConfActions = studentHelpers.resolvePickupVerificationActions(
+    lowConf,
+    true,
+  );
+  assert.equal(lowConfActions.canCompletePickup, false);
+  assert.equal(lowConfActions.canRequestHostReview, true);
+
+  // Cannot complete pickup with an uncertain verification
+  assert.throws(
+    () =>
+      fixtures.fixturePickupClaim(claim.id, student.token, {
+        verification_id: lowConf.id,
+      }),
+    (err) => err.status === 409 && err.code === "invalid_state",
+  );
+
+  // Student requests host review on uncertain verification -> review_status becomes "pending"
+  const pendingRev = fixtures.fixtureRequestPickupReview(
+    claim.id,
+    lowConf.id,
+    student.token,
+  );
+  assert.equal(pendingRev.review_status, "pending");
+  // Idempotent retry of review request returns same pending state
+  const pendingRevRetry = fixtures.fixtureRequestPickupReview(
+    claim.id,
+    lowConf.id,
+    student.token,
+  );
+  assert.equal(pendingRevRetry.id, lowConf.id);
+  assert.equal(pendingRevRetry.review_status, "pending");
+
+  // While review is pending, student can submit a newer photo; prior pending review becomes superseded
+  const inProgressReqId = studentHelpers.generatePickupRequestId();
+  const procRes = fixtures.fixtureSubmitPickupPhoto(
+    claim.id,
+    inProgressReqId,
+    student.token,
+    {
+      keepProcessing: true,
+    },
+  );
+  assert.equal(procRes.status, "processing");
+  assert.equal(procRes.can_confirm, false);
+
+  // Same request_id while processing is idempotent
+  const procIdem = fixtures.fixtureSubmitPickupPhoto(
+    claim.id,
+    inProgressReqId,
+    student.token,
+    {
+      keepProcessing: true,
+    },
+  );
+  assert.equal(procIdem.id, procRes.id);
+
+  // Different request_id while processing (< 120s) returns 409 verification_in_progress
+  assert.throws(
+    () =>
+      fixtures.fixtureSubmitPickupPhoto(
+        claim.id,
+        studentHelpers.generatePickupRequestId(),
+        student.token,
+      ),
+    (err) => err.status === 409 && err.code === "verification_in_progress",
+  );
+
+  // Advance clock 121s -> stale processing attempt times out to failed and allows a fresh photo
+  fixtures.fixtureDemoTick({ advance_seconds: 121 });
+  const timedOut = fixtures.fixtureGetPickupVerification(
+    claim.id,
+    student.token,
+  );
+  assert.equal(timedOut.verification.status, "failed");
+  assert.equal(timedOut.verification.can_confirm, false);
+
+  // Fresh consistent photo (>= 0.8) succeeds; late completion of older processing attempt cannot overwrite it
+  const consistentReqId = studentHelpers.generatePickupRequestId();
+  const readyConsistent = fixtures.fixtureSubmitPickupPhoto(
+    claim.id,
+    consistentReqId,
+    student.token,
+    {
+      matchStatus: "consistent",
+      confidence: 0.92,
+    },
+  );
+  assert.equal(readyConsistent.can_confirm, true);
+  assert.equal(readyConsistent.match_status, "consistent");
+
+  // Attempting to late-complete the older timed-out attempt does not overwrite the newer ready verification
+  fixtures.fixtureCompleteProcessingVerification(procRes.id, {
+    matchStatus: "inconsistent",
+    confidence: 0.2,
+  });
+  const latestAfterLate = fixtures.fixtureGetPickupVerification(
+    claim.id,
+    student.token,
+  );
+  assert.equal(latestAfterLate.verification.id, readyConsistent.id);
+  assert.equal(latestAfterLate.verification.can_confirm, true);
+
+  // Consistent verification cannot request host review (409 invalid_state)
+  assert.throws(
+    () =>
+      fixtures.fixtureRequestPickupReview(
+        claim.id,
+        readyConsistent.id,
+        student.token,
+      ),
+    (err) => err.status === 409 && err.code === "invalid_state",
+  );
+
+  const readyActions = studentHelpers.resolvePickupVerificationActions(
+    latestAfterLate.verification,
+    true,
+  );
+  assert.equal(readyActions.canCompletePickup, true);
+  assert.equal(readyActions.canRequestHostReview, false);
+  assert.equal(readyActions.verificationId, readyConsistent.id);
 });
