@@ -62,26 +62,12 @@ export type DistributionMode = NonNullable<
 export type FeedUnavailableReason = NonNullable<
   components["schemas"]["FeedDrop"]["unavailable_reason"]
 >;
-// Temporary additive contract until the backend is integrated and types regenerated.
-export type DropResponse = components["schemas"]["DropResponse"] & {
-  has_photo?: boolean;
-  photo_url?: string | null;
-};
-export interface StudentReservationItem {
-  claim: ClaimResponse;
-  drop: DropResponse;
-  pickup_verification: PickupVerification | null;
-}
-export interface StudentReservationsResponse {
-  reservations: StudentReservationItem[];
-  server_time: string;
-  is_demo: boolean;
-}
-export interface HostDropsResponse {
-  drops: DropResponse[];
-  server_time: string;
-  is_demo: boolean;
-}
+export type DropResponse = components["schemas"]["DropResponse"];
+export type StudentReservationItem =
+  components["schemas"]["StudentReservation"];
+export type StudentReservationsResponse =
+  components["schemas"]["StudentReservationsResponse"];
+export type HostDropsResponse = components["schemas"]["HostDropsResponse"];
 export type ClaimResponse = components["schemas"]["ClaimResponse"];
 export type InviteResponse = components["schemas"]["InviteResponse"];
 export type InvitesResponse = components["schemas"]["InvitesResponse"];

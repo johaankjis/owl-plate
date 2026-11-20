@@ -1047,6 +1047,8 @@ export function fixtureCreateDrop(
     expires_at: new Date(now.getTime() + 45 * 60 * 1000).toISOString(),
     allergen_notice: ALLERGEN_WARNING_TEXT,
     is_demo: true,
+    has_photo: false,
+    photo_url: null,
   };
   store.drops[id] = newDrop;
   store.dropOwnerByDropId[id] = credential;
