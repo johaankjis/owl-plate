@@ -36,7 +36,9 @@ The page enables **What's left?** only when both match. It sends
 | `pantry_transferred` | Pantry transfers (simulated) |
 
 Invariant: `total = available + held + picked_up + pantry_held + pantry_transferred`,
-all ≥ 0; otherwise the helper fails closed (no counts patched).
+all ≥ 0; otherwise the helper fails closed (no counts patched). Older Owl Plate
+responses without `pantry_held` / `pantry_transferred` are read as 0 for those two
+keys; the invariant still applies.
 
 ## Freshness and outcome
 

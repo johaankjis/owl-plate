@@ -47,7 +47,7 @@ the server.
 | Check | Result |
 |---|---|
 | API (pytest) | 315 passed |
-| Web (node test) | 104 passed |
+| Web (node test) | 99 passed (committed suite; 93 at baseline + 6 new) |
 | Evaluation | OK |
 | Campus validation | 1,591 checks, 0 failures; campus tests OK |
 | Companion tests | 19 passed |
@@ -68,6 +68,21 @@ still expect earlier screens or setup:
 - `verify_pickup_mobile`: requires a "bad-result fixture phase" environment.
 
 Logs are in `test-results/m6-itcan/{candidate,baseline}/` (gitignored).
+
+## Independent review
+
+OpenCode `openrouter/z-ai/glm-5.3` reviewed `7992558b4bf1fddb51441616095b5e66b92561c4`
+and returned **PASS** with no blocking findings. It reproduced every deterministic
+check independently: 315 / 116 / 4 / 19 / 99 tests, lint, types, build, 1,591 campus
+checks, and zero OpenAPI drift. It found three non-blocking issues:
+
+1. The web count here said 104. The main checkout also has untracked test files
+   from paused cloud work. Corrected to 99.
+2. The contract did not mention that the pantry counts default to 0. Added.
+3. The page hides the error box twice (the `data-it-show` attribute and its
+   script). This is harmless and was kept.
+
+The commit after the review changes these two documentation lines only.
 
 ## Limitations
 
