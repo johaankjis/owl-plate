@@ -112,6 +112,64 @@ A tap counts as sponsor evidence only when it arrives in the Claude Code
 conversation as an `[It] … whats_left … [action …]` message and the real paired
 page changes.
 
+## Campus Rescue Command Center (sponsor showcase)
+
+One campus-wide page, `owl-rescue-command-center`, next to the per-listing
+pickup display. It shows the interactive isometric campus map, live
+inventory, rescue metrics, and an agent panel whose text is written only by
+the paired Claude Code conversation. The page contract is in
+`STATE_CONTRACT.md` under "Command center page"; `campus_center.py` builds
+every patch, `create_command_center.py` publishes the page, and
+`command-center.html` renders it. The pickup display above stays exactly as
+it is and remains the fallback.
+
+### Publish the command center on the Mac
+
+After the one-time setup and the file copy above, in the Claude Code
+conversation that will answer actions:
+
+```bash
+cd ~/owl-plate-it && python3 prototypes/itcan/create_command_center.py \
+  --base http://localhost:3017 --open
+```
+
+It prints the page URL and the exact handler commands for every action:
+refresh campus activity, select a building, inspect a listing, What's left?,
+the analysis brief, agent responses and recommendations, and dismissing
+recommendations. Tell that conversation once:
+
+> When the owl-rescue-command-center page sends an action, check that its
+> `page_id` is `owl-rescue-command-center`, then run the matching "Action
+> handler" command printed above. For `analyze_remaining_food` and
+> `show_recommendations`, run the `--brief` command first, read the facts it
+> prints, and write your own short response or recommendation list with
+> `--respond` / `--recommend`. All handlers are read-only against Owl Plate.
+> Do not request student data.
+
+### Update a published page after changing the files
+
+`it patch` updates only page state, never the page's HTML. After pulling a
+new `command-center.html` (or `whats-left.html`) into `~/owl-plate-it`,
+re-run `create_command_center.py` (or `create_companion.py --drop-id …`) in
+the same conversation: the page id is derived from the listing, so the
+binding and the handler stay the same, and the page is republished with the
+new HTML and a fresh real snapshot.
+
+### Acceptance walkthrough (two buildings)
+
+1. **Owl Plate, host:** publish servings at two different Marietta buildings.
+2. **Mac:** publish the command center, then the page on the paired browser.
+3. **It page:** both buildings glow gold with counts; select one and inspect
+   its listing; tap **Refresh campus activity**.
+4. **It page:** tap **Analyze remaining food**. The conversation runs
+   `--brief` and answers in its own words on the page.
+5. **Student phone:** join and reserve one serving; the command center's
+   **Refresh campus activity** reconciles the counts.
+6. **Student:** complete the photo-assisted pickup; refresh again.
+7. Expect the map, counters, selected listing and agent panel to update,
+   and each action to arrive in the conversation as an
+   `[It] … [action …]` message.
+
 ## Troubleshooting
 
 | Symptom | Check |
