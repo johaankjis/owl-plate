@@ -27,10 +27,24 @@ def page_url(stdout: str) -> str:
     return url if isinstance(url, str) and url else stdout
 
 
-def handler_command(base: str, drop_id: str, page_id: str) -> str:
-    """Spell out the one command the answering conversation should run per tap."""
+def handler_command(base: str, drop_id: str, page_id: str, it_bin: str) -> str:
+    """Spell out the one command the answering conversation should run per tap.
+
+    The It CLI path is carried through so non-default installs patch the same page.
+    """
     return shlex.join(
-        ["python3", str(HANDLER), "--base", base, "--drop-id", drop_id, "--it-patch", page_id]
+        [
+            "python3",
+            str(HANDLER),
+            "--base",
+            base,
+            "--drop-id",
+            drop_id,
+            "--it-patch",
+            page_id,
+            "--it-bin",
+            it_bin,
+        ]
     )
 
 
@@ -78,7 +92,7 @@ def main() -> int:
             print(completed.stdout, end="")
         return completed.returncode
     print(f"Page: {page_url(completed.stdout.strip())}")
-    print(f"Action handler: {handler_command(args.base, drop_id, page_id)}")
+    print(f"Action handler: {handler_command(args.base, drop_id, page_id, args.it_bin)}")
     return 0
 
 

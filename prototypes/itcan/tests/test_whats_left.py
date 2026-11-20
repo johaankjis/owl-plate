@@ -392,6 +392,7 @@ class CompanionTests(unittest.TestCase):
             self.assertIsNotNone(handler)
             self.assertIn(f"--drop-id {DROP_ID} --it-patch {PAGE_ID}", handler.group(1))
             self.assertIn(f"--base {self.base}", handler.group(1))
+            self.assertIn(f"--it-bin {recorder}", handler.group(1))
             self.assertNotIn("demo-host", completed.stdout + completed.stderr + json.dumps(args))
 
     def test_create_falls_back_to_binding_when_owl_plate_is_down(self) -> None:
