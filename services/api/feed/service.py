@@ -165,7 +165,11 @@ def feed_invite(session: Session, drop_id: str, student_id: str) -> Invite | Non
 def distribution_rows(
     drops: Iterable[Drop], counts: Callable[[Drop], Counts]
 ) -> tuple[Counts, list[BuildingDistribution]]:
-    """Sum host pickup counts by host building; no student is represented at all."""
+    """Sum host pickup counts by host building; no student is represented at all.
+
+    A drop is "available" only while its own snapshot still has a serving to reserve, so a
+    claimed-out drop keeps its held/collected contribution without advertising food.
+    """
     totals = {"total": 0, "available": 0, "held": 0, "picked_up": 0}
     groups: dict[str, dict] = {}
     for drop in drops:
@@ -176,10 +180,12 @@ def distribution_rows(
             {
                 "building": drop.data.get("building"),
                 "active_drops": 0,
+                "available_drops": 0,
                 "counts": dict.fromkeys(totals, 0),
             },
         )
         group["active_drops"] += 1
+        group["available_drops"] += int(drop_counts["available"] > 0)
         for key, value in drop_counts.items():
             group["counts"][key] += value
             totals[key] += value
@@ -188,6 +194,7 @@ def distribution_rows(
             building_code=code,
             building=group["building"],
             active_drops=group["active_drops"],
+            available_drops=group["available_drops"],
             counts=Counts(**group["counts"]),
         )
         for code, group in sorted(groups.items())

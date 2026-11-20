@@ -90,6 +90,7 @@ def test_projector_distribution_groups_host_buildings_only(feed_client):
     empty = feed_client.get("/distribution", headers=PROJECTOR)
     assert empty.status_code == 200
     assert empty.json()["active_drops"] == 0 and empty.json()["buildings"] == []
+    assert empty.json()["available_drops"] == 0
     headers, _ = join(feed_client, "Riley")
     join(feed_client, "Casey")
     first = publish(feed_client, NEAR, 2)
@@ -104,6 +105,20 @@ def test_projector_distribution_groups_host_buildings_only(feed_client):
     rows = {row["building_code"]: row for row in body["buildings"]}
     assert rows[NEAR]["active_drops"] == 2 and rows[NEAR]["counts"]["held"] == 1
     assert rows[FAR]["building"]["id"] == FAR and rows[FAR]["counts"]["available"] == 1
+    assert body["available_drops"] == 3
+    assert (rows[NEAR]["available_drops"], rows[FAR]["available_drops"]) == (2, 1)
+    other, _ = join(feed_client, "Avery")
+    far_drop = next(
+        d["drop"]["id"]
+        for d in feed_client.get("/students/me/feed", headers=other).json()["drops"]
+        if d["drop"]["building_code"] == FAR
+    )
+    assert feed_client.post(f"/drops/{far_drop}/reserve", headers=other).status_code == 200
+    after = feed_client.get("/distribution", headers=PROJECTOR).json()
+    assert (after["active_drops"], after["available_drops"]) == (3, 2)
+    far_row = next(row for row in after["buildings"] if row["building_code"] == FAR)
+    assert (far_row["active_drops"], far_row["available_drops"]) == (1, 0)
+    assert far_row["counts"] == {"total": 1, "available": 0, "held": 1, "picked_up": 0}
     assert not keys(body) & STUDENT_KEYS
     assert "Riley" not in str(body) and "Casey" not in str(body)
     for denied in (HOST, headers):

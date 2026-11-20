@@ -258,12 +258,14 @@ class BuildingDistribution(ContractModel):
     building_code: str
     building: Building | None
     active_drops: int
+    available_drops: int = Field(ge=0)
     counts: Counts
 
 
 class CampusDistributionResponse(ContractModel):
     distribution_mode: DistributionMode
     active_drops: int
+    available_drops: int = Field(ge=0)
     joined_students: int
     counts: Counts
     buildings: list[BuildingDistribution]

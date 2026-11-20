@@ -846,6 +846,7 @@ class Backend:
             return CampusDistributionResponse(
                 distribution_mode=self._mode(session),
                 active_drops=len(drops),
+                available_drops=sum(row.available_drops for row in buildings),
                 joined_students=visitor_count(session),
                 counts=counts,
                 buildings=buildings,
