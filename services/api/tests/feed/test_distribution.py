@@ -73,7 +73,14 @@ def snapshot(backend):
 
 
 def counts(total, available, held=0, picked_up=0):
-    return {"total": total, "available": available, "held": held, "picked_up": picked_up}
+    return {
+        "total": total,
+        "available": available,
+        "held": held,
+        "picked_up": picked_up,
+        "pantry_held": 0,
+        "pantry_transferred": 0,
+    }
 
 
 def test_available_drops_follow_reserve_release_pickup_and_expiry(campus):

@@ -6,6 +6,7 @@ NEAR = "ksu-marietta-fixture-near"
 FAR = "ksu-marietta-fixture-far"
 SAFE = {"covered_and_temperature_safe": True, "served_within_two_hours": True, "untouched": True}
 STUDENT_KEYS = {"nickname", "area", "h3_cell", "ring_distance", "allergens", "diets", "token"}
+NO_PANTRY = {"pantry_held": 0, "pantry_transferred": 0}
 
 
 def join(client, nickname, **extra):
@@ -80,7 +81,13 @@ def test_feed_spans_buildings_and_ignores_any_location_input(feed_client):
     assert missing.status_code == 404
 
     host_view = feed_client.get(f"/drops/{far}", headers=HOST).json()
-    assert host_view["counts"] == {"total": 1, "available": 0, "held": 1, "picked_up": 0}
+    assert host_view["counts"] == {
+        "total": 1,
+        "available": 0,
+        "held": 1,
+        "picked_up": 0,
+        **NO_PANTRY,
+    }
     assert host_view["status"] == "claimed_out"
     dispatch = feed_client.get(f"/drops/{near}/dispatch", headers=PROJECTOR).json()
     assert dispatch["visitors"] == [] and dispatch["next_wave_at"] is None
@@ -101,7 +108,7 @@ def test_projector_distribution_groups_host_buildings_only(feed_client):
     body = feed_client.get("/distribution", headers=PROJECTOR).json()
     assert body["distribution_mode"] == "campus_feed"
     assert body["active_drops"] == 3 and body["joined_students"] == 2
-    assert body["counts"] == {"total": 6, "available": 5, "held": 1, "picked_up": 0}
+    assert body["counts"] == {"total": 6, "available": 5, "held": 1, "picked_up": 0, **NO_PANTRY}
     rows = {row["building_code"]: row for row in body["buildings"]}
     assert rows[NEAR]["active_drops"] == 2 and rows[NEAR]["counts"]["held"] == 1
     assert rows[FAR]["building"]["id"] == FAR and rows[FAR]["counts"]["available"] == 1
@@ -118,7 +125,7 @@ def test_projector_distribution_groups_host_buildings_only(feed_client):
     assert (after["active_drops"], after["available_drops"]) == (3, 2)
     far_row = next(row for row in after["buildings"] if row["building_code"] == FAR)
     assert (far_row["active_drops"], far_row["available_drops"]) == (1, 0)
-    assert far_row["counts"] == {"total": 1, "available": 0, "held": 1, "picked_up": 0}
+    assert far_row["counts"] == {"total": 1, "available": 0, "held": 1, "picked_up": 0, **NO_PANTRY}
     assert not keys(body) & STUDENT_KEYS
     assert "Riley" not in str(body) and "Casey" not in str(body)
     for denied in (HOST, headers):

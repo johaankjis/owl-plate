@@ -18,6 +18,8 @@ from services.api.db.models import (
 from services.api.schemas.api import DropEdit, JoinRequest, Preferences, SafetyReview
 from services.api.tests.conftest import publish_drop
 
+NO_PANTRY = {"pantry_held": 0, "pantry_transferred": 0}
+
 
 @pytest.fixture
 def feed(backend):
@@ -295,7 +297,13 @@ def test_distribution_aggregates_host_buildings_without_students(feed):
     feed.tick(60)
     overview = feed.distribution(projector)
     assert overview.active_drops == 2 and overview.joined_students == 1
-    assert overview.counts.model_dump() == {"total": 5, "available": 4, "held": 1, "picked_up": 0}
+    assert overview.counts.model_dump() == {
+        "total": 5,
+        "available": 4,
+        "held": 1,
+        "picked_up": 0,
+        **NO_PANTRY,
+    }
     (row,) = overview.buildings
     assert row.building_code == "DEMO-ORIGIN" and row.active_drops == 2
     text = overview.model_dump_json()

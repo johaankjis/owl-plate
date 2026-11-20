@@ -23,6 +23,7 @@ from services.api.db.models import (
     FeedNotification,
     HostPickupNotification,
     Invite,
+    PantryReferral,
     PickupAttempt,
     Student,
     VisitorSession,
@@ -44,6 +45,18 @@ from services.api.feed import (
     own_feed_claim,
     preference_conflict,
     unavailable_reason,
+)
+from services.api.pantry import (
+    PantryError,
+    allocation,
+    confirm_handoff,
+    decide,
+    destination,
+    expire_with_drop,
+    referral_for,
+    referral_response,
+    request,
+    suggest_if_due,
 )
 from services.api.pickup.contract import PickupAssessment
 from services.api.pickup.service import (
@@ -81,12 +94,15 @@ from services.api.schemas.api import (
     DropResponse,
     FeedDrop,
     FeedResponse,
+    HostPantryReferralResponse,
     HostPickupReview,
     HostPickupReviewsResponse,
     InviteResponse,
     InvitesResponse,
     JoinRequest,
     JoinResponse,
+    PantryDestination,
+    PantryReferralsResponse,
     PersonaDecision,
     PickupVerification,
     PickupVerificationResponse,
@@ -99,6 +115,7 @@ from services.api.schemas.api import (
     VisionEstimate,
     WaveResponse,
 )
+from services.api.schemas.api import PantryReferral as PantryReferralOut
 from services.api.sessions import (
     TOKEN_PREFIX,
     SessionError,
@@ -130,7 +147,7 @@ PUSH_REGISTRATION_TABLES = ("pushregistration", "hostpushregistration")
 
 @dataclass(frozen=True)
 class Actor:
-    role: Literal["host", "student", "projector"]
+    role: Literal["host", "student", "projector", "pantry_coordinator"]
     id: str
 
 
@@ -219,6 +236,9 @@ class Backend:
                 return Actor("host", "demo-host")
             if token == "demo-projector":
                 return Actor("projector", "demo-projector")
+            if token == "demo-pantry-coordinator":
+                # Simulated coordinator only; no KSU account, partner or real sign-in.
+                return Actor("pantry_coordinator", "demo-pantry-coordinator")
             if token.startswith("demo-student-"):
                 label = token.removeprefix("demo-student-")
                 for student in self.seed["students"][:5]:
@@ -274,6 +294,13 @@ class Backend:
         try:
             return self._run(operation)
         except SessionError as exc:
+            raise DomainError(exc.code, exc.message, exc.status) from None
+
+    def _pantry_run(self, operation: Callable[[Session, datetime], T]) -> T:
+        """Run pantry rules and map their failures to contract errors."""
+        try:
+            return self._run(operation)
+        except PantryError as exc:
             raise DomainError(exc.code, exc.message, exc.status) from None
 
     def _pickup_run(self, operation: Callable[[Session, datetime], T]) -> T:
@@ -397,12 +424,19 @@ class Backend:
         return invite
 
     def _counts(self, session: Session, drop: Drop) -> Counts:
+        """The one inventory invariant every feed, map, projector and host view shares."""
         claims = session.exec(select(Claim).where(Claim.drop_id == drop.id)).all()
         held = sum(c.status == "held" for c in claims)
         picked_up = sum(c.status == "picked_up" for c in claims)
+        pantry_held, pantry_transferred = allocation(referral_for(session, drop.id))
         total = drop.data["servings_final"]
         return Counts(
-            total=total, available=total - held - picked_up, held=held, picked_up=picked_up
+            total=total,
+            available=total - held - picked_up - pantry_held - pantry_transferred,
+            held=held,
+            picked_up=picked_up,
+            pantry_held=pantry_held,
+            pantry_transferred=pantry_transferred,
         )
 
     def _refresh(self, session: Session, drop: Drop) -> None:
@@ -427,7 +461,10 @@ class Backend:
                 if claim.status == "held" and (expired or now >= timestamp(claim.held_until)):
                     claim.status = "expired"
                     session.add(claim)
+            expire_with_drop(session, drop, now)
             self._refresh(session, drop)
+            if drop.status == "live" and drop_mode(drop) == "campus_feed":
+                suggest_if_due(session, drop, self._counts(session, drop).available, now)
         session.flush()
         sweep(session, now)
 
@@ -856,6 +893,103 @@ class Backend:
 
         return self._run(operation)
 
+    def _pantry_destination(self) -> PantryDestination:
+        """Resolve the verified destination before any transaction; 503 when absent."""
+        try:
+            return destination(self.campus)
+        except PantryError as exc:
+            raise DomainError(exc.code, exc.message, exc.status) from None
+
+    def _pantry_host_drop(self, session: Session, actor: Actor, drop_id: str) -> Drop:
+        """Pantry host actions need both demo gates and the caller's own drop."""
+        self.require(actor, "host", demo=True)
+        return self._owned_drop(session, actor, drop_id)
+
+    def _referral_response(
+        self, session: Session, referral: PantryReferral, place: PantryDestination
+    ) -> PantryReferralOut:
+        drop = self._get(session, Drop, referral.drop_id)
+        return referral_response(referral, drop, self._response(session, drop), place)
+
+    def pantry_referral(self, actor: Actor, drop_id: str) -> HostPantryReferralResponse:
+        """The host's own drop referral; a due suggestion materializes in this read."""
+        self.require(actor, "host", demo=True)
+        place = self._pantry_destination()
+
+        def operation(session: Session, now: datetime) -> HostPantryReferralResponse:
+            drop = self._pantry_host_drop(session, actor, drop_id)
+            referral = referral_for(session, drop.id)
+            return HostPantryReferralResponse(
+                referral=self._referral_response(session, referral, place) if referral else None,
+                destination=place,
+            )
+
+        return self._pantry_run(operation)
+
+    def request_pantry_referral(
+        self, actor: Actor, drop_id: str, servings: int
+    ) -> PantryReferralOut:
+        """Explicit simulated host request; reserves nothing and contacts no one."""
+        self.require(actor, "host", demo=True)
+        place = self._pantry_destination()
+
+        def operation(session: Session, now: datetime) -> PantryReferralOut:
+            drop = self._pantry_host_drop(session, actor, drop_id)
+            available = self._counts(session, drop).available
+            referral = request(session, drop, servings, available, now)
+            return self._referral_response(session, referral, place)
+
+        return self._pantry_run(operation)
+
+    def confirm_pantry_handoff(self, actor: Actor, drop_id: str) -> PantryReferralOut:
+        """Publishing host's simulated handoff confirmation; no pickup push is enqueued."""
+        self.require(actor, "host", demo=True)
+        place = self._pantry_destination()
+
+        def operation(session: Session, now: datetime) -> PantryReferralOut:
+            drop = self._pantry_host_drop(session, actor, drop_id)
+            referral = referral_for(session, drop.id)
+            if referral is None:
+                raise PantryError("invalid_state", "Only an accepted referral can be handed off.")
+            confirm_handoff(session, referral, now)
+            self._refresh(session, drop)
+            return self._referral_response(session, referral, place)
+
+        return self._pantry_run(operation)
+
+    def pantry_referrals(self, actor: Actor) -> PantryReferralsResponse:
+        """Every demo referral for the simulated coordinator, oldest first, de-identified."""
+        self.require(actor, "pantry_coordinator", demo=True)
+        place = self._pantry_destination()
+
+        def operation(session: Session, now: datetime) -> PantryReferralsResponse:
+            referrals = session.exec(
+                select(PantryReferral).order_by(PantryReferral.created_at, PantryReferral.id)
+            ).all()
+            return PantryReferralsResponse(
+                referrals=[self._referral_response(session, r, place) for r in referrals],
+                server_time=now,
+            )
+
+        return self._pantry_run(operation)
+
+    def decide_pantry_referral(
+        self, actor: Actor, referral_id: str, decision: str, servings: int | None
+    ) -> PantryReferralOut:
+        """Simulated accept or reject, rechecked under the student reservation lock."""
+        self.require(actor, "pantry_coordinator", demo=True)
+        place = self._pantry_destination()
+
+        def operation(session: Session, now: datetime) -> PantryReferralOut:
+            referral = self._get(session, PantryReferral, referral_id)
+            drop = self._get(session, Drop, referral.drop_id)
+            available = self._counts(session, drop).available
+            decide(session, referral, decision, servings, available, now)
+            self._refresh(session, drop)
+            return self._referral_response(session, referral, place)
+
+        return self._pantry_run(operation)
+
     def claim(self, actor: Actor, invite_id: str) -> ClaimResponse:
         """Hold capacity atomically and return the existing hold on retry."""
 
@@ -1255,6 +1389,7 @@ class Backend:
                 HostPickupNotification,
                 PickupAttempt,
                 FeedNotification,
+                PantryReferral,
                 Claim,
                 Invite,
                 Wave,

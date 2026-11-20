@@ -94,10 +94,18 @@ class DropEdit(ContractModel):
 
 
 class Counts(ContractModel):
+    """Per-drop inventory: total = available + held + picked_up + pantry_held + pantry_transferred.
+
+    ``held`` and ``picked_up`` are student holds and pickups only; simulated pantry
+    allocations are reported separately and never folded into student pickups.
+    """
+
     total: int
     available: int
     held: int
     picked_up: int
+    pantry_held: int = Field(default=0, ge=0)
+    pantry_transferred: int = Field(default=0, ge=0)
 
 
 class DropResponse(ContractModel):
@@ -400,3 +408,80 @@ class ErrorDetail(ContractModel):
 
 class ErrorResponse(ContractModel):
     detail: ErrorDetail
+
+
+PantryStatus = Literal[
+    "suggested", "requested", "accepted", "handoff_confirmed", "rejected", "expired"
+]
+PANTRY_NOTICE = (
+    "Demo only — no request is sent to KSU CARE. KSU catering policy prohibits removing "
+    "leftovers from event spaces. This simulation does not authorize redistribution or "
+    "establish food safety."
+)
+
+
+class PantryDestination(ContractModel):
+    """The verified demo pantry destination; directions target the building point only."""
+
+    name: str
+    building: Building
+    room: str
+    directions_url: str
+    care_source_url: str
+    catering_policy_url: str
+
+
+class PantryReferral(ContractModel):
+    """A simulated pantry referral; never a real request, approval or food-safety claim."""
+
+    id: UUID
+    drop_id: UUID
+    status: PantryStatus
+    requested_servings: int = Field(ge=0)
+    accepted_servings: int = Field(ge=0)
+    transferred_servings: int = Field(ge=0)
+    eligible_servings: int = Field(ge=0)
+    created_at: datetime
+    updated_at: datetime
+    expires_at: datetime
+    destination: PantryDestination
+    drop: DropResponse
+    notice: str = PANTRY_NOTICE
+    is_demo: Literal[True] = True
+
+
+class HostPantryReferralResponse(ContractModel):
+    referral: PantryReferral | None
+    destination: PantryDestination
+    notice: str = PANTRY_NOTICE
+    is_demo: Literal[True] = True
+
+
+class PantryReferralRequest(ContractModel):
+    """Acknowledging the demo notice never waives KSU catering policy."""
+
+    servings: int = Field(ge=1, le=500)
+    demo_policy_acknowledged: Literal[True]
+
+
+class PantryHandoffRequest(ContractModel):
+    demo_handoff_confirmed: Literal[True]
+
+
+class PantryDecisionRequest(ContractModel):
+    decision: Literal["accept", "reject"]
+    servings: int | None = Field(default=None, ge=1, le=500)
+    demo_policy_acknowledged: Literal[True]
+
+    @model_validator(mode="after")
+    def accept_needs_servings(self) -> "PantryDecisionRequest":
+        """An acceptance must name its quantity so it can never silently overbook."""
+        if self.decision == "accept" and self.servings is None:
+            raise ValueError("accept requires servings")
+        return self
+
+
+class PantryReferralsResponse(ContractModel):
+    referrals: list[PantryReferral]
+    server_time: datetime
+    is_demo: Literal[True] = True

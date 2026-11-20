@@ -25,6 +25,7 @@ from services.api.schemas.api import (
     DropResponse,
     ErrorResponse,
     FeedResponse,
+    HostPantryReferralResponse,
     HostPickupReview,
     HostPickupReviewsResponse,
     HostReviewDecision,
@@ -32,6 +33,11 @@ from services.api.schemas.api import (
     InvitesResponse,
     JoinRequest,
     JoinResponse,
+    PantryDecisionRequest,
+    PantryHandoffRequest,
+    PantryReferral,
+    PantryReferralRequest,
+    PantryReferralsResponse,
     PickupRequest,
     PickupReviewRequest,
     PickupVerification,
@@ -214,6 +220,43 @@ def build_router(
             str(drop_id),
             str(verification_id),
             decision.decision,
+        )
+
+    @router.get("/drops/{drop_id}/pantry-referral", response_model=HostPantryReferralResponse)
+    def pantry_referral(drop_id: UUID, actor: Identity) -> HostPantryReferralResponse:
+        """Simulated pantry referral for the publishing host's own drop; demo only."""
+        return invoke(backend.pantry_referral, actor, str(drop_id))
+
+    @router.post("/drops/{drop_id}/pantry-referral", response_model=PantryReferral)
+    def request_pantry_referral(
+        drop_id: UUID, request: PantryReferralRequest, actor: Identity
+    ) -> PantryReferral:
+        """Explicit simulated request; nothing is sent to KSU and no stock is reserved."""
+        return invoke(backend.request_pantry_referral, actor, str(drop_id), request.servings)
+
+    @router.post("/drops/{drop_id}/pantry-referral/handoff", response_model=PantryReferral)
+    def pantry_handoff(
+        drop_id: UUID, request: PantryHandoffRequest, actor: Identity
+    ) -> PantryReferral:
+        """Simulated handoff confirmation by the publishing host; not a verified transfer."""
+        return invoke(backend.confirm_pantry_handoff, actor, str(drop_id))
+
+    @router.get("/pantry/referrals", response_model=PantryReferralsResponse)
+    def pantry_referrals(actor: Identity) -> PantryReferralsResponse:
+        """De-identified referral queue for the synthetic demo coordinator only."""
+        return invoke(backend.pantry_referrals, actor)
+
+    @router.post("/pantry/referrals/{referral_id}/decision", response_model=PantryReferral)
+    def decide_pantry_referral(
+        referral_id: UUID, request: PantryDecisionRequest, actor: Identity
+    ) -> PantryReferral:
+        """Simulated coordinator accept or reject under the shared inventory lock."""
+        return invoke(
+            backend.decide_pantry_referral,
+            actor,
+            str(referral_id),
+            request.decision,
+            request.servings,
         )
 
     @router.put("/students/me/preferences", response_model=Preferences)

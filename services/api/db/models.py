@@ -141,3 +141,23 @@ class HostPickupNotification(SQLModel, table=True):
     available: int
     created_at: str
     sent: bool = False
+
+
+class PantryReferral(SQLModel, table=True):
+    """One simulated pantry referral per drop; never a real request or transfer.
+
+    The unique drop makes suggestions, requests and retries unable to create a second
+    referral. Only ``accepted`` allocates stock (``accepted_servings``) and only
+    ``handoff_confirmed`` counts as transferred; every other state allocates nothing.
+    The deadline is always the drop's original ``expires_at`` and is never stored here.
+    """
+
+    __table_args__ = (UniqueConstraint("drop_id"),)
+    id: str = Field(primary_key=True)
+    drop_id: str = Field(foreign_key="drop.id", index=True)
+    status: str = "suggested"
+    requested_servings: int = 0
+    accepted_servings: int = 0
+    transferred_servings: int = 0
+    created_at: str
+    updated_at: str

@@ -2,7 +2,14 @@
 
 from uuid import uuid4
 
-from services.api.tests.routes.test_campus_feed import HOST, NEAR, join, keys, publish
+from services.api.tests.routes.test_campus_feed import (
+    HOST,
+    NEAR,
+    NO_PANTRY,
+    join,
+    keys,
+    publish,
+)
 
 PROJECTOR = {"Authorization": "Bearer demo-projector"}
 PNG = ("food.png", b"synthetic-photo", "image/png")
@@ -61,7 +68,7 @@ def test_photo_check_then_explicit_pickup_over_http(feed_client):
     )
     assert picked.status_code == 200 and picked.json()["status"] == "picked_up"
     drop = feed_client.get(f"/drops/{drop_id}", headers=HOST).json()
-    assert drop["counts"] == {"total": 2, "available": 1, "held": 0, "picked_up": 1}
+    assert drop["counts"] == {"total": 2, "available": 1, "held": 0, "picked_up": 1, **NO_PANTRY}
 
 
 def test_photo_errors_and_authorization(feed_client):

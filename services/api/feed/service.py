@@ -170,7 +170,7 @@ def distribution_rows(
     A drop is "available" only while its own snapshot still has a serving to reserve, so a
     claimed-out drop keeps its held/collected contribution without advertising food.
     """
-    totals = {"total": 0, "available": 0, "held": 0, "picked_up": 0}
+    totals = dict.fromkeys(Counts.model_fields, 0)
     groups: dict[str, dict] = {}
     for drop in drops:
         drop_counts = counts(drop).model_dump()
