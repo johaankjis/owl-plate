@@ -96,13 +96,22 @@ export default function HomePage() {
             <strong className="text-zinc-200">{ALLERGEN_WARNING_TEXT}</strong>.
             Hosts see counts only.
           </div>
-          <Link
-            href="/dispatch"
-            data-testid="home-projector-link"
-            className="inline-flex min-h-[44px] shrink-0 items-center font-semibold text-owl-gold underline-offset-4 hover:underline"
-          >
-            Projector view (/dispatch) &rarr;
-          </Link>
+          <div className="flex flex-wrap items-center gap-4">
+            <Link
+              href="/pantry"
+              data-testid="home-pantry-link"
+              className="inline-flex min-h-[44px] shrink-0 items-center font-semibold text-purple-300 underline-offset-4 hover:underline"
+            >
+              Demo pantry (/pantry) &rarr;
+            </Link>
+            <Link
+              href="/dispatch"
+              data-testid="home-projector-link"
+              className="inline-flex min-h-[44px] shrink-0 items-center font-semibold text-owl-gold underline-offset-4 hover:underline"
+            >
+              Projector view (/dispatch) &rarr;
+            </Link>
+          </div>
         </footer>
       </div>
     </div>

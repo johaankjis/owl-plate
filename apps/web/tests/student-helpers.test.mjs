@@ -323,6 +323,8 @@ test("campus feed lifecycle in fixtures supports location-free join, multi-drop 
       available: 0,
       held: 0,
       picked_up: 0,
+      pantry_held: 0,
+      pantry_transferred: 0,
     },
   );
   assert.equal(emptyDist.buildings.length, 0);
@@ -543,6 +545,8 @@ test("campus feed lifecycle in fixtures supports location-free join, multi-drop 
       available: 1,
       held: 1,
       picked_up: 1,
+      pantry_held: 0,
+      pantry_transferred: 0,
     },
   );
   assert.equal(distMid.buildings.length, 2);
@@ -557,6 +561,8 @@ test("campus feed lifecycle in fixtures supports location-free join, multi-drop 
       available: 2,
       held: 0,
       picked_up: 1,
+      pantry_held: 0,
+      pantry_transferred: 0,
     },
   );
 

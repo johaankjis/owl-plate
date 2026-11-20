@@ -9,6 +9,7 @@ import {
   BuildingSelector,
   type RehearsalOption,
 } from "../../components/BuildingSelector";
+import { HostPantryCard } from "../../components/HostPantryCard";
 import {
   ALLERGENS,
   ALLERGEN_WARNING_TEXT,
@@ -20,17 +21,21 @@ import {
   type Diet,
   type DropEdit,
   type DropResponse,
+  type HostPantryReferralResponse,
   type HostPickupReview,
   type SafetyReview,
 } from "../../lib/types/api";
 import {
+  confirmHostPantryHandoff,
   createDrop,
   decideHostPickupReview,
   getBuildings,
   getDrop,
   getActiveDrop,
+  getHostPantryReferral,
   getHostPickupReviews,
   publishDrop,
+  requestHostPantryReferral,
   updateDrop,
   INITIAL_DATA_SOURCE,
   type DataSourceMode,
@@ -51,6 +56,7 @@ import {
   resolveHostStep,
   restoreHostDropState,
   shouldPollHostCounts,
+  shouldPollHostPantryReferral,
   shouldPollHostPickupReviews,
   type HostViewStep,
 } from "./host-helpers";
@@ -79,6 +85,9 @@ function HostPageContent() {
   const [linkedDropError, setLinkedDropError] = useState<string | null>(null);
   const [pickupReviews, setPickupReviews] = useState<HostPickupReview[]>([]);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [pantryData, setPantryData] =
+    useState<HostPantryReferralResponse | null>(null);
+  const [pantryError, setPantryError] = useState<string | null>(null);
   const [nowTick, setNowTick] = useState<number>(() => Date.now());
 
   const hostPush = usePushOptIn(HOST_CREDENTIAL, { role: "host" });
@@ -182,6 +191,16 @@ function HostPageContent() {
     }
   }, []);
 
+  const loadPantryReferralForDrop = useCallback(async (dropId: string) => {
+    try {
+      const res = await getHostPantryReferral(dropId, HOST_CREDENTIAL);
+      setSourceMode(res.source);
+      setPantryData(res.data);
+    } catch {
+      // Keep existing pantry card state (and safe static policy fallback) on transient poll failure
+    }
+  }, []);
+
   // Restore active drop on mount (or /host?drop=<UUID> deep link via backend ACL)
   useEffect(() => {
     let active = true;
@@ -201,9 +220,19 @@ function HostPageContent() {
           syncFormFromDrop(restored.drop, buildings);
           if (restored.step === "counts") {
             void loadPickupReviewsForDrop(restored.drop.id);
+            if (
+              (restored.drop.distribution_mode ?? "seeded_waves") ===
+              "campus_feed"
+            ) {
+              void loadPantryReferralForDrop(restored.drop.id);
+            } else {
+              setPantryData(null);
+            }
           }
         } else {
           setPickupReviews([]);
+          setPantryData(null);
+          setPantryError(null);
         }
       })
       .catch((err) => {
@@ -216,11 +245,17 @@ function HostPageContent() {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncFormFromDrop, linkedDropId, loadPickupReviewsForDrop]);
+  }, [
+    syncFormFromDrop,
+    linkedDropId,
+    loadPickupReviewsForDrop,
+    loadPantryReferralForDrop,
+  ]);
 
-  // Poll GET /drops/{id} and GET /drops/{id}/pickup-reviews (demo-host) every 2 s while counts panel is open
+  // Poll GET /drops/{id}, pickup reviews, and campus-feed pantry referral (demo-host) every 2 s while counts panel is open
   const activeDropId = drop?.id ?? null;
   const activeDropStatus = drop?.status ?? null;
+  const activeDropMode = drop?.distribution_mode ?? null;
 
   useEffect(() => {
     if (
@@ -231,20 +266,35 @@ function HostPageContent() {
       return;
     }
 
+    const pollPantry = shouldPollHostPantryReferral(
+      {
+        status: activeDropStatus,
+        distribution_mode: activeDropMode ?? "seeded_waves",
+      },
+      viewStep,
+    );
+
     let cancelled = false;
     const poll = async () => {
-      try {
-        const [dropRes, reviewsRes] = await Promise.all([
+      const [dropResult, reviewsResult, pantryResult] =
+        await Promise.allSettled([
           getDrop(activeDropId, HOST_CREDENTIAL),
           getHostPickupReviews(activeDropId, HOST_CREDENTIAL),
+          pollPantry
+            ? getHostPantryReferral(activeDropId, HOST_CREDENTIAL)
+            : Promise.resolve(null),
         ]);
-        if (cancelled) return;
-        setSourceMode(dropRes.source);
-        setDrop(dropRes.data);
-        setViewStep(resolveHostStep(dropRes.data));
-        setPickupReviews(reviewsRes.data.reviews);
-      } catch {
-        // Keep current counts and reviews displayed on transient poll failure
+      if (cancelled) return;
+      if (dropResult.status === "fulfilled") {
+        setSourceMode(dropResult.value.source);
+        setDrop(dropResult.value.data);
+        setViewStep(resolveHostStep(dropResult.value.data));
+      }
+      if (reviewsResult.status === "fulfilled") {
+        setPickupReviews(reviewsResult.value.data.reviews);
+      }
+      if (pantryResult.status === "fulfilled" && pantryResult.value !== null) {
+        setPantryData(pantryResult.value.data);
       }
     };
 
@@ -257,7 +307,7 @@ function HostPageContent() {
       cancelled = true;
       clearInterval(intervalId);
     };
-  }, [activeDropId, activeDropStatus, viewStep]);
+  }, [activeDropId, activeDropStatus, activeDropMode, viewStep]);
 
   const removedEstimatedAllergens = drop
     ? drop.vision.allergens_likely.filter(
@@ -332,6 +382,9 @@ function HostPageContent() {
   const handleShareAnotherDrop = () => {
     setDrop(null);
     setViewStep("upload");
+    setPickupReviews([]);
+    setPantryData(null);
+    setPantryError(null);
     setStatusMessage(null);
     setErrorMessage(null);
     setVisionErrorMessage(null);
@@ -352,6 +405,7 @@ function HostPageContent() {
     if (!drop) return;
     setBusyAction("publish");
     setErrorMessage(null);
+    setPantryError(null);
     setStatusMessage(null);
     try {
       const patched = await updateDrop(
@@ -367,10 +421,89 @@ function HostPageContent() {
         `Got it. About ${published.data.servings_final} servings. We'll send it to the right people.`,
       );
       await loadPickupReviewsForDrop(published.data.id);
+      if (
+        (published.data.distribution_mode ?? "seeded_waves") === "campus_feed"
+      ) {
+        await loadPantryReferralForDrop(published.data.id);
+      } else {
+        setPantryData(null);
+      }
     } catch (err) {
       setErrorMessage(
         err instanceof Error ? err.message : "Failed to publish drop",
       );
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const refreshHostDropAndPantry = useCallback(async (dropId: string) => {
+    const [dropRes, pantryRes] = await Promise.allSettled([
+      getDrop(dropId, HOST_CREDENTIAL),
+      getHostPantryReferral(dropId, HOST_CREDENTIAL),
+    ]);
+    if (dropRes.status === "fulfilled") {
+      setSourceMode(dropRes.value.source);
+      setDrop(dropRes.value.data);
+      setViewStep(resolveHostStep(dropRes.value.data));
+    }
+    if (pantryRes.status === "fulfilled") {
+      setPantryData(pantryRes.value.data);
+    }
+  }, []);
+
+  const handleRequestPantryReferral = async (servings: number) => {
+    if (!drop) return;
+    setBusyAction("pantry:request");
+    setPantryError(null);
+    setErrorMessage(null);
+    try {
+      await requestHostPantryReferral(
+        drop.id,
+        {
+          servings,
+          demo_policy_acknowledged: true,
+        },
+        HOST_CREDENTIAL,
+      );
+      await refreshHostDropAndPantry(drop.id);
+      setStatusMessage(
+        "Demo pantry referral requested. No request was sent to KSU CARE; review in the demo coordinator page (/pantry).",
+      );
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Could not request demo pantry referral.";
+      setPantryError(msg);
+      await refreshHostDropAndPantry(drop.id);
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const handleConfirmPantryHandoff = async () => {
+    if (!drop) return;
+    setBusyAction("pantry:handoff");
+    setPantryError(null);
+    setErrorMessage(null);
+    try {
+      await confirmHostPantryHandoff(
+        drop.id,
+        { demo_handoff_confirmed: true },
+        HOST_CREDENTIAL,
+      );
+      await refreshHostDropAndPantry(drop.id);
+      setStatusMessage(
+        "Simulated pantry handoff confirmed. Pantry transfers updated separately from student pickups.",
+      );
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Could not confirm simulated pantry handoff.";
+      setPantryError(msg);
+      await refreshHostDropAndPantry(drop.id);
     } finally {
       setBusyAction(null);
     }
@@ -1073,8 +1206,8 @@ function HostPageContent() {
               </div>
             </div>
 
-            {/* Big Available / Held / Picked up (+ Total) with number-only text inside testids */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {/* Big count tiles with number-only text inside testids; student pickups and pantry transfers remain strictly separate */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-emerald-500/30 bg-owl-black/80 p-4 text-center">
                 <div
                   data-testid="host-count-available"
@@ -1095,7 +1228,7 @@ function HostPageContent() {
                   {formattedCounts.held}
                 </div>
                 <div className="mt-1 text-xs font-bold uppercase tracking-wide text-zinc-400">
-                  Held
+                  Student held
                 </div>
               </div>
 
@@ -1107,7 +1240,31 @@ function HostPageContent() {
                   {formattedCounts.pickedUp}
                 </div>
                 <div className="mt-1 text-xs font-bold uppercase tracking-wide text-zinc-400">
-                  Picked up
+                  Student pickups
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-purple-500/30 bg-owl-black/80 p-4 text-center">
+                <div
+                  data-testid="host-count-pantry-held"
+                  className="text-4xl font-extrabold text-purple-300"
+                >
+                  {formattedCounts.pantryHeld}
+                </div>
+                <div className="mt-1 text-xs font-bold uppercase tracking-wide text-zinc-400">
+                  Pantry reserved
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-fuchsia-500/30 bg-owl-black/80 p-4 text-center">
+                <div
+                  data-testid="host-count-pantry-transferred"
+                  className="text-4xl font-extrabold text-fuchsia-300"
+                >
+                  {formattedCounts.pantryTransferred}
+                </div>
+                <div className="mt-1 text-xs font-bold uppercase tracking-wide text-zinc-400">
+                  Pantry transfers
                 </div>
               </div>
 
@@ -1123,6 +1280,17 @@ function HostPageContent() {
                 </div>
               </div>
             </div>
+
+            {/* Donate remaining food (Simulation-only CARE Pantry fallback) */}
+            <HostPantryCard
+              drop={drop}
+              pantryData={pantryData}
+              pantryError={pantryError}
+              busyAction={busyAction}
+              nowIso={nowIso}
+              onRequestReferral={handleRequestPantryReferral}
+              onConfirmHandoff={handleConfirmPantryHandoff}
+            />
 
             {/* De-identified Host Pickup Review Queue */}
             <div

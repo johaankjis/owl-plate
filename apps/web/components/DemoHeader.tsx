@@ -16,7 +16,7 @@ interface DemoHeaderProps {
   onCredentialChange?: (cred: DemoCredential) => void;
   sourceMode?: DataSourceMode;
   isDemo?: boolean;
-  allowedRoles?: Array<"host" | "projector" | "student">;
+  allowedRoles?: Array<"host" | "projector" | "student" | "pantry_coordinator">;
   showCredentialSelector?: boolean;
   subtitle?: string;
 }

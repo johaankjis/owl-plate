@@ -312,6 +312,8 @@ test("fixture mode exercises restore and live counts transitions (available -> h
       available: 2,
       held: 0,
       picked_up: 0,
+      pantry_held: 0,
+      pantry_transferred: 0,
     },
   );
 
@@ -340,6 +342,8 @@ test("fixture mode exercises restore and live counts transitions (available -> h
       available: 1,
       held: 1,
       picked_up: 0,
+      pantry_held: 0,
+      pantry_transferred: 0,
     },
   );
 
@@ -353,6 +357,8 @@ test("fixture mode exercises restore and live counts transitions (available -> h
       available: 1,
       held: 0,
       picked_up: 1,
+      pantry_held: 0,
+      pantry_transferred: 0,
     },
   );
 
@@ -370,6 +376,8 @@ test("fixture mode exercises restore and live counts transitions (available -> h
       available: 0,
       held: 0,
       picked_up: 2,
+      pantry_held: 0,
+      pantry_transferred: 0,
     },
   );
 
@@ -694,6 +702,8 @@ test("Milestone 2 host pickup review queue is de-identified, enforces ACLs, hand
       available: 1,
       held: 0,
       picked_up: 1,
+      pantry_held: 0,
+      pantry_transferred: 0,
     },
   );
 

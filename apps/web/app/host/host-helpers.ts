@@ -147,18 +147,40 @@ export function shouldPollHostPickupReviews(
 }
 
 /**
- * Formats each count value as a number-only string for the host count elements.
+ * Returns true when the host page should actively poll GET /drops/{id}/pantry-referral
+ * for the host's own published campus-feed drop (pantry workflow supports campus_feed only).
+ */
+export function shouldPollHostPantryReferral(
+  drop: Pick<DropResponse, "status" | "distribution_mode"> | null,
+  step: HostViewStep = resolveHostStep(drop as DropResponse | null),
+): boolean {
+  if (!drop) return false;
+  const mode = drop.distribution_mode ?? "seeded_waves";
+  return (
+    step === "counts" &&
+    mode === "campus_feed" &&
+    (drop.status === "live" || drop.status === "claimed_out")
+  );
+}
+
+/**
+ * Formats each count value as a number-only string for the host count elements,
+ * distinguishing student holds/pickups from pantry reserved/transfers.
  */
 export function formatHostCounts(counts: Counts): {
   available: string;
   held: string;
   pickedUp: string;
+  pantryHeld: string;
+  pantryTransferred: string;
   total: string;
 } {
   return {
     available: String(counts.available),
     held: String(counts.held),
     pickedUp: String(counts.picked_up),
+    pantryHeld: String(counts.pantry_held ?? 0),
+    pantryTransferred: String(counts.pantry_transferred ?? 0),
     total: String(counts.total),
   };
 }

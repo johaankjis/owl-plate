@@ -27,6 +27,7 @@ import type {
   DropResponse,
   ErrorDetail,
   FeedResponse,
+  HostPantryReferralResponse,
   HostPickupReview,
   HostPickupReviewDecision,
   HostPickupReviewsResponse,
@@ -34,6 +35,9 @@ import type {
   InvitesResponse,
   JoinRequest,
   JoinResponse,
+  PantryHandoffConfirmRequest,
+  PantryReferral,
+  PantryReferralRequest,
   PickupClaimRequest,
   PickupVerification,
   PickupVerificationResponse,
@@ -47,6 +51,7 @@ import type {
 } from "./types/api";
 import {
   fixtureClaimInvite,
+  fixtureConfirmHostPantryHandoff,
   fixtureCreateDrop,
   fixtureDecideHostPickupReview,
   fixtureDeclineInvite,
@@ -59,6 +64,7 @@ import {
   fixtureGetDispatch,
   fixtureGetDistribution,
   fixtureGetDrop,
+  fixtureGetHostPantryReferral,
   fixtureGetHostPickupReviews,
   fixtureGetHostPushTokenStatus,
   fixtureGetMyFeed,
@@ -72,6 +78,7 @@ import {
   fixtureRegisterHostPushToken,
   fixtureRegisterPushToken,
   fixtureReleaseClaim,
+  fixtureRequestHostPantryReferral,
   fixtureRequestPickupReview,
   fixtureReserveDrop,
   fixtureSubmitPickupPhoto,
@@ -655,5 +662,54 @@ export async function getDistribution(
     { method: "GET" },
     credential,
     () => fixtureGetDistribution(),
+  );
+}
+
+export async function getHostPantryReferral(
+  dropId: string,
+  credential: AuthToken = "demo-host",
+): Promise<ApiResult<HostPantryReferralResponse>> {
+  return request<HostPantryReferralResponse>(
+    `/drops/${encodeURIComponent(dropId)}/pantry-referral`,
+    { method: "GET" },
+    credential,
+    () => fixtureGetHostPantryReferral(dropId, credential),
+  );
+}
+
+export async function requestHostPantryReferral(
+  dropId: string,
+  req: PantryReferralRequest,
+  credential: AuthToken = "demo-host",
+): Promise<ApiResult<PantryReferral>> {
+  return request<PantryReferral>(
+    `/drops/${encodeURIComponent(dropId)}/pantry-referral`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        servings: req.servings,
+        demo_policy_acknowledged: req.demo_policy_acknowledged,
+      }),
+    },
+    credential,
+    () => fixtureRequestHostPantryReferral(dropId, req, credential),
+  );
+}
+
+export async function confirmHostPantryHandoff(
+  dropId: string,
+  req: PantryHandoffConfirmRequest,
+  credential: AuthToken = "demo-host",
+): Promise<ApiResult<PantryReferral>> {
+  return request<PantryReferral>(
+    `/drops/${encodeURIComponent(dropId)}/pantry-referral/handoff`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        demo_handoff_confirmed: req.demo_handoff_confirmed,
+      }),
+    },
+    credential,
+    () => fixtureConfirmHostPantryHandoff(dropId, req, credential),
   );
 }

@@ -194,6 +194,8 @@ function CampusFeedProjectorMap({
               if (x < -80 || x > width + 80 || y < -60 || y > height + 60) {
                 return null;
               }
+              const pantryHeld = node.counts.pantry_held ?? 0;
+              const pantryTransferred = node.counts.pantry_transferred ?? 0;
               return (
                 <div
                   key={node.buildingCode}
@@ -206,6 +208,8 @@ function CampusFeedProjectorMap({
                   data-available={String(node.counts.available)}
                   data-reserved={String(node.counts.held)}
                   data-collected={String(node.counts.picked_up)}
+                  data-pantry-held={String(pantryHeld)}
+                  data-pantry-transferred={String(pantryTransferred)}
                   data-available-drops={String(node.availableDrops)}
                   data-active-drops={String(node.activeDrops)}
                   data-availability-status={
@@ -247,6 +251,17 @@ function CampusFeedProjectorMap({
                         {node.counts.picked_up} col
                       </span>
                     </div>
+                    {(pantryHeld > 0 || pantryTransferred > 0) && (
+                      <div className="mt-0.5 flex items-center justify-center gap-1.5 text-[10px] font-bold">
+                        <span className="text-purple-300">
+                          {pantryHeld} pantry res
+                        </span>
+                        <span className="text-zinc-500">·</span>
+                        <span className="text-fuchsia-300">
+                          {pantryTransferred} pantry xfer
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <span
                     aria-hidden="true"

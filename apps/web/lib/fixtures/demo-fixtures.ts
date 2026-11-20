@@ -13,6 +13,7 @@ import { latLngToCell, gridDisk } from "h3-js";
 import type {
   Allergen,
   AuthToken,
+  Building,
   BuildingDistribution,
   BuildingsResponse,
   CampusDistributionResponse,
@@ -35,6 +36,7 @@ import type {
   FeedDrop,
   FeedResponse,
   FeedUnavailableReason,
+  HostPantryReferralResponse,
   HostPickupReview,
   HostPickupReviewDecision,
   HostPickupReviewStatus,
@@ -43,6 +45,13 @@ import type {
   InvitesResponse,
   JoinRequest,
   JoinResponse,
+  PantryDecisionRequest,
+  PantryDestination,
+  PantryHandoffConfirmRequest,
+  PantryReferral,
+  PantryReferralRequest,
+  PantryReferralsResponse,
+  PantryStatus,
   PersonaDecision,
   PickupClaimRequest,
   PickupMatchStatus,
@@ -64,6 +73,10 @@ import type {
 import {
   ALLERGENS,
   ALLERGEN_WARNING_TEXT,
+  PANTRY_CARE_SOURCE_URL,
+  PANTRY_CATERING_POLICY_URL,
+  PANTRY_COORDINATOR_CREDENTIAL,
+  PANTRY_DEMO_NOTICE_FALLBACK,
   PICKUP_CONFIRMATION_NOTICE,
   PICKUP_CONSISTENT_CONFIDENCE_THRESHOLD,
   RELIGIOUS_DIETS,
@@ -201,6 +214,73 @@ export interface InternalHostOutboxEvent {
   delivered_to_host: boolean;
 }
 
+interface InternalPantryReferral {
+  id: string;
+  dropId: string;
+  status: PantryStatus;
+  requestedServings: number;
+  acceptedServings: number;
+  transferredServings: number;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
+}
+
+const PANTRY_SUGGESTION_WINDOW_MS = 10 * 60 * 1000;
+
+/**
+ * Verified read-only Marietta campus registry snapshot for Joe Mack Wilson
+ * Student Center (matching data/campus/marietta.json; never invented points).
+ * Used strictly as the read-only PantryDestination in explicit fixture mode.
+ */
+const FIXTURE_PANTRY_BUILDING: Building = {
+  id: "ksu-marietta-joe-mack-wilson-student-center",
+  name: "Joe Mack Wilson Student Center",
+  building_code: "A",
+  building_number: "860",
+  category: "student_life",
+  latitude: 33.940665,
+  longitude: -84.520395,
+  verification_status: "verified",
+  sources: [
+    {
+      url: "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+      title:
+        "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number",
+    },
+    {
+      url: "https://maps.kennesaw.edu/",
+      title:
+        "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)",
+    },
+    {
+      url: "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+      title:
+        "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)",
+    },
+    {
+      url: "https://www.openstreetmap.org/way/225473219",
+      title:
+        "OpenStreetMap way 225473219 — A - Joe Mack Wilson Student Center (independent coordinate cross-check)",
+    },
+  ],
+};
+
+function buildFixturePantryDestination(): PantryDestination {
+  return {
+    name: "KSU CARE Pantry",
+    building: {
+      ...FIXTURE_PANTRY_BUILDING,
+      sources: FIXTURE_PANTRY_BUILDING.sources.map((s) => ({ ...s })),
+    },
+    room: "Room 184",
+    directions_url:
+      "https://www.google.com/maps/dir/?api=1&destination=33.940665,-84.520395&travelmode=walking",
+    care_source_url: PANTRY_CARE_SOURCE_URL,
+    catering_policy_url: PANTRY_CATERING_POLICY_URL,
+  };
+}
+
 interface OfflineFixtureStore {
   serverTimeIso: string;
   clockOffsetSeconds: number;
@@ -220,6 +300,7 @@ interface OfflineFixtureStore {
   pushRegisteredByToken: Record<string, boolean>;
   hostPushRegisteredByHostId: Record<string, boolean>;
   hostOutboxByClaimId: Record<string, InternalHostOutboxEvent>;
+  pantryReferralsByDropId: Record<string, InternalPantryReferral>;
 }
 
 let memoryStore: OfflineFixtureStore | null = null;
@@ -328,6 +409,7 @@ function createInitialStore(
     pushRegisteredByToken: {},
     hostPushRegisteredByHostId: {},
     hostOutboxByClaimId: {},
+    pantryReferralsByDropId: {},
   };
 }
 
@@ -372,6 +454,9 @@ function loadStore(): OfflineFixtureStore {
     }
     if (!parsed.hostOutboxByClaimId) {
       parsed.hostOutboxByClaimId = {};
+    }
+    if (!parsed.pantryReferralsByDropId) {
+      parsed.pantryReferralsByDropId = {};
     }
     return parsed;
   } catch {
@@ -423,17 +508,36 @@ function resolveStudentIdentity(
 function recomputeCounts(store: OfflineFixtureStore, dropId: string): Counts {
   const drop = store.drops[dropId];
   if (!drop) {
-    return { total: 0, available: 0, held: 0, picked_up: 0 };
+    return {
+      total: 0,
+      available: 0,
+      held: 0,
+      picked_up: 0,
+      pantry_held: 0,
+      pantry_transferred: 0,
+    };
   }
   const claims = Object.values(store.claims).filter((c) => c.dropId === dropId);
   const held = claims.filter((c) => c.status === "held").length;
   const pickedUp = claims.filter((c) => c.status === "picked_up").length;
-  const available = Math.max(0, drop.servings_final - held - pickedUp);
+  const referral = store.pantryReferralsByDropId[dropId];
+  const pantryHeld =
+    referral && referral.status === "accepted" ? referral.acceptedServings : 0;
+  const pantryTransferred =
+    referral && referral.status === "handoff_confirmed"
+      ? referral.transferredServings
+      : 0;
+  const available = Math.max(
+    0,
+    drop.servings_final - held - pickedUp - pantryHeld - pantryTransferred,
+  );
   const counts: Counts = {
     total: drop.servings_final,
     available,
     held,
     picked_up: pickedUp,
+    pantry_held: pantryHeld,
+    pantry_transferred: pantryTransferred,
   };
   drop.counts = counts;
   if (drop.status !== "draft" && drop.status !== "expired") {
@@ -630,8 +734,55 @@ function expireDeadlines(store: OfflineFixtureStore): void {
       }
     }
   }
+  for (const referral of Object.values(store.pantryReferralsByDropId)) {
+    if (
+      referral.status === "suggested" ||
+      referral.status === "requested" ||
+      referral.status === "accepted"
+    ) {
+      const drop = store.drops[referral.dropId];
+      if (
+        !drop ||
+        drop.status === "expired" ||
+        nowMs >= new Date(referral.expiresAt).getTime() ||
+        (drop.expires_at && nowMs >= new Date(drop.expires_at).getTime())
+      ) {
+        referral.status = "expired";
+        referral.updatedAt = store.serverTimeIso;
+      }
+    }
+  }
   for (const dropId of Object.keys(store.drops)) {
     recomputeCounts(store, dropId);
+  }
+}
+
+function materializePantrySuggestions(store: OfflineFixtureStore): void {
+  const nowMs = new Date(store.serverTimeIso).getTime();
+  for (const drop of Object.values(store.drops)) {
+    const mode = drop.distribution_mode ?? "seeded_waves";
+    if (mode !== "campus_feed") continue;
+    if (drop.status !== "live" && drop.status !== "claimed_out") continue;
+    if (!drop.expires_at) continue;
+    if (store.pantryReferralsByDropId[drop.id]) continue;
+
+    const remainingMs = new Date(drop.expires_at).getTime() - nowMs;
+    if (remainingMs <= 0 || remainingMs > PANTRY_SUGGESTION_WINDOW_MS) continue;
+
+    const counts = recomputeCounts(store, drop.id);
+    if (counts.available <= 0) continue;
+
+    store.pantryReferralsByDropId[drop.id] = {
+      id: `pantry-ref-${drop.id}`,
+      dropId: drop.id,
+      status: "suggested",
+      requestedServings: 0,
+      acceptedServings: 0,
+      transferredServings: 0,
+      createdAt: store.serverTimeIso,
+      updatedAt: store.serverTimeIso,
+      expiresAt: drop.expires_at,
+    };
   }
 }
 
@@ -886,6 +1037,8 @@ export function fixtureCreateDrop(
       available: vision.servings_estimate,
       held: 0,
       picked_up: 0,
+      pantry_held: 0,
+      pantry_transferred: 0,
     },
     created_at: now.toISOString(),
     expires_at: new Date(now.getTime() + 45 * 60 * 1000).toISOString(),
@@ -1643,6 +1796,8 @@ export function fixtureGetDistribution(): CampusDistributionResponse {
     available: 0,
     held: 0,
     picked_up: 0,
+    pantry_held: 0,
+    pantry_transferred: 0,
   };
 
   const byBuilding = new Map<string, BuildingDistribution>();
@@ -1656,6 +1811,10 @@ export function fixtureGetDistribution(): CampusDistributionResponse {
     totalCounts.available += c.available;
     totalCounts.held += c.held;
     totalCounts.picked_up += c.picked_up;
+    totalCounts.pantry_held =
+      (totalCounts.pantry_held ?? 0) + (c.pantry_held ?? 0);
+    totalCounts.pantry_transferred =
+      (totalCounts.pantry_transferred ?? 0) + (c.pantry_transferred ?? 0);
 
     const code = drop.building_code || "DEMO-ORIGIN";
     const existing = byBuilding.get(code);
@@ -1666,6 +1825,10 @@ export function fixtureGetDistribution(): CampusDistributionResponse {
       existing.counts.available += c.available;
       existing.counts.held += c.held;
       existing.counts.picked_up += c.picked_up;
+      existing.counts.pantry_held =
+        (existing.counts.pantry_held ?? 0) + (c.pantry_held ?? 0);
+      existing.counts.pantry_transferred =
+        (existing.counts.pantry_transferred ?? 0) + (c.pantry_transferred ?? 0);
     } else {
       byBuilding.set(code, {
         building_code: code,
@@ -1931,6 +2094,7 @@ export function fixtureDemoTick(tick: DemoTick): DemoTickResponse {
   store.clockOffsetSeconds += advanceSec;
 
   expireDeadlines(store);
+  materializePantrySuggestions(store);
 
   for (const drop of Object.values(store.drops)) {
     const mode = drop.distribution_mode ?? "seeded_waves";
@@ -2580,4 +2744,389 @@ export function fixtureDecideHostPickupReview(
 export function fixtureGetHostOutboxEvents(): InternalHostOutboxEvent[] {
   const store = loadStore();
   return Object.values(store.hostOutboxByClaimId);
+}
+
+function assertPantryCoordinatorRole(credential: AuthToken): void {
+  if (credential !== PANTRY_COORDINATOR_CREDENTIAL) {
+    throw new FixtureContractError(
+      403,
+      "forbidden",
+      "Demo pantry coordinator role is required for this endpoint.",
+    );
+  }
+}
+
+function assertValidServingsCount(servings: unknown): number {
+  if (
+    typeof servings !== "number" ||
+    !Number.isInteger(servings) ||
+    servings < 1 ||
+    servings > 500
+  ) {
+    throw new FixtureContractError(
+      422,
+      "validation_error",
+      "Servings must be an integer between 1 and 500.",
+    );
+  }
+  return servings;
+}
+
+function serializePantryReferral(
+  store: OfflineFixtureStore,
+  referral: InternalPantryReferral,
+): PantryReferral {
+  const drop = store.drops[referral.dropId]!;
+  const counts = recomputeCounts(store, drop.id);
+  const eligibleServings =
+    drop.status === "expired" || referral.status === "expired"
+      ? 0
+      : counts.available;
+
+  return {
+    id: referral.id,
+    drop_id: referral.dropId,
+    status: referral.status,
+    requested_servings: referral.requestedServings,
+    accepted_servings: referral.acceptedServings,
+    transferred_servings: referral.transferredServings,
+    eligible_servings: eligibleServings,
+    created_at: referral.createdAt,
+    updated_at: referral.updatedAt,
+    expires_at: referral.expiresAt,
+    destination: buildFixturePantryDestination(),
+    drop: {
+      ...drop,
+      counts: { ...counts },
+    },
+    notice: PANTRY_DEMO_NOTICE_FALLBACK,
+    is_demo: true,
+  };
+}
+
+export function fixtureGetHostPantryReferral(
+  dropId: string,
+  credential: AuthToken = "demo-host",
+): HostPantryReferralResponse {
+  const store = loadStore();
+  expireDeadlines(store);
+  const drop = assertOwnDropForHost(store, dropId, credential);
+
+  const mode = drop.distribution_mode ?? "seeded_waves";
+  if (drop.status === "draft" || mode !== "campus_feed") {
+    saveStore(store);
+    return {
+      referral: null,
+      destination: buildFixturePantryDestination(),
+      notice: PANTRY_DEMO_NOTICE_FALLBACK,
+      is_demo: true,
+    };
+  }
+
+  materializePantrySuggestions(store);
+  const existing = store.pantryReferralsByDropId[drop.id] ?? null;
+  saveStore(store);
+
+  return {
+    referral: existing ? serializePantryReferral(store, existing) : null,
+    destination: buildFixturePantryDestination(),
+    notice: PANTRY_DEMO_NOTICE_FALLBACK,
+    is_demo: true,
+  };
+}
+
+export function fixtureRequestHostPantryReferral(
+  dropId: string,
+  req: PantryReferralRequest,
+  credential: AuthToken = "demo-host",
+): PantryReferral {
+  const store = loadStore();
+  expireDeadlines(store);
+  const drop = assertOwnDropForHost(store, dropId, credential);
+
+  if (req?.demo_policy_acknowledged !== true) {
+    throw new FixtureContractError(
+      422,
+      "validation_error",
+      "Explicit demo policy acknowledgment is required before requesting a simulated referral.",
+    );
+  }
+  const servings = assertValidServingsCount(req.servings);
+
+  const mode = drop.distribution_mode ?? "seeded_waves";
+  if (drop.status === "draft" || mode !== "campus_feed") {
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      "Demo pantry referrals are only available for published campus-feed drops.",
+    );
+  }
+
+  materializePantrySuggestions(store);
+  const existing = store.pantryReferralsByDropId[drop.id];
+  if (existing && existing.status !== "suggested") {
+    // Idempotent retry returns existing requested/accepted/final record without mutating quantity or terminal state
+    saveStore(store);
+    return serializePantryReferral(store, existing);
+  }
+
+  const nowMs = new Date(store.serverTimeIso).getTime();
+  if (
+    drop.status === "expired" ||
+    (drop.expires_at && nowMs >= new Date(drop.expires_at).getTime())
+  ) {
+    drop.status = "expired";
+    expireDeadlines(store);
+    saveStore(store);
+    throw new FixtureContractError(
+      409,
+      "drop_expired",
+      "This food drop has expired.",
+    );
+  }
+
+  const counts = recomputeCounts(store, drop.id);
+  if (servings > counts.available) {
+    throw new FixtureContractError(
+      409,
+      "capacity",
+      `Requested ${servings} servings exceeds current available stock (${counts.available}).`,
+    );
+  }
+
+  if (existing && existing.status === "suggested") {
+    existing.status = "requested";
+    existing.requestedServings = servings;
+    existing.updatedAt = store.serverTimeIso;
+    saveStore(store);
+    return serializePantryReferral(store, existing);
+  }
+
+  const created: InternalPantryReferral = {
+    id: `pantry-ref-${drop.id}`,
+    dropId: drop.id,
+    status: "requested",
+    requestedServings: servings,
+    acceptedServings: 0,
+    transferredServings: 0,
+    createdAt: store.serverTimeIso,
+    updatedAt: store.serverTimeIso,
+    expiresAt: drop.expires_at ?? store.serverTimeIso,
+  };
+  store.pantryReferralsByDropId[drop.id] = created;
+  saveStore(store);
+  return serializePantryReferral(store, created);
+}
+
+export function fixtureConfirmHostPantryHandoff(
+  dropId: string,
+  req: PantryHandoffConfirmRequest,
+  credential: AuthToken = "demo-host",
+): PantryReferral {
+  const store = loadStore();
+  expireDeadlines(store);
+  const drop = assertOwnDropForHost(store, dropId, credential);
+
+  if (req?.demo_handoff_confirmed !== true) {
+    throw new FixtureContractError(
+      422,
+      "validation_error",
+      "Explicit simulated handoff confirmation is required.",
+    );
+  }
+
+  const referral = store.pantryReferralsByDropId[drop.id];
+  if (!referral) {
+    throw new FixtureContractError(
+      404,
+      "not_found",
+      "No pantry referral found for this drop.",
+    );
+  }
+
+  if (referral.status === "handoff_confirmed") {
+    return serializePantryReferral(store, referral);
+  }
+
+  const nowMs = new Date(store.serverTimeIso).getTime();
+  if (
+    drop.status === "expired" ||
+    (drop.expires_at && nowMs >= new Date(drop.expires_at).getTime())
+  ) {
+    drop.status = "expired";
+    expireDeadlines(store);
+    saveStore(store);
+    throw new FixtureContractError(
+      409,
+      "drop_expired",
+      "This food drop has expired; handoff can no longer be confirmed.",
+    );
+  }
+
+  if (referral.status !== "accepted") {
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      `Handoff can only be confirmed for an accepted referral (current status: ${referral.status}).`,
+    );
+  }
+
+  referral.status = "handoff_confirmed";
+  referral.transferredServings = referral.acceptedServings;
+  referral.updatedAt = store.serverTimeIso;
+  recomputeCounts(store, drop.id);
+  saveStore(store);
+  return serializePantryReferral(store, referral);
+}
+
+export function fixtureGetPantryReferrals(
+  credential: AuthToken = PANTRY_COORDINATOR_CREDENTIAL,
+): PantryReferralsResponse {
+  const store = loadStore();
+  assertPantryCoordinatorRole(credential);
+  expireDeadlines(store);
+  materializePantrySuggestions(store);
+
+  const referrals = Object.values(store.pantryReferralsByDropId)
+    .filter((ref) => Boolean(store.drops[ref.dropId]))
+    .sort((a, b) => {
+      const timeCmp = b.createdAt.localeCompare(a.createdAt);
+      if (timeCmp !== 0) return timeCmp;
+      return b.id.localeCompare(a.id);
+    })
+    .map((ref) => serializePantryReferral(store, ref));
+
+  saveStore(store);
+  return {
+    referrals,
+    server_time: store.serverTimeIso,
+    is_demo: true,
+  };
+}
+
+export function fixtureDecidePantryReferral(
+  referralId: string,
+  req: PantryDecisionRequest,
+  credential: AuthToken = PANTRY_COORDINATOR_CREDENTIAL,
+): PantryReferral {
+  const store = loadStore();
+  assertPantryCoordinatorRole(credential);
+  expireDeadlines(store);
+
+  if (req?.demo_policy_acknowledged !== true) {
+    throw new FixtureContractError(
+      422,
+      "validation_error",
+      "Explicit demo policy acknowledgment is required before making a coordinator decision.",
+    );
+  }
+  if (req.decision !== "accept" && req.decision !== "reject") {
+    throw new FixtureContractError(
+      422,
+      "validation_error",
+      "Decision must be 'accept' or 'reject'.",
+    );
+  }
+
+  const referral = Object.values(store.pantryReferralsByDropId).find(
+    (r) => r.id === referralId,
+  );
+  if (!referral) {
+    throw new FixtureContractError(
+      404,
+      "not_found",
+      "Pantry referral not found.",
+    );
+  }
+  const drop = store.drops[referral.dropId];
+  if (!drop) {
+    throw new FixtureContractError(404, "not_found", "Drop not found.");
+  }
+
+  if (req.decision === "accept") {
+    const servings = assertValidServingsCount(req.servings);
+
+    if (referral.status === "accepted") {
+      if (referral.acceptedServings === servings) {
+        return serializePantryReferral(store, referral);
+      }
+      throw new FixtureContractError(
+        409,
+        "invalid_state",
+        `Referral was already accepted for ${referral.acceptedServings} servings.`,
+      );
+    }
+
+    if (referral.status !== "requested") {
+      throw new FixtureContractError(
+        409,
+        "invalid_state",
+        `Only requested referrals can be accepted (current status: ${referral.status}).`,
+      );
+    }
+
+    const nowMs = new Date(store.serverTimeIso).getTime();
+    if (
+      drop.status === "expired" ||
+      (drop.expires_at && nowMs >= new Date(drop.expires_at).getTime())
+    ) {
+      drop.status = "expired";
+      expireDeadlines(store);
+      saveStore(store);
+      throw new FixtureContractError(
+        409,
+        "drop_expired",
+        "This food drop has expired.",
+      );
+    }
+
+    const counts = recomputeCounts(store, drop.id);
+    if (servings > referral.requestedServings || servings > counts.available) {
+      throw new FixtureContractError(
+        409,
+        "capacity",
+        `Cannot accept ${servings} servings: requested=${referral.requestedServings}, currently available=${counts.available}.`,
+      );
+    }
+
+    referral.status = "accepted";
+    referral.acceptedServings = servings;
+    referral.updatedAt = store.serverTimeIso;
+    recomputeCounts(store, drop.id);
+    saveStore(store);
+    return serializePantryReferral(store, referral);
+  }
+
+  // decision === "reject"
+  if (referral.status === "rejected") {
+    return serializePantryReferral(store, referral);
+  }
+  if (referral.status !== "requested") {
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      `Only requested referrals can be rejected (current status: ${referral.status}).`,
+    );
+  }
+
+  const nowMs = new Date(store.serverTimeIso).getTime();
+  if (
+    drop.status === "expired" ||
+    (drop.expires_at && nowMs >= new Date(drop.expires_at).getTime())
+  ) {
+    drop.status = "expired";
+    expireDeadlines(store);
+    saveStore(store);
+    throw new FixtureContractError(
+      409,
+      "drop_expired",
+      "This food drop has expired.",
+    );
+  }
+
+  referral.status = "rejected";
+  referral.updatedAt = store.serverTimeIso;
+  recomputeCounts(store, drop.id);
+  saveStore(store);
+  return serializePantryReferral(store, referral);
 }

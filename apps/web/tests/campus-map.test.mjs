@@ -748,6 +748,8 @@ test("offline fixtureGetDistribution tracks overall and per-building available_d
       available: 0,
       held: 0,
       picked_up: 0,
+      pantry_held: 0,
+      pantry_transferred: 0,
     },
   );
   assert.equal(dist.buildings.length, 0);

@@ -55,21 +55,46 @@ export type FoodItem = components["schemas"]["FoodItem"];
 export type VisionEstimate = components["schemas"]["VisionEstimate"];
 export type SafetyReview = components["schemas"]["SafetyReview"];
 export type DropEdit = components["schemas"]["DropEdit"];
-export type Counts = components["schemas"]["Counts"];
+export type PantryCountsAddon = {
+  pantry_held?: number;
+  pantry_transferred?: number;
+};
+
+export type Counts = components["schemas"]["Counts"] & PantryCountsAddon;
 export type DistributionMode = NonNullable<
   components["schemas"]["DropResponse"]["distribution_mode"]
 >;
 export type FeedUnavailableReason = NonNullable<
   components["schemas"]["FeedDrop"]["unavailable_reason"]
 >;
-export type DropResponse = components["schemas"]["DropResponse"];
+export type DropResponse = Omit<
+  components["schemas"]["DropResponse"],
+  "counts"
+> & {
+  counts: Counts;
+};
 export type ClaimResponse = components["schemas"]["ClaimResponse"];
-export type InviteResponse = components["schemas"]["InviteResponse"];
-export type InvitesResponse = components["schemas"]["InvitesResponse"];
+export type InviteResponse = Omit<
+  components["schemas"]["InviteResponse"],
+  "drop"
+> & {
+  drop: DropResponse;
+};
+export type InvitesResponse = Omit<
+  components["schemas"]["InvitesResponse"],
+  "invites"
+> & {
+  invites: InviteResponse[];
+};
 export type WaveResponse = components["schemas"]["WaveResponse"];
 export type PersonaDecision = components["schemas"]["PersonaDecision"];
 export type VisitorDecision = components["schemas"]["VisitorDecision"];
-export type DispatchResponse = components["schemas"]["DispatchResponse"];
+export type DispatchResponse = Omit<
+  components["schemas"]["DispatchResponse"],
+  "counts"
+> & {
+  counts: Counts;
+};
 export type DemoTick = components["schemas"]["DemoTick"];
 export type DemoTickResponse = components["schemas"]["DemoTickResponse"];
 export type DemoResetRequest = components["schemas"]["DemoResetRequest"];
@@ -96,18 +121,35 @@ export type ClaimStatus = ClaimResponse["status"];
 export type InviteStatus = InviteResponse["status"];
 export type DemoScenario = DemoStatusResponse["scenario"];
 
-export type FeedDrop = components["schemas"]["FeedDrop"];
-export type FeedResponse = components["schemas"]["FeedResponse"];
-export type BuildingDistribution =
-  components["schemas"]["BuildingDistribution"];
-export type CampusDistributionResponse =
-  components["schemas"]["CampusDistributionResponse"];
+export type FeedDrop = Omit<components["schemas"]["FeedDrop"], "drop"> & {
+  drop: DropResponse;
+};
+export type FeedResponse = Omit<
+  components["schemas"]["FeedResponse"],
+  "drops"
+> & {
+  drops: FeedDrop[];
+};
+export type BuildingDistribution = Omit<
+  components["schemas"]["BuildingDistribution"],
+  "counts"
+> & {
+  counts: Counts;
+};
+export type CampusDistributionResponse = Omit<
+  components["schemas"]["CampusDistributionResponse"],
+  "counts" | "buildings"
+> & {
+  counts: Counts;
+  buildings: BuildingDistribution[];
+};
 
 export type SeededPersonaLabel = "A" | "B" | "C" | "D" | "E";
 
 export type DemoCredential =
   | "demo-host"
   | "demo-projector"
+  | "demo-pantry-coordinator"
   | "demo-student-A"
   | "demo-student-B"
   | "demo-student-C"
@@ -115,6 +157,8 @@ export type DemoCredential =
   | "demo-student-E";
 
 export type AuthToken = DemoCredential | string;
+
+export const PANTRY_COORDINATOR_CREDENTIAL = "demo-pantry-coordinator" as const;
 
 export const SEEDED_PERSONA_TOKENS: Record<SeededPersonaLabel, DemoCredential> =
   {
@@ -127,7 +171,7 @@ export const SEEDED_PERSONA_TOKENS: Record<SeededPersonaLabel, DemoCredential> =
 
 export const DEMO_CREDENTIALS: ReadonlyArray<{
   token: DemoCredential;
-  role: "host" | "projector" | "student";
+  role: "host" | "projector" | "pantry_coordinator" | "student";
   label: string;
   description: string;
 }> = [
@@ -144,6 +188,13 @@ export const DEMO_CREDENTIALS: ReadonlyArray<{
     label: "Demo Projector",
     description:
       "Big screen dispatch view (synthetic personas A–E, H3 rings, counts)",
+  },
+  {
+    token: "demo-pantry-coordinator",
+    role: "pantry_coordinator",
+    label: "Demo Pantry Coordinator",
+    description:
+      "Simulated pantry coordinator view (/pantry — review and accept/reject demo referrals)",
   },
   {
     token: "demo-student-A",
@@ -198,3 +249,80 @@ export type HostPickupReviewDecisionRequest =
   components["schemas"]["HostReviewDecision"];
 export type HostPickupReviewDecision =
   HostPickupReviewDecisionRequest["decision"];
+
+/**
+ * Milestone 4: Simulated CARE Pantry Fallback narrow additive types
+ * (aligned with docs/PANTRY_FALLBACK_CONTRACT.md prior to integrator OpenAPI regeneration).
+ */
+export const PANTRY_DEMO_NOTICE_FALLBACK =
+  "Demo only — no request is sent to KSU CARE. KSU catering policy prohibits removing leftovers from event spaces. This simulation does not authorize redistribution or establish food safety.";
+
+export const PANTRY_CARE_SOURCE_URL =
+  "https://campus.kennesaw.edu/current-students/student-affairs/wellbeing/care-services/";
+
+export const PANTRY_CATERING_POLICY_URL =
+  "https://campus.kennesaw.edu/offices-services/catering/policies.php";
+
+export type PantryStatus =
+  | "suggested"
+  | "requested"
+  | "accepted"
+  | "handoff_confirmed"
+  | "rejected"
+  | "expired";
+
+export interface PantryDestination {
+  name: string;
+  building: Building;
+  room: string;
+  directions_url: string;
+  care_source_url: string;
+  catering_policy_url: string;
+}
+
+export interface PantryReferral {
+  id: string;
+  drop_id: string;
+  status: PantryStatus;
+  requested_servings: number;
+  accepted_servings: number;
+  transferred_servings: number;
+  eligible_servings: number;
+  created_at: string;
+  updated_at: string;
+  expires_at: string;
+  destination: PantryDestination;
+  drop: DropResponse;
+  notice: string;
+  is_demo: boolean;
+}
+
+export interface HostPantryReferralResponse {
+  referral: PantryReferral | null;
+  destination: PantryDestination;
+  notice: string;
+  is_demo: boolean;
+}
+
+export interface PantryReferralRequest {
+  servings: number;
+  demo_policy_acknowledged: boolean;
+}
+
+export interface PantryHandoffConfirmRequest {
+  demo_handoff_confirmed: boolean;
+}
+
+export interface PantryReferralsResponse {
+  referrals: PantryReferral[];
+  server_time: string;
+  is_demo: boolean;
+}
+
+export type PantryDecision = "accept" | "reject";
+
+export interface PantryDecisionRequest {
+  decision: PantryDecision;
+  servings?: number;
+  demo_policy_acknowledged: boolean;
+}

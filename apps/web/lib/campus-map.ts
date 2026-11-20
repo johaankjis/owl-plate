@@ -108,6 +108,8 @@ export interface ProjectorCampusMapModel {
   totalAvailable: number;
   totalReserved: number;
   totalCollected: number;
+  totalPantryHeld: number;
+  totalPantryTransferred: number;
   totalAvailableDrops: number;
   totalActiveDrops: number;
   accessibleSummary: string;
@@ -686,14 +688,20 @@ export function buildProjectorCampusMapModel(
   let totalAvailable = 0;
   let totalReserved = 0;
   let totalCollected = 0;
+  let totalPantryHeld = 0;
+  let totalPantryTransferred = 0;
   let totalAvailableDrops = 0;
   let totalActiveDrops = 0;
 
   for (const dist of buildings) {
     const availDrops = resolveBuildingAvailableDrops(dist);
+    const pantryHeld = dist.counts.pantry_held ?? 0;
+    const pantryTransferred = dist.counts.pantry_transferred ?? 0;
     totalAvailable += dist.counts.available;
     totalReserved += dist.counts.held;
     totalCollected += dist.counts.picked_up;
+    totalPantryHeld += pantryHeld;
+    totalPantryTransferred += pantryTransferred;
     totalAvailableDrops += availDrops;
     totalActiveDrops += dist.active_drops;
 
@@ -712,7 +720,11 @@ export function buildProjectorCampusMapModel(
       h3Cell: computeH3CellForCoords(building.latitude, building.longitude),
       activeDrops: dist.active_drops,
       availableDrops: availDrops,
-      counts: { ...dist.counts },
+      counts: {
+        ...dist.counts,
+        pantry_held: pantryHeld,
+        pantry_transferred: pantryTransferred,
+      },
       hasAvailable: dist.counts.available > 0,
     });
   }
@@ -721,12 +733,12 @@ export function buildProjectorCampusMapModel(
 
   const accessibleSummary =
     verifiedNodes.length === 0 && unverifiedBuildings.length === 0
-      ? "No active campus pickup buildings right now. 0 available, 0 reserved, 0 collected."
+      ? "No active campus pickup buildings right now. 0 available, 0 reserved, 0 collected, 0 pantry reserved, 0 pantry transfers."
       : `${verifiedNodes.length} verified pickup ${
           verifiedNodes.length === 1 ? "building" : "buildings"
         } plotted (${totalAvailableDrops} available of ${totalActiveDrops} active ${
           totalActiveDrops === 1 ? "drop" : "drops"
-        }): ${totalAvailable} available, ${totalReserved} reserved, ${totalCollected} collected.${
+        }): ${totalAvailable} available, ${totalReserved} reserved, ${totalCollected} collected, ${totalPantryHeld} pantry reserved, ${totalPantryTransferred} pantry transfers.${
           unverifiedBuildings.length > 0
             ? ` ${unverifiedBuildings.length} unverified rehearsal ${
                 unverifiedBuildings.length === 1 ? "location" : "locations"
@@ -740,6 +752,8 @@ export function buildProjectorCampusMapModel(
     totalAvailable,
     totalReserved,
     totalCollected,
+    totalPantryHeld,
+    totalPantryTransferred,
     totalAvailableDrops,
     totalActiveDrops,
     accessibleSummary,

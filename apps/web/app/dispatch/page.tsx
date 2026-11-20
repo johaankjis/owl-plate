@@ -215,7 +215,11 @@ export default function DispatchProjectorPage() {
     available: 0,
     held: 0,
     picked_up: 0,
+    pantry_held: 0,
+    pantry_transferred: 0,
   };
+  const campusPantryHeld = campusCounts.pantry_held ?? 0;
+  const campusPantryTransferred = campusCounts.pantry_transferred ?? 0;
   const campusBuildings = distribution?.buildings ?? [];
 
   return (
@@ -267,7 +271,7 @@ export default function DispatchProjectorPage() {
 
         {!isSeededMode ? (
           <>
-            <section className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+            <section className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-8">
               <StatTile
                 label="Active drops"
                 testId="distribution-active-drops"
@@ -293,16 +297,28 @@ export default function DispatchProjectorPage() {
                 accent="text-emerald-400"
               />
               <StatTile
-                label="Reserved"
+                label="Student reserved"
                 testId="dispatch-count-held"
                 value={campusCounts.held}
                 accent="text-owl-gold"
               />
               <StatTile
-                label="Collected"
+                label="Student collected"
                 testId="dispatch-count-picked-up"
                 value={campusCounts.picked_up}
                 accent="text-zinc-100"
+              />
+              <StatTile
+                label="Pantry reserved"
+                testId="dispatch-count-pantry-held"
+                value={campusPantryHeld}
+                accent="text-purple-300"
+              />
+              <StatTile
+                label="Pantry transfers"
+                testId="dispatch-count-pantry-transferred"
+                value={campusPantryTransferred}
+                accent="text-fuchsia-300"
               />
             </section>
 
@@ -418,6 +434,9 @@ export default function DispatchProjectorPage() {
                                 b.building!.longitude,
                               )
                             : null;
+                          const pantryHeld = b.counts.pantry_held ?? 0;
+                          const pantryTransferred =
+                            b.counts.pantry_transferred ?? 0;
                           return (
                             <li
                               key={b.building_code}
@@ -434,6 +453,10 @@ export default function DispatchProjectorPage() {
                               data-available={String(b.counts.available)}
                               data-reserved={String(b.counts.held)}
                               data-collected={String(b.counts.picked_up)}
+                              data-pantry-held={String(pantryHeld)}
+                              data-pantry-transferred={String(
+                                pantryTransferred,
+                              )}
                               data-availability-status={
                                 hasAvailable ? "available" : "exhausted"
                               }
@@ -478,15 +501,27 @@ export default function DispatchProjectorPage() {
                                   </strong>
                                 </span>
                                 <span>
-                                  Reserved:{" "}
+                                  Student reserved:{" "}
                                   <strong className="text-owl-gold">
                                     {b.counts.held}
                                   </strong>
                                 </span>
                                 <span>
-                                  Collected:{" "}
+                                  Student collected:{" "}
                                   <strong className="text-zinc-100">
                                     {b.counts.picked_up}
+                                  </strong>
+                                </span>
+                                <span>
+                                  Pantry reserved:{" "}
+                                  <strong className="text-purple-300">
+                                    {pantryHeld}
+                                  </strong>
+                                </span>
+                                <span>
+                                  Pantry transfers:{" "}
+                                  <strong className="text-fuchsia-300">
+                                    {pantryTransferred}
                                   </strong>
                                 </span>
                               </div>
@@ -503,7 +538,8 @@ export default function DispatchProjectorPage() {
                     </h2>
                     <p className="mt-1">
                       Projector displays aggregate host pickup counts
-                      (available, reserved, collected) and verified building
+                      (available, student reserved, student collected, pantry
+                      reserved, pantry transfers) and verified building
                       coordinates only. Student locations, nicknames, and
                       dietary filters are never shown here.
                     </p>
