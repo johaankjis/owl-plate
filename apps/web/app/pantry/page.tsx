@@ -712,7 +712,7 @@ export default function PantryCoordinatorPage() {
         decision === "accept"
           ? `Simulated acceptance recorded for ${servings ?? 0} ${
               servings === 1 ? "serving" : "servings"
-            }. The host can now confirm the simulated handoff.`
+            }.`
           : "Request declined. No servings were reserved.",
       );
     } catch (err) {
