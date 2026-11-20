@@ -744,12 +744,9 @@ export default function PantryCoordinatorPage() {
           className="flex flex-wrap items-center justify-between gap-3"
         >
           <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-                Pantry donations
-              </h1>
-              <StatusBadge tone="warning">Simulated</StatusBadge>
-            </div>
+            <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
+              Pantry donations
+            </h1>
             <p className="text-sm text-ink-muted">
               Leftover food hosts have offered to the campus pantry.
             </p>
