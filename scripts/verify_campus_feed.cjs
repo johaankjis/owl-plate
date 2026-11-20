@@ -166,7 +166,7 @@ function privateSafe(value) {
     const student = await join("Synthetic Feed One");
     const mismatch = await join("Synthetic Vegan", "vegan");
     const projector = await open("projector", true);
-    await projector.goto(`${web}/dispatch`);
+    await projector.goto(`${web}/admin/projector`);
     await projector.getByTestId("label-fixture-vision").waitFor();
     await projector.getByTestId("label-simulated-notifications").waitFor();
     await projector.getByTestId("distribution-empty-state").waitFor();

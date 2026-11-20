@@ -274,7 +274,15 @@ export default function AdminDiagnosticsPage() {
               data-testid="admin-link-dispatch"
               className="consumer-button-secondary justify-between text-sm"
             >
-              <span>Projector Dispatch (/dispatch)</span>
+              <span>Food Rescue Analytics (/dispatch)</span>
+              <ExternalLink size={15} />
+            </Link>
+            <Link
+              href="/admin/projector"
+              data-testid="admin-link-projector"
+              className="consumer-button-secondary justify-between text-sm"
+            >
+              <span>Internal projector &amp; rehearsal</span>
               <ExternalLink size={15} />
             </Link>
             <Link

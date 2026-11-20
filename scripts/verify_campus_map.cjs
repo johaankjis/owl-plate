@@ -223,7 +223,7 @@ function privacy(value) {
       return page.evaluate(() => localStorage.getItem("owl-plate.session"));
     }
     const projector = await open(true);
-    await projector.goto(`${web}/dispatch`);
+    await projector.goto(`${web}/admin/projector`);
     async function projectCounts(
       building,
       available,

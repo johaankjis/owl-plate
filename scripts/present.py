@@ -269,8 +269,9 @@ def run(args: argparse.Namespace) -> None:
             f"  Home       {base}/\n"
             f"  Host       {base}/host\n"
             f"  Join       {base}/join\n"
-            f"  Dispatch   {base}/dispatch   (presenter controls at the bottom)\n\n"
-            "  Reset anytime: Presenter controls on /dispatch, or:\n"
+            f"  Analytics  {base}/dispatch\n"
+            f"  Projector  {base}/admin/projector   (internal presenter controls)\n\n"
+            "  Reset anytime: Presenter controls on /admin/projector, or:\n"
             f"    {sys.executable} -m scripts.present --reset-only "
             f"--api-port {args.api_port} --scenario {args.scenario}\n"
             "  Stop: Ctrl+C\n",

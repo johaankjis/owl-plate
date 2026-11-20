@@ -120,7 +120,7 @@ async function policy(card) {
         return { host, drop, building };
       }
       const { host, drop, building } = await publishUI();
-      const projector = await open("/dispatch");
+      const projector = await open("/admin/projector");
       const student = await open("/join");
       await student
         .getByTestId("join-nickname-input")
