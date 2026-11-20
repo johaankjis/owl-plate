@@ -2,17 +2,20 @@
 
 import React, { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Bell, Check, ShieldAlert } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import { AppShell } from "../../components/ui/AppShell";
 import { ListRowSkeleton } from "../../components/ui/Skeleton";
 import {
   ALLERGENS,
-  ALLERGEN_WARNING_TEXT,
   DIETS,
   type Allergen,
   type Diet,
 } from "../../lib/types/api";
 import { ApiContractError, joinDemoSession } from "../../lib/api-client";
+import {
+  completeJoinPushOnboarding,
+  primeJoinNotifications,
+} from "../../lib/push-onboarding";
 import { SESSION_ENDED_MESSAGE, setSessionToken } from "../../lib/session";
 
 function JoinContent() {
@@ -53,6 +56,9 @@ function JoinContent() {
     }
 
     setSubmitting(true);
+    // Fire the native notification prompt on this exact tap, before any
+    // await can consume the browser's transient user-activation window.
+    const primedPermission = primeJoinNotifications();
     try {
       const res = await joinDemoSession({
         nickname: trimmed,
@@ -60,6 +66,9 @@ function JoinContent() {
         diets: selectedDiets,
       });
       setSessionToken(res.data.token);
+      // Quietly finish notification setup after the session exists. A denied
+      // prompt or an iPhone Home Screen requirement never blocks browsing.
+      void completeJoinPushOnboarding(res.data.token, primedPermission);
       router.push("/student");
     } catch (err) {
       if (err instanceof ApiContractError && err.code === "nickname_taken") {
@@ -150,21 +159,6 @@ function JoinContent() {
               Allergens to avoid{" "}
               <span className="font-normal text-ink-muted">(optional)</span>
             </legend>
-            <p className="flex items-start gap-1.5 text-xs leading-relaxed text-ink-muted">
-              <ShieldAlert
-                size={14}
-                className="mt-0.5 shrink-0 text-warning"
-                aria-hidden="true"
-              />
-              <span>
-                Listings that may include these are clearly flagged. Allergens
-                always say:{" "}
-                <strong className="font-semibold text-ink">
-                  {ALLERGEN_WARNING_TEXT}
-                </strong>
-                .
-              </span>
-            </p>
             <div className="flex flex-wrap gap-2 pt-1">
               {ALLERGENS.map((alg) => {
                 const active = selectedAllergens.includes(alg);
@@ -218,22 +212,6 @@ function JoinContent() {
               })}
             </div>
           </fieldset>
-
-          {/* Non-blocking notification & privacy note */}
-          <div
-            data-testid="join-privacy-notice"
-            className="flex items-start gap-2.5 rounded-2xl bg-surface-subtle px-4 py-3 text-xs leading-relaxed text-ink-muted"
-          >
-            <Bell
-              size={15}
-              className="mt-0.5 shrink-0 text-owl-goldText"
-              aria-hidden="true"
-            />
-            <p>
-              Turn on food alerts anytime in Profile. Your preferences stay
-              private and no location tracking is used.
-            </p>
-          </div>
 
           {generalError && (
             <div

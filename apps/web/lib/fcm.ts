@@ -61,44 +61,75 @@ export function getFcmConfigStatus(): FcmConfigStatus {
   }
 }
 
-export async function requestFcmPushToken(): Promise<{
+export type NotificationPermissionOutcome =
+  "granted" | "denied" | "dismissed" | "unsupported";
+
+/**
+ * Fire the browser's notification permission prompt inside an explicit user
+ * gesture. Split from token acquisition so a join-button tap can prime the
+ * native prompt before any `await` consumes the transient activation window.
+ * Never throws; browsers without the Notification API resolve "unsupported".
+ */
+export async function primeNotificationPermission(): Promise<NotificationPermissionOutcome> {
+  if (typeof window === "undefined" || !("Notification" in window)) {
+    return "unsupported";
+  }
+  const permission = await Notification.requestPermission();
+  if (permission === "granted") return "granted";
+  if (permission === "denied") return "denied";
+  return "dismissed";
+}
+
+interface TokenResult {
   ok: boolean;
   token: string | null;
   message: string;
-}> {
+}
+
+/**
+ * One shared environment gate for both opt-in paths, so the Profile flow and
+ * the join-tap onboarding fail with the same words and never prompt when the
+ * app is not actually able to deliver web push.
+ */
+async function fcmEnvironmentReady(): Promise<
+  { ok: true } | { ok: false; message: string }
+> {
   const status = getFcmConfigStatus();
   if (!status.enabled) {
-    return {
-      ok: false,
-      token: null,
-      message: status.reason,
-    };
+    return { ok: false, message: status.reason };
   }
-
   if (typeof window === "undefined" || !("Notification" in window)) {
     return {
       ok: false,
-      token: null,
       message: "Browser Notification API is not available in this environment.",
     };
   }
-
   const supported = await isSupported().catch(() => false);
   if (!supported) {
     return {
       ok: false,
-      token: null,
       message:
         "Firebase Cloud Messaging web push is not supported in this browser context (requires HTTPS or localhost and Service Worker support).",
     };
   }
+  return { ok: true };
+}
 
-  const permission = await Notification.requestPermission();
-  if (permission !== "granted") {
+/**
+ * Acquire an FCM web-push token after permission was already granted.
+ * Does not prompt. Registers /firebase-messaging-sw.js only inside this
+ * explicit opt-in path, never on page load.
+ */
+export async function acquireFcmPushToken(): Promise<TokenResult> {
+  const environment = await fcmEnvironmentReady();
+  if (!environment.ok) {
+    return { ok: false, token: null, message: environment.message };
+  }
+  if (Notification.permission !== "granted") {
     return {
       ok: false,
       token: null,
-      message: `Notification permission was not granted (${permission}).`,
+      message: `Notification permission was not granted (${Notification.permission}).`,
     };
   }
 
@@ -140,4 +171,25 @@ export async function requestFcmPushToken(): Promise<{
       message: `Failed to acquire FCM token: ${errMsg}`,
     };
   }
+}
+
+/**
+ * Profile opt-in: prompt for permission, then acquire and return the token.
+ * Kept as the single prompt-and-acquire path for the explicit
+ * "Enable notifications" button.
+ */
+export async function requestFcmPushToken(): Promise<TokenResult> {
+  const environment = await fcmEnvironmentReady();
+  if (!environment.ok) {
+    return { ok: false, token: null, message: environment.message };
+  }
+  const outcome = await primeNotificationPermission();
+  if (outcome !== "granted") {
+    return {
+      ok: false,
+      token: null,
+      message: `Notification permission was not granted (${Notification.permission}).`,
+    };
+  }
+  return acquireFcmPushToken();
 }

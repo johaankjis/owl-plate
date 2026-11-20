@@ -37,6 +37,13 @@
   --owl-danger-rgb: 190 18 60;
   --owl-danger-tint: #ffe4e6;
   --owl-danger-tint-rgb: 255 228 230;
+  /* Shared motion contract (apps/web/lib/motion.ts). */
+  --owl-dur-fast: 150ms;
+  --owl-dur-normal: 220ms;
+  --owl-dur-slow: 350ms;
+  --owl-dur-counter: 600ms;
+  --owl-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --owl-shimmer: rgba(18, 18, 20, 0.06);
 }
 .dark {
   --owl-bg: #0f1013;
@@ -73,6 +80,7 @@
   --owl-danger-rgb: 251 113 133;
   --owl-danger-tint: #3b1e29;
   --owl-danger-tint-rgb: 59 30 41;
+  --owl-shimmer: rgba(244, 244, 246, 0.08);
 }
 
 @layer base {
@@ -135,12 +143,84 @@
   .consumer-card {
     @apply rounded-3xl border border-line bg-surface p-5 shadow-card;
   }
+
+  /* Shared motion contract (apps/web/lib/motion.ts). Prefer these over raw keyframes. */
+  .owl-anim-rise {
+    animation: owl-rise var(--owl-dur-normal) var(--owl-ease) both;
+  }
+  .owl-anim-fade {
+    animation: owl-fade var(--owl-dur-normal) var(--owl-ease) both;
+  }
+  .owl-anim-pop {
+    animation: owl-pop var(--owl-dur-slow) var(--owl-ease) both;
+  }
+  .owl-tab-panel {
+    animation: owl-fade var(--owl-dur-normal) var(--owl-ease);
+  }
+  .owl-shimmer {
+    background-image: linear-gradient(
+      100deg,
+      transparent 20%,
+      var(--owl-shimmer) 40%,
+      transparent 60%
+    );
+    background-size: 200% 100%;
+    animation: owl-shimmer 1400ms linear infinite;
+  }
+  .owl-press {
+    transition: transform var(--owl-dur-fast) var(--owl-ease);
+  }
+  .owl-press:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+}
+
+@keyframes owl-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes owl-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes owl-pop {
+  0% {
+    transform: scale(0.92);
+  }
+  55% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes owl-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
