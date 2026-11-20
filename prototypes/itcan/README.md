@@ -1,29 +1,40 @@
-# Owl Plate pickup companion on It (itcan.do)
+# Owl Plate pickup display on It (itcan.do)
 
-This sponsor-track companion is part of the host demo. The Owl Plate **Pickup
-counts** screen opens a real paired It page for the published drop. On that
-page, **What's left?** sends the exact drop UUID and page ID to the Claude Code
-conversation that created it. Claude runs `whats_left.py`, which reads the
-existing host aggregate endpoint and patches that same page.
+The host's **Open pickup display** button (on the published listing's counts
+screen) opens a real paired It page for that one listing. On the page,
+**What's left?** sends the listing's ID and page ID to the Claude Code
+conversation on the Mac that created the page. That conversation runs
+`whats_left.py`, which reads the listing from Owl Plate and patches the same
+page. The page state is defined in `STATE_CONTRACT.md`.
 
-The companion never receives a host credential, student identity, push token,
-or per-student status. The Mac-side helper uses the synthetic `demo-host`
-credential only to call `GET /drops/{drop_id}` through Owl Plate's local web
-proxy. A page ID must match its drop UUID before the helper will patch it.
+The display shows the food, the pickup location, and these counts: total,
+available, student reservations, completed pickups, pantry reserved, and pantry
+transfers (simulated). It never receives a credential, a student identity, a
+photo, or per-student status. The Mac helper uses only the synthetic
+`demo-host` bearer, works only in demo mode, and goes through the Owl Plate
+tunnel.
 
 ## Files
 
-- `whats-left.html` — paired It screen and `whats_left` action.
-- `create_companion.py` — creates `owl-whats-left-{drop_uuid}` with immutable
-  drop/page binding in the initial It state.
-- `whats_left.py` — validates that binding, reads aggregate counts, and runs
-  `it patch` on the same page.
-- `tests/test_whats_left.py` — known-answer and privacy-focused stand-in tests.
+- `whats-left.html`: the paired page. It uses only It's documented page API
+  (`It.onState`, `data-it-bind`, `data-it-show`, `It.action`).
+- `create_companion.py`: creates `owl-whats-left-{listing id}` with the
+  listing binding and a first real snapshot, then prints the page URL and the
+  exact action-handler command.
+- `whats_left.py`: validates the binding, reads `GET /drops/{id}`, and runs
+  `it patch` on the same page. Missing data fails closed and keeps the last
+  numbers.
+- `tests/`: stand-in tests that use a stub server and a fake `it` binary. They
+  are not sponsor evidence.
 
-## One-time Mac pairing
+Both helpers use only the Python standard library, so they run with the Mac's
+built-in `python3`.
 
-Run these on the presentation Mac. The It add-on needs Claude Code 2.1.287 or
-newer.
+## One-time Mac setup
+
+It 0.1.45 is the current release. The Claude Code add-on (`it-bridge@it`)
+needs Claude Code **2.1.287 or newer**. Read the installer before running it.
+It does not use sudo.
 
 ```bash
 claude --version
@@ -31,91 +42,92 @@ curl -fsSL https://itcan.do/install.sh -o ~/Downloads/it-install.sh
 less ~/Downloads/it-install.sh
 IT_INSTALL_PLAIN=1 IT_INSTALL_NO_PATH=1 sh ~/Downloads/it-install.sh
 ~/.it/bin/it setup --only claude-code
-claude plugin list --json
-~/.it/bin/it network off
-~/.it/bin/it site --no-open
+claude plugin list --json          # it-bridge@it → "enabled": true
+~/.it/bin/it network off           # pair the Mac browser only
+~/.it/bin/it site --no-open        # open the printed link in a Mac browser within 10 min
 ```
 
-Open the URL printed by `it site --no-open` in the Mac browser within ten
-minutes. In a Claude Code conversation already open during setup, run
-`/reload-plugins`. Keep the `it site` process running.
+Run `/reload-plugins` in any Claude Code conversation that was already open.
+Never paste the pairing code or the pairing link into chats or reports.
 
-Put the printed **site origin** (scheme, host, and port; no `/p/...` path) in the
-gitignored Owl Plate `.env` on the machine that builds the web app:
+### Copy the companion files to the Mac
 
-```dotenv
-NEXT_PUBLIC_IT_COMPANION_BASE_URL=http://127.0.0.1:PORT
-```
-
-If Owl Plate runs on ZimaOS while It runs on the Mac, the browser link must use
-an It site origin the Mac browser can reach. Keep the existing Owl Plate tunnel
-open separately:
+Run this from the Mac. It copies only this folder out of the Owl Plate
+container on ZimaOS:
 
 ```bash
-ssh -N -L 3017:172.23.0.2:3017 <zima-user>@192.168.0.126
+mkdir -p ~/owl-plate-it && ssh <zima-ssh-user>@192.168.0.126 \
+  "docker exec 1ce68abde0c3 tar -C /home/node/projects/owl-plate -cz prototypes/itcan" \
+  | tar -xz -C ~/owl-plate-it
 ```
 
-Restart `make present` after setting the companion base URL. The launcher
-fingerprints this public value and rebuilds when it changes.
+### Keep the Owl Plate tunnel open
 
-## Exact demo flow
+In its own terminal:
 
-1. In Owl Plate, **Share food**, upload the demo tray, set **2 servings**, check
-   the host safety review, and publish. Stay on **Pickup counts**.
-2. In the Claude Code conversation that will answer the It page, create and
-   open the companion for the active published drop:
+```bash
+ssh -N -L 3017:172.23.0.2:3017 <zima-ssh-user>@192.168.0.126
+```
+
+### Point the host button at It
+
+The host button builds `{origin}/p/owl-whats-left-{listing id}`. It's docs do
+not state the page path, so compare it once with the `Page:` URL that
+`create_companion.py` prints. Put the It site origin, without a path, in the
+gitignored Owl Plate `.env`, then restart the launcher. The launcher rebuilds
+when this value changes.
+
+```dotenv
+NEXT_PUBLIC_IT_COMPANION_BASE_URL=http://localhost:4700
+```
+
+Admin → **Pickup display (It)** shows whether this value is set (origin only)
+and lists the troubleshooting checks.
+
+## Recording walkthrough (three servings)
+
+1. **Owl Plate, host:** Share food → photo → Get estimate → set **3** servings
+   → tick the three safety checks → Publish. Stay on the counts screen.
+2. **Mac, the Claude Code conversation that will answer taps:**
 
    ```bash
-   python3 prototypes/itcan/create_companion.py --base http://localhost:3017 --open
+   cd ~/owl-plate-it && python3 prototypes/itcan/create_companion.py \
+     --base http://localhost:3017 --open
    ```
 
-   The command prints the page URL and an exact action-handler command. The
-   page slug includes the drop UUID, so a later active drop cannot redirect it.
-3. Back on Owl Plate **Pickup counts**, click **Open pickup companion**. It opens
-   the matching `owl-whats-left-{drop_uuid}` page.
-4. Tell the same Claude conversation once:
+   Then tell the conversation once:
 
-   > When this page sends `whats_left`, verify that `page_id` equals
-   > `owl-whats-left-{drop_id}`, then run the exact action-handler command
-   > printed by `create_companion.py`. Patch the page; do not choose invitees or
-   > request any student data.
+   > When the owl-whats-left page sends `whats_left`, check that its `page_id`
+   > is `owl-whats-left-{drop_id}` for the listing above, then run the exact
+   > "Action handler" command printed above. Do not request student data.
 
-5. On It, tap **What's left?**. Expect **2 available, 0 held, 0 picked up**.
-6. In Owl Plate, join as a student, open the invite, **Reserve**, then
-   **Confirm picked up**.
-7. Tap **What's left?** again on the same It page. Expect **1 available, 0 held,
-   1 picked up** for the same drop UUID.
+3. **Host:** click **Open pickup display**. It opens the same page.
+4. **It page:** tap **What's left?**. Expect **3** available of 3.
+5. **Student phone:** Find food → join → **Reserve – hold 10 min**.
+6. **It page:** tap **What's left?**. Expect **2 available · 1 student reservation**.
+7. **Student:** take the pickup photo → **Confirm picked up**.
+8. **It page:** tap **What's left?**. Expect **2 available · 1 completed pickup**.
 
-A tap counts as sponsor verification only when it arrives in the Claude
-conversation and the real paired It page changes. The Python and browser tests
-are stand-ins and must remain labeled as such.
+A tap counts as sponsor evidence only when it arrives in the Claude Code
+conversation as an `[It] … whats_left … [action …]` message and the real paired
+page changes.
 
-## Local checks
+## Troubleshooting
+
+| Symptom | Check |
+|---|---|
+| Button says the display isn't connected | `NEXT_PUBLIC_IT_COMPANION_BASE_URL` missing; set it and restart the launcher |
+| Page says it isn't linked to a listing | Re-run `create_companion.py` for the published listing |
+| Tap does nothing in Claude | Same conversation still open? `/reload-plugins`; `claude plugin list --json` |
+| "Couldn't reach Owl Plate" | Tunnel to port 3017 down |
+| Counts look stale | Each tap reads fresh data; a different listing needs its own page |
+
+## Local checks (stand-ins)
 
 ```bash
 python3 -m unittest discover -s prototypes/itcan/tests -p 'test_*.py'
 cd apps/web && npm test
 ```
 
-The helper can also be checked without It by supplying an exact drop UUID:
-
-```bash
-python3 prototypes/itcan/whats_left.py --base http://localhost:3017 --drop-id <drop-uuid>
-```
-
-## Simulated pantry counts
-
-The helper preserves `picked_up` for student pickups and `held` for student
-holds. Separate `pantry_held` and `pantry_transferred` bindings display pantry
-reservations and **simulated** transfers. Missing pantry fields in legacy
-responses default to zero. Every response must satisfy
-`total = available + held + picked_up + pantry_held + pantry_transferred`;
-negative or unbalanced counts fail closed. The exact drop UUID/page binding and
-aggregate-only privacy boundary remain unchanged.
-
-For the two-serving simulation after one student explicitly completes pickup
-and the publishing host confirms the accepted simulated pantry handoff, expect
-`2 / 0 / 0 / 1 / 0 / 1` in the order above (total first). This does not prove a
-physical pickup, physical pantry transfer, food safety, CARE acceptance or KSU
-authorization. The screen links official CARE and catering policy and states the
-prohibition on removing event leftovers. No acknowledgment waives that policy.
+Pantry transfers shown here are simulated. They are not a KSU CARE acceptance,
+a physical transfer, or catering-policy approval.
