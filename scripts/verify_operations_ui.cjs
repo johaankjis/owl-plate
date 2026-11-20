@@ -68,19 +68,18 @@ async function screenshot(page, name) {
       await dashboard
         .getByRole("heading", { name: "Food Rescue Analytics", exact: true })
         .waitFor();
+      await dashboard.getByTestId("operations-kpi-shared").waitFor();
       await screenshot(dashboard, `${mode}-analytics-empty`);
       assert.doesNotMatch(
         await dashboard.locator("body").innerText(),
         /Live Gemini|OpenRouter|H3|Join the campus feed|Advance clock|API connected|seeded persona/i,
       );
       const host = await open("/host");
-      await host
-        .getByTestId("food-photo-input")
-        .setInputFiles({
-          name: "synthetic-food.png",
-          mimeType: "image/png",
-          buffer: h.photo,
-        });
+      await host.getByTestId("food-photo-input").setInputFiles({
+        name: "synthetic-food.png",
+        mimeType: "image/png",
+        buffer: h.photo,
+      });
       await host.getByTestId("analyze-photo-button").click();
       await host.getByTestId("servings-input").fill("3");
       const building = (await h.request("/buildings")).buildings[0];
@@ -99,6 +98,16 @@ async function screenshot(page, name) {
       await host.getByTestId("publish-drop-button").click();
       const drop = await (await published).json();
       await host.getByTestId("host-drop-panel").waitFor();
+      await dashboard
+        .getByTestId(`operations-listing-photo-${drop.id}`)
+        .locator("[data-photo-state='loaded']")
+        .or(
+          dashboard.locator(
+            `[data-testid="operations-listing-photo-${drop.id}"][data-photo-state="loaded"]`,
+          ),
+        )
+        .first()
+        .waitFor();
       for (let i = 0; i < 2; i++) {
         const student = await open("/join");
         await student
@@ -117,13 +126,11 @@ async function screenshot(page, name) {
         );
         assert.equal(directions.searchParams.has("origin"), false);
         assert.equal(directions.searchParams.get("travelmode"), "walking");
-        await student
-          .getByTestId("pickup-photo-input")
-          .setInputFiles({
-            name: "synthetic-pickup.png",
-            mimeType: "image/png",
-            buffer: h.photo,
-          });
+        await student.getByTestId("pickup-photo-input").setInputFiles({
+          name: "synthetic-pickup.png",
+          mimeType: "image/png",
+          buffer: h.photo,
+        });
         await student.getByTestId("pickup-confirm-button").waitFor();
         await student.getByTestId("pickup-confirm-button").click();
         await student.getByTestId("detail-picked-up-banner").waitFor();
@@ -153,6 +160,7 @@ async function screenshot(page, name) {
         .filter({ hasText: /^1$/ })
         .waitFor();
       // A new successful poll, plus visible KPI assertions, proves automatic update without navigation.
+      await dashboard.bringToFront();
       const response = await dashboard.waitForResponse(async (r) => {
         if (
           !new URL(r.url()).pathname.endsWith("/analytics/operations") ||
