@@ -199,11 +199,18 @@ test("whats-left.html enforces strict UUID/page_id binding and Checking/Updated/
   const makeEl = (initialText = "") => {
     const listeners = new Map();
     const attrs = new Map();
+    const classes = new Set();
+    const queried = new Map();
     return {
       textContent: initialText,
       disabled: false,
       dataset: {},
-      style: { display: "" },
+      offsetWidth: 0,
+      style: {
+        display: "",
+        setProperty() {},
+        removeProperty() {},
+      },
       setAttribute(name, value) {
         attrs.set(name, value);
       },
@@ -217,6 +224,30 @@ test("whats-left.html enforces strict UUID/page_id binding and Checking/Updated/
         const fn = listeners.get(type);
         if (fn) await fn();
       },
+      classList: {
+        add(...names) {
+          names.forEach((name) => classes.add(name));
+        },
+        remove(...names) {
+          names.forEach((name) => classes.delete(name));
+        },
+        toggle(name, force) {
+          const on = force === undefined ? !classes.has(name) : Boolean(force);
+          if (on) classes.add(name);
+          else classes.delete(name);
+          return on;
+        },
+        contains(name) {
+          return classes.has(name);
+        },
+      },
+      getBoundingClientRect() {
+        return { left: 0, top: 0, width: 0, height: 0 };
+      },
+      querySelector(selector) {
+        if (!queried.has(selector)) queried.set(selector, makeEl());
+        return queried.get(selector);
+      },
     };
   };
 
@@ -228,6 +259,13 @@ test("whats-left.html enforces strict UUID/page_id binding and Checking/Updated/
     "checked-time": makeEl("—"),
     "error-box": makeEl(),
     "error-text": makeEl(""),
+    hero: makeEl(),
+    "ring-stage": makeEl(),
+    ring: makeEl(),
+    tip: makeEl(),
+    "tip-value": makeEl(""),
+    "tip-name": makeEl(""),
+    "tip-share": makeEl(""),
   };
   elements.ask.disabled = true;
   elements["error-box"].style.display = "none";
@@ -236,8 +274,16 @@ test("whats-left.html enforces strict UUID/page_id binding and Checking/Updated/
   const actions = [];
   runInNewContext(script, {
     document: {
+      hidden: false,
       getElementById: (id) => elements[id],
+      querySelector: () => makeEl(),
     },
+    window: {
+      matchMedia: () => ({ matches: false }),
+    },
+    performance: { now: () => 0 },
+    requestAnimationFrame: () => 0,
+    cancelAnimationFrame: () => {},
     It: {
       onState: (fn) => {
         onStateHandler = fn;
