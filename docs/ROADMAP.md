@@ -1,52 +1,33 @@
 # ROADMAP.md
 
-From Wednesday morning to Friday noon. Update checkboxes as work lands.
+Where Owl Plate stands at the hackathon submission (November 20, 2026), and what comes next. The original Wednesday-to-Friday build checklist is in Git history.
 
-## Wednesday: prove the risky parts, then the core
+## Delivered (local, demo authentication)
 
-Morning (prove before building)
-* [ ] Push hello world: one phone (Android) and one iPhone (Home Screen) receive an FCM web push from the deployed web app
-* [ ] Vision test: 10 food photos through Gemini with the JSON schema; servings within plus or minus 2 on most
-* [ ] Entra test: sign in with a KSU account. If "Need admin approval," set `AUTH_MODE=email_code`
-* [ ] Launch the survey (see DATA.md)
+- Photo → Gemini estimate (OpenRouter or direct, plus a labeled fixture) → host review with safety checks → publish
+- Campus feed and map over 43 verified Marietta buildings (H3 resolution 11, deck.gl), dietary hard filters, no student GPS
+- 10-minute holds in a single serialized inventory transaction
+- Listing-specific FCM web push with encrypted tokens, plus host review alerts
+- Google Maps walking links (destination only)
+- Photo-assisted pickup with host review of uncertain results
+- Simulated CARE Pantry referral and handoff
+- Food rescue analytics (`/dispatch`, `/impact`) with an explicitly loaded sample dataset
+- Seeded A–E wave rehearsal of the pure dispatch engine (`/admin`)
+- It pickup display and Campus Rescue Command Center driven by a paired Claude Code conversation
 
-Afternoon and night
-* [ ] Repo scaffold matching AGENTS.md, Makefile, `.env.example`, lint, CI for tests
-* [ ] DB models and seed (buildings, simulated students, personas)
-* [ ] `POST /drops` with vision, host review page
-* [ ] Dispatch engine with all required tests from DISPATCH.md
-* [ ] Publish sends wave 1 pushes to persona phones
+## Evidence still needed
 
-Goal by end of Wednesday: photo in, right phones buzz.
+- Measured vision and pickup-assist accuracy on a consented, hand-labeled photo set
+- Observed physical push receipt on Android and a Home Screen iPhone
+- A recorded paired Command Center session
+- Student survey results (collection is currently off, n=0)
 
-## Thursday: complete the loop and the story
+## Next
 
-* [ ] Claims, declines, 10 minute holds
-* [ ] Scheduler: expiry, next wave, wider ring
-* [ ] Dispatch screen with deck.gl map, H3 rings, reasons
-* [ ] Student onboarding: sign in, allergens, diets, alerts, iPhone Home Screen guide
-* [ ] Vision eval set and `make eval`; numbers into the deck
-* [ ] Privacy and safety: host checklist, minimal lock screen text, photo deletion
-* [ ] Close survey, chart results
-* [ ] Twilio SMS fallback
-* [ ] Deck (PowerPoint) following DEMO.md
-* [ ] Record the demo video
-* [ ] Rehearse three times with real phones
-* [ ] Codebase cleanup pass for Nudox: README, docstrings, no dead code, tests green
+1. Work with KSU CARE Services, Dining and event offices on an approved leftover-handling policy. Only then can the pantry handoff become real.
+2. Add KSU sign-in through Microsoft Entra ID, with an admin-only CARE priority tier.
+3. Deploy: managed PostgreSQL, API hosting, the Vercel web and photo storage with 24-hour lifecycle rules. Before that, add `data/campus/` to `deploy/api.Dockerfile`.
+4. Extend the registry to the Kennesaw campus, and later to partner universities.
+5. Add meal-swipe sharing as a second supply source.
 
-## Friday
-
-* [ ] Submit deck and video before 12:00 PM
-* [ ] `make demo` on both laptops, charge every phone, test pushes on venue Wi Fi
-* [ ] Pitch 5:30 to 8:30 PM
-
-## Cut order if behind
-
-Cut from the top first:
-1. Meal swipe matching (mention as next step)
-2. Bedrock fallback provider
-3. Twilio SMS fallback
-4. Entra sign in (use email code or demo mode)
-5. Learned show rate (keep fixed r = 0.6)
-
-Never cut: photo to vision estimate, allergen hard filter, just enough wave sizing, real phone pushes, widening second wave, dispatch screen with reasons, survey data, measured vision accuracy.
+Not planned for now: an Amazon Bedrock fallback provider and a Twilio SMS fallback.

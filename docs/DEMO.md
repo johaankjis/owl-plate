@@ -1,100 +1,35 @@
-# Demo and pitch
+# Demo
 
-The current rehearsal package is in `submission/`. Use
-`submission/PITCH_SCRIPT.md` for the five-minute cue sheet and
-`submission/LIVE_RUN_CHECKLIST.md` as the **single live-run checklist and evidence
-register**. The latest checkpoint and Johaan's decisions are in `docs/HANDOFF.md`.
-Those records supersede early aspirational demo notes.
+How to show Owl Plate live, and what may and may not be claimed. The commands and modes are in `RUNBOOK.md`. The It setup is in `prototypes/itcan/README.md`.
 
-## Run the local demo
+## Start
 
-The campus-feed successor is specified in `docs/CAMPUS_FEED_CONTRACT.md`;
-`docs/FEED_HANDOFF.md` tracks its integration status and isolated 3027/8027
-commands/evidence. Normal visitors join without location and browse all active
-food drops. Hosts alone select verified pickup buildings. The old A–E seeded
-wave rehearsal and fallback recording remain a separate, explicitly synthetic
-scenario with unverified rehearsal geography.
+`make present` builds the web app when its sources change and starts the API and web together. The browser uses one port, 3017, and the API stays behind `/backend`. The launcher resets to the campus feed and prints the active vision and notification modes. Fixture vision and simulated notifications are the default, and both are labeled. The survey is off. For LAN or container access, use `make present-zima` and tunnel port 3017 over SSH.
 
-`make present` builds the web app when its sources change, starts API and web
-together on one browser port (3017; the API stays on loopback behind `/backend`)
-and resets to the live-visitor scenario. Fixture vision and simulated
-notifications are always on and labeled; the survey is off. On a ZimaOS
-container use `make present-zima` and tunnel port 3017 over SSH.
+- **Live vision**: `make present-openrouter` (Gemini via OpenRouter, which also powers the pickup assist) or `make present-live` (direct Gemini). Results are labeled **Live Gemini via OpenRouter**, **Live Gemini** or **Saved demo estimate**. Failures show an error and never fall back to the saved estimate.
+- **Real push**: add `--notifications fcm` with private Firebase configuration. A joined student taps **Enable notifications**; on iPhone this works only from the installed Home Screen app. A listing alert opens `/student?drop=<id>`. Students who did not opt in, and the default launch, stay simulated.
 
-- Live vision: `make present-live` sends the uploaded photo to Gemini. It needs
-  `GEMINI_API_KEY=...` in the gitignored repo-root `.env` (or exported in the
-  shell); `GEMINI_MODEL` defaults to `gemini-3.8-flash`. Live failures show an
-  error and never fall back to the saved estimate. Results are labeled
-  **Live Gemini** or **Saved demo estimate**.
-- Live vision via OpenRouter: `make present-openrouter` (ZimaOS:
-  `PRESENT_HOST=0.0.0.0 .venv/bin/python -m scripts.present --vision openrouter`).
-  Needs `OPENROUTER_API_KEY=...` in the gitignored repo-root `.env`;
-  `OPENROUTER_VISION_MODEL` defaults to `google/gemini-3.8-flash`. Results are
-  labeled **Live Gemini via OpenRouter**; failures show an error, never the saved estimate.
-- Real push (Firebase): add `--notifications fcm`. Needs the service-account JSON
-  at `.secrets/firebase-service-account.json` and `NEXT_PUBLIC_FIREBASE_CONFIG`,
-  `NEXT_PUBLIC_FIREBASE_VAPID_KEY` in `.env` (all gitignored); the launcher creates
-  `PUSH_TOKEN_ENCRYPTION_KEY`. A joined student taps **Enable notifications** (on
-  iPhone only from the installed Home Screen app). An eligible feed announcement
-  opens `/student?drop=<id>`; seeded-wave invites retain `/student?invite=<id>`.
-  Students who did not opt in, and the default launch, stay **simulated**.
-- Visitors open `/join` (or Home → Find food), pick a nickname and optional
-  restrictions, then browse the campus feed on `/student`. No student location
-  or GPS is requested. Dietary mismatches remain visible with reserve disabled.
-- The host uses Home → Share food: upload → review (safety checks) → publish.
-- `/dispatch` is the projector view. Presenter controls at the bottom reset for
-  live visitors, load the seeded A–E rehearsal (with `/student?persona=X` links),
-  and advance the clock.
-- `make verify-feed` checks the actual mobile feed on isolated 3027/8027 only.
-  The old `verify_join_flow.cjs` and `verify_campus_mobile.cjs` names forward to
-  this harness; four-visitor/check-in/ring assumptions no longer apply in normal
-  visitors mode. `make rehearse-seeded` explicitly checks A–E waves and natural
-  invite expiry. `scripts/browser_smoke.cjs` is historical, pre-revamp coverage.
+## Walkthrough
 
-## What can be shown now
+1. **Host** (Home → Share Leftover Food): upload a food-only photo, review the estimate, adjust servings and allergens, confirm the safety checks, choose a verified Marietta building, and publish. The counts screen shows live inventory, pickup reviews, the pantry card and **Open pickup display** (It).
+2. **Student** (Home → Find Food, or `/join`): enter a nickname and optional dietary restrictions. No location or GPS is requested. Browse the feed or the campus map. Dietary mismatches stay visible, with Reserve disabled.
+3. **Reserve — hold 10 min**, then open the walking directions.
+4. **Pickup**: take a food-only photo. A consistent assessment enables **Confirm pickup**. Otherwise the student asks the host to review.
+5. **Pantry (simulated)**: the host requests a pantry referral, the coordinator accepts it on `/pantry`, and the host confirms the simulated handoff.
+6. **Analytics** on `/dispatch` or `/impact`: counts, recovery rates and trends update. Student pickups and simulated pantry transfers stay separate.
+7. **It Command Center**: tap **Refresh campus activity**, select a building, then **Analyze remaining food**. The paired Claude Code conversation answers on the page.
 
-The reviewed application runs through photo upload → fixture estimate → host
-review/safety checklist → publish → A/C invitations → A holds → C expires → D
-gets wave two → clean reset. All students are synthetic. The origin is arbitrary,
-not verified campus geography. Current notifications are simulated logs.
-Allergen estimates say **may contain, confirm with host**.
+`/admin` holds diagnostics, the explicitly confirmed sample-activity dataset, the It base-URL status and the seeded A–E wave rehearsal. The rehearsal includes `/student?persona=X` links and the projector at `/admin/projector`, and it uses synthetic personas on unverified rehearsal geography.
 
-`submission/Owl_Plate_Fallback.mp4` is a silent captioned browser recording with
-fixture vision and simulated notifications visibly labeled throughout. It records
-real application routes and natural expiry, not physical phones or live AI.
-`submission/evidence/rehearsal-timing.json` records measured events. Replay the
-video locally if a live service fails; declare the mode explicitly.
+## Claims discipline
 
-## Five-minute pitch
+Say which mode is running (fixture or live vision; simulated or real push). Allergen estimates always say **may contain, confirm with host**. Pickup assist always says that a photo cannot establish physical pickup or food safety. The pantry handoff is a simulation; nothing is sent to KSU CARE.
 
-- 0:00–1:00: problem as a design hypothesis, survey pending n=0.
-- 1:00–2:00: photo, host correction, hard filters, deterministic dispatch, atomic claims.
-- 2:00–4:00: two-serving scripted demo; A/C invited, B excluded, A holds, C expires, D ring 4.
-- 4:00–5:00: architecture and evidence still needed before a policy-approved pilot.
+Do not claim survey results, measured vision accuracy, CARE partnership, approved redistribution rules, physical push delivery, Entra sign-in or a completed deployment without evidence. Verified facts and statistics come only from `docs/DOMAIN.md`. The It evidence status is recorded in `docs/IT_HANDOFF.md`.
 
-A human pitch and teammate contributions remain unverified until rehearsal.
-Do not claim survey results, pantry demand trends, campus-wide prevalence,
-CARE partnership, approved redistribution rules, measured vision accuracy,
-physical push delivery, live Entra or completed deployment without evidence.
-Verified KSU facts come only from `docs/DOMAIN.md`.
+## Rehearsal hygiene
 
-## Physical rehearsal and fallback
-
-Thursday evening is reserved for the integrated phone rehearsal, recording and
-backup run. Approve devices and private access first. Reset before push
-registration; reset clears registrations. Browser invite cards and FCM send
-responses do not prove receipt. Observe actual Android and Home Screen iPhone
-notifications, then record them in the single checklist. Keep venue Wi-Fi and an
-authorized hotspot available. Two laptops should hold the local PDF/MP4 copies.
-
-Fixture vision is an explicitly chosen provider, not a hidden retry after live
-Gemini fails. Never use synthetic evaluation metrics as measured model accuracy.
-Keep source photos free of people and identifying material; uploaded photos are
-currently processed in memory, not retained.
-
-## Submission
-
-Due Friday November 20, 2026, noon Eastern / 17:00 UTC: editable PowerPoint plus
-video or live-demo note. The local fallback is available; physical-device capture
-and Johaan's final review remain pending. Johaan handles submission. Deployment,
-survey distribution and submission require Johaan's approval or action.
+- Reset (`make demo-reset`) before every run. A reset clears push registrations, so devices must re-enable alerts.
+- Keep source photos free of people and identifying material.
+- Fixture vision is an explicit choice, never a hidden retry after a live failure.
+- Synthetic evaluation metrics are never presented as model accuracy.
