@@ -577,3 +577,31 @@ test("consumer student routes contain zero developer jargon, zero GPS, and prese
   assert.ok(holdCardSrc.includes("DropPhoto"));
   assert.ok(holdCardSrc.includes("formatPickupVerificationSourceLabel"));
 });
+
+test("landing and student flows adopt the shared motion contract and real-data animated metrics", () => {
+  const landingSrc = readFileSync(
+    new URL("../app/page.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(landingSrc, /OWL_MOTION_CLASSES\.entrance/);
+  assert.match(landingSrc, /OWL_MOTION_CLASSES\.press/);
+  assert.match(landingSrc, /entranceDelayMs/);
+
+  const studentSrc = readFileSync(
+    new URL("../app/student/page.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(studentSrc, /OWL_MOTION_CLASSES\.tabPanel/);
+  assert.match(studentSrc, /OWL_MOTION_CLASSES\.pop/);
+  assert.match(studentSrc, /OWL_MOTION_CLASSES\.press/);
+  assert.match(studentSrc, /<AnimatedNumber/);
+  assert.match(studentSrc, /student-campus-metrics/);
+
+  const detailSrc = readFileSync(
+    new URL("../app/student/drops/[id]/page.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(detailSrc, /OWL_MOTION_CLASSES\.entrance/);
+  assert.match(detailSrc, /OWL_MOTION_CLASSES\.press/);
+  assert.match(detailSrc, /<AnimatedNumber/);
+});

@@ -203,7 +203,7 @@ test("pantry portal drops repeated banners and developer copy", () => {
   }
 });
 
-test("each coordinator card keeps one policy notice with official links and an unchecked acknowledgment", () => {
+test("coordinator card puts policy disclosure in confirmation dialog, keeps allergens concise, and makes safety assertions expandable", () => {
   const noticeComponent = pageSource.slice(
     pageSource.indexOf("function PolicyNotice"),
     pageSource.indexOf("function CoordinatorReferralCard"),
@@ -220,6 +220,11 @@ test("each coordinator card keeps one policy notice with official links and an u
     card.indexOf('{referral.status === "requested" ? ('),
   );
   const [actionBranch, readOnlyBranch] = decision.split("      ) : (");
+  // Policy notice lives inside ConfirmDialog at the point of action, not inline on read-only cards.
+  assert.match(
+    actionBranch,
+    /<ConfirmDialog[\s\S]*?<PolicyNotice referral=\{referral\} \/>/,
+  );
   assert.equal(
     (actionBranch.match(/<PolicyNotice referral=\{referral\} \/>/g) ?? [])
       .length,
@@ -228,21 +233,37 @@ test("each coordinator card keeps one policy notice with official links and an u
   assert.equal(
     (readOnlyBranch.match(/<PolicyNotice referral=\{referral\} \/>/g) ?? [])
       .length,
-    1,
+    0,
   );
   assert.match(card, /useState<boolean>\(false\)/);
   assert.match(card, /disabled=\{busyKey !== null \|\| !guard\.canAccept\}/);
-  assert.match(card, /does not waive KSU catering policy/);
+  assert.match(card, /does\s+not waive KSU catering policy/);
   assert.match(card, /simulation only/);
-  assert.match(card, /AllergenCard/);
+  // Concise listing-specific allergen strip replaces the verbose AllergenCard.
+  assert.equal(card.includes("AllergenCard"), false);
+  assert.match(card, /allergen-display-box/);
+  assert.match(card, /pantry-referral-allergens-\$\{referral\.id\}/);
+  assert.match(card, /ALLERGEN_WARNING_TEXT/);
+  // Host safety assertions live in a compact expandable details/summary block.
+  assert.match(
+    card,
+    /<details[\s\S]*?<summary[\s\S]*?pantry-referral-safety-toggle-\$\{referral\.id\}/,
+  );
   assert.match(card, /Host assertions \(not certified\)/);
+  assert.match(card, /pantry-referral-safety-\$\{referral\.id\}/);
+  // Real host photo via Bearer-authenticated DropPhoto and shared motion classes.
   assert.match(card, /authToken=\{PANTRY_COORDINATOR_CREDENTIAL\}/);
+  assert.match(card, /OWL_MOTION_CLASSES\.entrance/);
+  assert.match(card, /entranceDelayMs\(index\)/);
+  assert.match(pageSource, /pantry-simulation-badge/);
+  assert.match(pageSource, /Simulation only/);
   assert.equal(types.PANTRY_COORDINATOR_CREDENTIAL, "demo-pantry-coordinator");
 });
 
 test("existing harness test ids survive the cleanup", () => {
   for (const id of [
     "pantry-coordinator-page",
+    "pantry-simulation-badge",
     "pantry-empty-state",
     "pantry-referrals-list",
     "pantry-refresh-button",
@@ -257,8 +278,13 @@ test("existing harness test ids survive the cleanup", () => {
     "pantry-referral-pickup-${referral.id}",
     "pantry-referral-destination-${referral.id}",
     "pantry-referral-counts-${referral.id}",
+    "pantry-referral-safety-toggle-${referral.id}",
     "pantry-referral-safety-${referral.id}",
+    "pantry-referral-allergens-${referral.id}",
     "pantry-referral-state-note-${referral.id}",
+    "pantry-decision-dialog-${referral.id}",
+    "pantry-open-accept-dialog-${referral.id}",
+    "pantry-open-reject-dialog-${referral.id}",
     "pantry-policy-ack-${referral.id}",
     "pantry-accept-button-${referral.id}",
     "pantry-reject-button-${referral.id}",
@@ -269,11 +295,16 @@ test("existing harness test ids survive the cleanup", () => {
   }
   for (const id of [
     "host-pantry-card",
+    "host-pantry-demo-badge",
     "host-pantry-status",
     "host-pantry-eligible",
     "host-pantry-notice",
     "host-pantry-care-link",
     "host-pantry-catering-link",
+    "host-pantry-request-dialog",
+    "host-pantry-handoff-dialog",
+    "host-pantry-open-request-dialog",
+    "host-pantry-open-handoff-dialog",
     "host-pantry-policy-checkbox",
     "host-pantry-request-button",
     "host-pantry-handoff-checkbox",
@@ -287,13 +318,22 @@ test("existing harness test ids survive the cleanup", () => {
   }
 });
 
-test("host card shows exactly one notice beside the next confirmation", () => {
+test("host card moves policy notice into request and handoff confirmation dialogs", () => {
   assert.equal((hostCardSource.match(/\{policyNotice\}/g) ?? []).length, 2);
-  assert.match(hostCardSource, /\{!hasAction && policyNotice\}/);
+  assert.equal(hostCardSource.includes("{!hasAction && policyNotice}"), false);
+  assert.match(
+    hostCardSource,
+    /testId="host-pantry-request-dialog"[\s\S]*?\{policyNotice\}/,
+  );
+  assert.match(
+    hostCardSource,
+    /testId="host-pantry-handoff-dialog"[\s\S]*?\{policyNotice\}/,
+  );
   assert.match(
     hostCardSource,
     /useState<boolean>\(false\);\s+const \[handoffConfirmed, setHandoffConfirmed\] =\s+useState<boolean>\(false\)/,
   );
+  assert.match(hostCardSource, /Simulation only/);
   assert.match(hostCardSource, /Confirm simulated handoff/);
   assert.match(hostCardSource, /not an independently verified physical/);
 });
