@@ -84,3 +84,10 @@ verify-pickup-mobile:
 .PHONY: verify-map
 verify-map:
 	OWL_WEB_URL=http://127.0.0.1:3027 node scripts/verify_campus_map.cjs
+
+.PHONY: verify-pantry-routes verify-pantry-ui
+verify-pantry-routes:
+	OWL_WEB_URL=http://127.0.0.1:3027 node scripts/verify_pantry_routes.cjs
+
+verify-pantry-ui:
+	OWL_WEB_URL=http://127.0.0.1:3027 node scripts/verify_pantry_ui.cjs

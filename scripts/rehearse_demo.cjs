@@ -259,6 +259,8 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       available: 1,
       held: 1,
       picked_up: 0,
+      pantry_held: 0,
+      pantry_transferred: 0,
     });
     assert.doesNotMatch(
       JSON.stringify(snapshot).toLowerCase(),
@@ -308,6 +310,8 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         available: 1,
         held: 0,
         picked_up: 1,
+        pantry_held: 0,
+        pantry_transferred: 0,
       },
     );
     mark("explicit_seeded_only_legacy_no_body_pickup_idempotent");

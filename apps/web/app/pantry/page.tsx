@@ -414,6 +414,25 @@ function CoordinatorReferralCard({
         {notice}
       </p>
 
+      <div className="flex flex-wrap gap-4 text-xs">
+        <a
+          href={referral.destination.care_source_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold text-owl-gold underline underline-offset-4"
+        >
+          Official KSU CARE Services
+        </a>
+        <a
+          href={referral.destination.catering_policy_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold text-owl-gold underline underline-offset-4"
+        >
+          KSU Catering Policies
+        </a>
+      </div>
+
       {/* Card Error Alert */}
       {cardError && (
         <div

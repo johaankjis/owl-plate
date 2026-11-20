@@ -43,6 +43,8 @@ def main() -> int:
         "page_id": page_id,
         "answer": "Tap “What's left?”",
         "checked_at": "Not checked yet",
+        "pantry_held": 0,
+        "pantry_transferred": 0,
     }
     command = [
         args.it_bin,

@@ -102,3 +102,20 @@ The helper can also be checked without It by supplying an exact drop UUID:
 ```bash
 python3 prototypes/itcan/whats_left.py --base http://localhost:3017 --drop-id <drop-uuid>
 ```
+
+## Simulated pantry counts
+
+The helper preserves `picked_up` for student pickups and `held` for student
+holds. Separate `pantry_held` and `pantry_transferred` bindings display pantry
+reservations and **simulated** transfers. Missing pantry fields in legacy
+responses default to zero. Every response must satisfy
+`total = available + held + picked_up + pantry_held + pantry_transferred`;
+negative or unbalanced counts fail closed. The exact drop UUID/page binding and
+aggregate-only privacy boundary remain unchanged.
+
+For the two-serving simulation after one student explicitly completes pickup
+and the publishing host confirms the accepted simulated pantry handoff, expect
+`2 / 0 / 0 / 1 / 0 / 1` in the order above (total first). This does not prove a
+physical pickup, physical pantry transfer, food safety, CARE acceptance or KSU
+authorization. The screen links official CARE and catering policy and states the
+prohibition on removing event leftovers. No acknowledgment waives that policy.

@@ -49,13 +49,17 @@ def whats_left(base: str, drop_id: str) -> dict:
     available = int(counts["available"])
     held = int(counts["held"])
     picked_up = int(counts["picked_up"])
+    pantry_held = int(counts.get("pantry_held", 0))
+    pantry_transferred = int(counts.get("pantry_transferred", 0))
     total = int(counts["total"])
-    if min(available, held, picked_up, total) < 0 or available + held + picked_up != total:
+    inventory = (available, held, picked_up, pantry_held, pantry_transferred)
+    if min(*inventory, total) < 0 or sum(inventory) != total:
         raise ValueError("invalid aggregate counts")
     if drop["status"] == "live":
         answer = f"{available} of {total} left · {held} on hold · {picked_up} picked up"
     else:
         answer = f"Drop {drop['status'].replace('_', ' ')} · {picked_up} picked up"
+    answer += f" · {pantry_held} pantry reserved · {pantry_transferred} simulated pantry transfers"
     return {
         "has_drop": True,
         "drop_id": drop_id,
@@ -63,6 +67,8 @@ def whats_left(base: str, drop_id: str) -> dict:
         "available": available,
         "held": held,
         "picked_up": picked_up,
+        "pantry_held": pantry_held,
+        "pantry_transferred": pantry_transferred,
         "total": total,
         "answer": answer,
         "checked_at": datetime.now().strftime("%-I:%M:%S %p"),

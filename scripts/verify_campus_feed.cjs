@@ -433,6 +433,8 @@ function privateSafe(value) {
         available: 0,
         held: 1,
         picked_up: 1,
+        pantry_held: 0,
+        pantry_transferred: 0,
       },
     );
     await request(
@@ -465,6 +467,8 @@ function privateSafe(value) {
       available: 3,
       held: 0,
       picked_up: 1,
+      pantry_held: 0,
+      pantry_transferred: 0,
     });
     privateSafe(distribution);
     assert.doesNotMatch(

@@ -34,8 +34,12 @@
       <div class="grid" aria-label="Aggregate pickup counts">
         <div class="tile"><div class="num" data-it-bind="available">–</div><div class="cap">Available</div></div>
         <div class="tile"><div class="num" data-it-bind="held">–</div><div class="cap">Held</div></div>
-        <div class="tile"><div class="num" data-it-bind="picked_up">–</div><div class="cap">Picked up</div></div>
+        <div class="tile"><div class="num" data-it-bind="picked_up">–</div><div class="cap">Student pickups</div></div>
+        <div class="tile"><div class="num" data-it-bind="pantry_held">0</div><div class="cap">Pantry reserved</div></div>
+        <div class="tile"><div class="num" data-it-bind="pantry_transferred">0</div><div class="cap">Simulated pantry transfers</div></div>
       </div>
+      <p class="muted">Demo only — no request is sent to KSU CARE. KSU catering policy prohibits removing leftovers from event spaces. This simulation does not authorize redistribution or establish food safety.</p>
+      <p class="muted"><a href="https://campus.kennesaw.edu/current-students/student-affairs/wellbeing/care-services/">Official CARE Services</a> · <a href="https://campus.kennesaw.edu/offices-services/catering/policies.php">Official catering policy</a></p>
       <p class="muted">Aggregate counts only. No student identities or credentials are sent to this screen.</p>
       <p class="muted">Drop <span data-it-bind="drop_id">binding…</span></p>
       <p class="muted">Checked at <span data-it-bind="checked_at">—</span>.</p>

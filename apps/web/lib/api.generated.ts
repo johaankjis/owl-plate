@@ -348,6 +348,90 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/drops/{drop_id}/pantry-referral": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Pantry Referral
+     * @description Simulated pantry referral for the publishing host's own drop; demo only.
+     */
+    get: operations["pantry_referral_drops__drop_id__pantry_referral_get"];
+    put?: never;
+    /**
+     * Request Pantry Referral
+     * @description Explicit simulated request; nothing is sent to KSU and no stock is reserved.
+     */
+    post: operations["request_pantry_referral_drops__drop_id__pantry_referral_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/drops/{drop_id}/pantry-referral/handoff": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Pantry Handoff
+     * @description Simulated handoff confirmation by the publishing host; not a verified transfer.
+     */
+    post: operations["pantry_handoff_drops__drop_id__pantry_referral_handoff_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/pantry/referrals": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Pantry Referrals
+     * @description De-identified referral queue for the synthetic demo coordinator only.
+     */
+    get: operations["pantry_referrals_pantry_referrals_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/pantry/referrals/{referral_id}/decision": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Decide Pantry Referral
+     * @description Simulated coordinator accept or reject under the shared inventory lock.
+     */
+    post: operations["decide_pantry_referral_pantry_referrals__referral_id__decision_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/students/me/preferences": {
     parameters: {
       query?: never;
@@ -799,7 +883,13 @@ export interface components {
        */
       held_until: string;
     };
-    /** Counts */
+    /**
+     * Counts
+     * @description Per-drop inventory: total = available + held + picked_up + pantry_held + pantry_transferred.
+     *
+     *     ``held`` and ``picked_up`` are student holds and pickups only; simulated pantry
+     *     allocations are reported separately and never folded into student pickups.
+     */
     Counts: {
       /** Total */
       total: number;
@@ -809,6 +899,16 @@ export interface components {
       held: number;
       /** Picked Up */
       picked_up: number;
+      /**
+       * Pantry Held
+       * @default 0
+       */
+      pantry_held: number;
+      /**
+       * Pantry Transferred
+       * @default 0
+       */
+      pantry_transferred: number;
     };
     /**
      * DemoActiveDropResponse
@@ -1116,6 +1216,22 @@ export interface components {
       /** Detail */
       detail?: components["schemas"]["ValidationError"][];
     };
+    /** HostPantryReferralResponse */
+    HostPantryReferralResponse: {
+      referral: components["schemas"]["PantryReferral"] | null;
+      destination: components["schemas"]["PantryDestination"];
+      /**
+       * Notice
+       * @default Demo only — no request is sent to KSU CARE. KSU catering policy prohibits removing leftovers from event spaces. This simulation does not authorize redistribution or establish food safety.
+       */
+      notice: string;
+      /**
+       * Is Demo
+       * @default true
+       * @constant
+       */
+      is_demo: true;
+    };
     /**
      * HostPickupReview
      * @description De-identified assessment metadata; the opaque ID is neither a student nor a claim ID.
@@ -1250,6 +1366,138 @@ export interface components {
       /** Token */
       token: string;
       student: components["schemas"]["SessionStudent"];
+    };
+    /** PantryDecisionRequest */
+    PantryDecisionRequest: {
+      /**
+       * Decision
+       * @enum {string}
+       */
+      decision: "accept" | "reject";
+      /** Servings */
+      servings?: number | null;
+      /**
+       * Demo Policy Acknowledged
+       * @constant
+       */
+      demo_policy_acknowledged: true;
+    };
+    /**
+     * PantryDestination
+     * @description The verified demo pantry destination; directions target the building point only.
+     */
+    PantryDestination: {
+      /** Name */
+      name: string;
+      building: components["schemas"]["Building"];
+      /** Room */
+      room: string;
+      /** Directions Url */
+      directions_url: string;
+      /** Care Source Url */
+      care_source_url: string;
+      /** Catering Policy Url */
+      catering_policy_url: string;
+    };
+    /** PantryHandoffRequest */
+    PantryHandoffRequest: {
+      /**
+       * Demo Handoff Confirmed
+       * @constant
+       */
+      demo_handoff_confirmed: true;
+    };
+    /**
+     * PantryReferral
+     * @description A simulated pantry referral; never a real request, approval or food-safety claim.
+     */
+    PantryReferral: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Drop Id
+       * Format: uuid
+       */
+      drop_id: string;
+      /**
+       * Status
+       * @enum {string}
+       */
+      status:
+        | "suggested"
+        | "requested"
+        | "accepted"
+        | "handoff_confirmed"
+        | "rejected"
+        | "expired";
+      /** Requested Servings */
+      requested_servings: number;
+      /** Accepted Servings */
+      accepted_servings: number;
+      /** Transferred Servings */
+      transferred_servings: number;
+      /** Eligible Servings */
+      eligible_servings: number;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string;
+      destination: components["schemas"]["PantryDestination"];
+      drop: components["schemas"]["DropResponse"];
+      /**
+       * Notice
+       * @default Demo only — no request is sent to KSU CARE. KSU catering policy prohibits removing leftovers from event spaces. This simulation does not authorize redistribution or establish food safety.
+       */
+      notice: string;
+      /**
+       * Is Demo
+       * @default true
+       * @constant
+       */
+      is_demo: true;
+    };
+    /**
+     * PantryReferralRequest
+     * @description Acknowledging the demo notice never waives KSU catering policy.
+     */
+    PantryReferralRequest: {
+      /** Servings */
+      servings: number;
+      /**
+       * Demo Policy Acknowledged
+       * @constant
+       */
+      demo_policy_acknowledged: true;
+    };
+    /** PantryReferralsResponse */
+    PantryReferralsResponse: {
+      /** Referrals */
+      referrals: components["schemas"]["PantryReferral"][];
+      /**
+       * Server Time
+       * Format: date-time
+       */
+      server_time: string;
+      /**
+       * Is Demo
+       * @default true
+       * @constant
+       */
+      is_demo: true;
     };
     /** PersonaDecision */
     PersonaDecision: {
@@ -3148,6 +3396,451 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["HostPickupReview"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  pantry_referral_drops__drop_id__pantry_referral_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        drop_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HostPantryReferralResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  request_pantry_referral_drops__drop_id__pantry_referral_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        drop_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PantryReferralRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PantryReferral"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  pantry_handoff_drops__drop_id__pantry_referral_handoff_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        drop_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PantryHandoffRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PantryReferral"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  pantry_referrals_pantry_referrals_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PantryReferralsResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  decide_pantry_referral_pantry_referrals__referral_id__decision_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        referral_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PantryDecisionRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PantryReferral"];
         };
       };
       /** @description Unauthorized */

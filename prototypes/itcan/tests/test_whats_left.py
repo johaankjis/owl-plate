@@ -9,6 +9,7 @@ import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import ClassVar
+from unittest.mock import patch
 
 HERE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(HERE))
@@ -74,6 +75,77 @@ class CompanionTests(unittest.TestCase):
             (picked_up["available"], picked_up["held"], picked_up["picked_up"]), (1, 0, 1)
         )
         self.assertEqual(picked_up["drop_id"], DROP_ID)
+
+    def test_legacy_counts_default_pantry_fields_to_zero(self) -> None:
+        with patch.object(
+            whats_left,
+            "_get",
+            return_value={
+                "status": "live",
+                "counts": {"total": 2, "available": 1, "held": 0, "picked_up": 1},
+            },
+        ):
+            result = whats_left.whats_left(self.base, DROP_ID)
+        self.assertEqual((result["pantry_held"], result["pantry_transferred"]), (0, 0))
+
+    def test_pantry_allocation_and_transfer_preserve_student_pickups(self) -> None:
+        for held, transferred in ((1, 0), (0, 1)):
+            with (
+                self.subTest(held=held, transferred=transferred),
+                patch.object(
+                    whats_left,
+                    "_get",
+                    return_value={
+                        "status": "claimed_out",
+                        "counts": {
+                            "total": 2,
+                            "available": 0,
+                            "held": 0,
+                            "picked_up": 1,
+                            "pantry_held": held,
+                            "pantry_transferred": transferred,
+                        },
+                    },
+                ),
+            ):
+                result = whats_left.whats_left(self.base, DROP_ID)
+                self.assertEqual(result["picked_up"], 1)
+                self.assertEqual(result["pantry_held"], held)
+                self.assertEqual(result["pantry_transferred"], transferred)
+                self.assertEqual(result["drop_id"], DROP_ID)
+                self.assertIn("simulated pantry transfers", result["answer"])
+
+    def test_negative_or_unbalanced_pantry_counts_fail_closed(self) -> None:
+        for pantry_held, pantry_transferred in ((-1, 1), (0, 1), (1, 1)):
+            with (
+                self.subTest(held=pantry_held, transferred=pantry_transferred),
+                patch.object(
+                    whats_left,
+                    "_get",
+                    return_value={
+                        "status": "live",
+                        "counts": {
+                            "total": 2,
+                            "available": 1,
+                            "held": 0,
+                            "picked_up": 1,
+                            "pantry_held": pantry_held,
+                            "pantry_transferred": pantry_transferred,
+                        },
+                    },
+                ),
+                self.assertRaises(ValueError),
+            ):
+                whats_left.whats_left(self.base, DROP_ID)
+
+    def test_screen_binds_separate_pantry_counts_and_policy(self) -> None:
+        html = (HERE / "whats-left.html").read_text()
+        for field in ("picked_up", "pantry_held", "pantry_transferred"):
+            self.assertIn(f'data-it-bind="{field}"', html)
+        self.assertIn("Student pickups", html)
+        self.assertIn("Simulated pantry transfers", html)
+        self.assertIn("prohibits removing leftovers", html)
+        self.assertIn("https://campus.kennesaw.edu/offices-services/catering/policies.php", html)
 
     def test_page_id_must_match_drop(self) -> None:
         self.assertEqual(whats_left.page_id_for_drop(DROP_ID), PAGE_ID)
