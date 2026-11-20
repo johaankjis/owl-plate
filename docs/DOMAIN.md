@@ -79,3 +79,29 @@ Note: no KSU free food alert program was found in our search. TODO(verify) with 
 * https://thedailytexan.com/2025/10/15/ut-begins-free-leftover-food-program/
 * https://www.pittsburghmagazine.com/?p=9104
 * https://www.fus.edu/news-events/news/freeeats-fus
+
+## CARE pantry demo destination and catering restriction (verified Nov 20, 2026)
+
+The official CARE Services page lists the Marietta Campus Pantry at
+**JMW Student Center, Room 184**. Use the existing verified campus registry's
+Joe Mack Wilson Student Center building point for directions; this is not a
+verified room entrance. Source (HTTP200, retrieved Nov20 UTC):
+https://campus.kennesaw.edu/current-students/student-affairs/wellbeing/care-services/
+
+Official Catering Policies, Food Removal section (HTTP200, retrieved Nov20 UTC):
+“Due to health regulations, leftovers cannot be removed from any event space.
+This policy is strictly enforced.” Source:
+https://campus.kennesaw.edu/offices-services/catering/policies.php
+The catering home page corroborates this restriction:
+https://campus.kennesaw.edu/offices-services/catering/index.php
+
+The official campus pantry page describes donation procedures, including
+coordination of large group donations, but this does NOT establish acceptance
+of prepared event leftovers:
+https://campus.kennesaw.edu/current-students/student-affairs/wellbeing/care-services/community-resources/campus-pantry.php
+
+Milestone4 is a **simulated pantry referral and handoff only**, with no external
+messages, KSU approval, partnership or food-safety certification. UI must show
+the catering restriction rather than imply that a demo checkbox waives it.
+Real redistribution authorization/exception and prepared-food eligibility remain
+unverified and require a separate future decision. No KSU employee was contacted.
