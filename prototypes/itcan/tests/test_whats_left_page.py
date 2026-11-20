@@ -87,15 +87,21 @@ class PageParser(HTMLParser):
 
 
 def contract_keys() -> set[str]:
-    """State keys named in the first column of the frozen contract's tables."""
-    return set(re.findall(r"^\| `(\w+)` \|", CONTRACT.read_text(encoding="utf-8"), re.MULTILINE))
+    """State keys named in the first column of the frozen pickup contract's tables.
+
+    The contract file also carries the manager-owned command-center section;
+    that page has its own contract and its own pinning test.
+    """
+    text = CONTRACT.read_text(encoding="utf-8")
+    pickup_contract = text.split("# Command center page", 1)[0]
+    return set(re.findall(r"^\| `(\w+)` \|", pickup_contract, re.MULTILINE))
 
 
 def contract_count_labels() -> dict[str, str]:
-    """The on-screen label the contract assigns to each count key."""
-    rows = re.findall(
-        r"^\| `(\w+)` \| ([^|`]+) \|$", CONTRACT.read_text(encoding="utf-8"), re.MULTILINE
-    )
+    """The on-screen label the pickup contract assigns to each count key."""
+    text = CONTRACT.read_text(encoding="utf-8")
+    pickup_contract = text.split("# Command center page", 1)[0]
+    rows = re.findall(r"^\| `(\w+)` \| ([^|`]+) \|$", pickup_contract, re.MULTILINE)
     return {key: label.strip() for key, label in rows if key in COUNT_KEYS}
 
 
