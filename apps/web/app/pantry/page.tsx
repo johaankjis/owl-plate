@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Check,
+  ChevronDown,
   Clock,
   ExternalLink,
   HandHeart,
@@ -13,13 +14,15 @@ import {
   RefreshCw,
   UtensilsCrossed,
 } from "lucide-react";
+import { AnimatedNumber } from "../../components/ui/AnimatedNumber";
 import { AppShell } from "../../components/ui/AppShell";
-import { AllergenCard } from "../../components/ui/AllergenCard";
+import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { DropPhoto } from "../../components/ui/DropPhoto";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { ListRowSkeleton } from "../../components/ui/Skeleton";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { buildWalkingDirectionsUrl } from "../../lib/buildings";
+import { entranceDelayMs, OWL_MOTION_CLASSES } from "../../lib/motion";
 import { decidePantryReferral, getPantryReferrals } from "../../lib/pantry-api";
 import {
   buildPantryInventoryTiles,
@@ -28,19 +31,20 @@ import {
   describePantryListing,
   formatPantryDestinationLocation,
   formatPantryStatusLabel,
+  groupCoordinatorReferrals,
   normalizeCounts,
   PANTRY_POLL_INTERVAL_MS,
   resolveCoordinatorActionGuard,
   resolvePantryDirectionsUrl,
-  groupCoordinatorReferrals,
   resolvePantryNotice,
   summarizePantryFood,
-  type CoordinatorSection,
   summarizeReviewedSafetyAssertions,
+  type CoordinatorSection,
   type PantryInventoryTile,
 } from "../../lib/pantry-helpers";
 import { formatRemainingTime } from "../../lib/time";
 import {
+  ALLERGEN_WARNING_TEXT,
   PANTRY_COORDINATOR_CREDENTIAL,
   type DropResponse,
   type PantryDecision,
@@ -51,6 +55,7 @@ import { formatHostDropLocation } from "../host/host-helpers";
 
 interface CoordinatorCardProps {
   referral: PantryReferral;
+  index: number;
   nowIso: string;
   busyKey: string | null;
   cardError: string | null;
@@ -58,7 +63,7 @@ interface CoordinatorCardProps {
     referralId: string,
     decision: PantryDecision,
     servings?: number,
-  ) => Promise<void>;
+  ) => Promise<boolean>;
 }
 
 const TILE_TEST_IDS: Record<PantryInventoryTile["key"], string> = {
@@ -129,7 +134,7 @@ function InventoryGroup({
               data-testid={`${TILE_TEST_IDS[tile.key]}-${referralId}`}
               className="text-lg font-extrabold tabular-nums"
             >
-              {tile.value}
+              <AnimatedNumber value={tile.value} />
             </dd>
             <dt className="text-xs font-semibold text-ink-muted">
               {tile.label}
@@ -141,10 +146,10 @@ function InventoryGroup({
   );
 }
 
-/** The required notice and official links, shown once per card beside its decision. */
+/** Required policy notice and official KSU links, shown inside confirmation dialogs at the point of action. */
 function PolicyNotice({ referral }: { referral: PantryReferral }) {
   return (
-    <div className="space-y-1 rounded-xl border border-warning/30 bg-warning-tint px-3 py-2 text-sm">
+    <div className="space-y-1.5 rounded-xl border border-warning/30 bg-warning-tint px-3.5 py-2.5 text-sm">
       <p
         data-testid={`pantry-referral-notice-${referral.id}`}
         className="text-warning"
@@ -179,6 +184,7 @@ function PolicyNotice({ referral }: { referral: PantryReferral }) {
 
 function CoordinatorReferralCard({
   referral,
+  index,
   nowIso,
   busyKey,
   cardError,
@@ -199,6 +205,7 @@ function CoordinatorReferralCard({
     Math.max(1, defaultAccept || 1),
   );
   const [policyAck, setPolicyAck] = useState<boolean>(false);
+  const [dialogAction, setDialogAction] = useState<PantryDecision | null>(null);
 
   // Clamp the chosen quantity down if students reserve servings while this is open.
   useEffect(() => {
@@ -214,9 +221,12 @@ function CoordinatorReferralCard({
     });
   }, [defaultAccept, referral.status]);
 
-  // An acknowledgment never carries over once the referral leaves "requested".
+  // Reset dialog and acknowledgment whenever the referral leaves "requested".
   useEffect(() => {
-    if (referral.status !== "requested") setPolicyAck(false);
+    if (referral.status !== "requested") {
+      setPolicyAck(false);
+      setDialogAction(null);
+    }
   }, [referral.status]);
 
   const guard = resolveCoordinatorActionGuard(
@@ -236,6 +246,9 @@ function CoordinatorReferralCard({
   const safetyAssertions = summarizeReviewedSafetyAssertions(
     referral.drop.safety_review,
   );
+  const confirmedSafetyCount = safetyAssertions.filter(
+    (item) => item.confirmed,
+  ).length;
   const expired = guard.isExpired || referral.status === "expired";
   const isAccepting = busyKey === `${referral.id}:accept`;
   const isRejecting = busyKey === `${referral.id}:reject`;
@@ -248,12 +261,34 @@ function CoordinatorReferralCard({
       ? `${currentEligible} unreserved now`
       : `${referral.requested_servings} requested · ${currentEligible} unreserved now`;
 
+  const openDialog = (action: PantryDecision) => {
+    setPolicyAck(false);
+    setDialogAction(action);
+  };
+
+  const closeDialog = () => {
+    setDialogAction(null);
+    setPolicyAck(false);
+  };
+
+  const handleConfirmDecision = async (action: PantryDecision) => {
+    const ok = await onDecide(
+      referral.id,
+      action,
+      action === "accept" ? clampedAccept : undefined,
+    );
+    if (ok) {
+      closeDialog();
+    }
+  };
+
   return (
     <article
       data-testid={`pantry-referral-card-${referral.id}`}
       data-status={referral.status}
       data-drop-id={referral.drop_id}
-      className="consumer-card space-y-4"
+      style={{ animationDelay: `${entranceDelayMs(index)}ms` }}
+      className={`consumer-card space-y-4 ${OWL_MOTION_CLASSES.entrance}`}
     >
       <div className="grid gap-4 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
         <DropPhoto
@@ -402,36 +437,40 @@ function CoordinatorReferralCard({
 
       <div className="space-y-2">
         <div
-          data-testid={`pantry-referral-safety-${referral.id}`}
-          className="flex flex-wrap items-center gap-1.5 text-xs"
+          data-testid="allergen-display-box"
+          className="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-xl border border-warning/30 bg-warning-tint px-3 py-2 text-xs"
         >
-          <span className="font-bold text-ink-muted">
-            Host assertions (not certified):
-          </span>
-          {safetyAssertions.length > 0 ? (
-            safetyAssertions.map((item) => (
-              <span
-                key={item.key}
-                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold ${
-                  item.confirmed
-                    ? "bg-success-tint text-success"
-                    : "bg-surface-subtle text-ink-muted"
-                }`}
-              >
-                {item.confirmed && <Check size={12} aria-hidden="true" />}
-                {item.label}
-              </span>
-            ))
+          <span className="font-bold text-warning">Allergens:</span>
+          {referral.drop.allergens_final.length > 0 ? (
+            <span
+              data-testid={`pantry-referral-allergens-${referral.id}`}
+              className="inline-flex flex-wrap items-center gap-1"
+            >
+              {referral.drop.allergens_final.map((alg) => (
+                <span
+                  key={alg}
+                  className="inline-flex items-center rounded-md border border-warning/30 bg-surface/70 px-2 py-0.5 font-semibold text-warning"
+                >
+                  {alg.replaceAll("_", " ")}
+                </span>
+              ))}
+            </span>
           ) : (
-            <span className="text-ink-muted">none recorded</span>
+            <span
+              data-testid={`pantry-referral-allergens-${referral.id}`}
+              className="font-semibold text-warning"
+            >
+              None listed
+            </span>
           )}
+          <span
+            data-testid="allergen-warning-banner"
+            className="font-medium text-warning/90"
+          >
+            · {referral.drop.allergen_notice || ALLERGEN_WARNING_TEXT}
+          </span>
         </div>
-        <AllergenCard
-          allergens={referral.drop.allergens_final}
-          notice={referral.drop.allergen_notice}
-          title="Estimated allergens"
-          compact={true}
-        />
+
         {referral.drop.diet_tags_final.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {referral.drop.diet_tags_final.map((diet) => (
@@ -439,9 +478,54 @@ function CoordinatorReferralCard({
             ))}
           </div>
         )}
+
+        <details className="group rounded-xl border border-line bg-surface-subtle/60 px-3 py-0.5">
+          <summary
+            data-testid={`pantry-referral-safety-toggle-${referral.id}`}
+            className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 text-xs font-semibold text-ink-muted select-none [&::-webkit-details-marker]:hidden"
+          >
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="font-bold text-ink">
+                Host assertions (not certified)
+              </span>
+              <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-semibold text-ink-muted ring-1 ring-line">
+                {safetyAssertions.length > 0
+                  ? `${confirmedSafetyCount}/${safetyAssertions.length} confirmed`
+                  : "None recorded"}
+              </span>
+            </span>
+            <ChevronDown
+              size={15}
+              aria-hidden="true"
+              className="shrink-0 text-ink-muted transition-transform duration-200 group-open:rotate-180"
+            />
+          </summary>
+          <div
+            data-testid={`pantry-referral-safety-${referral.id}`}
+            className="flex flex-wrap items-center gap-1.5 border-t border-line/70 pb-2.5 pt-2 text-xs"
+          >
+            {safetyAssertions.length > 0 ? (
+              safetyAssertions.map((item) => (
+                <span
+                  key={item.key}
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold ${
+                    item.confirmed
+                      ? "bg-success-tint text-success"
+                      : "bg-surface text-ink-muted"
+                  }`}
+                >
+                  {item.confirmed && <Check size={12} aria-hidden="true" />}
+                  {item.label}
+                </span>
+              ))
+            ) : (
+              <span className="text-ink-muted">None recorded</span>
+            )}
+          </div>
+        </details>
       </div>
 
-      {cardError && (
+      {cardError && !dialogAction && (
         <p
           role="alert"
           data-testid={`pantry-referral-error-${referral.id}`}
@@ -461,7 +545,6 @@ function CoordinatorReferralCard({
               {guard.staleReason}
             </p>
           )}
-          <PolicyNotice referral={referral} />
 
           {!guard.isExpired && (
             <>
@@ -487,7 +570,7 @@ function CoordinatorReferralCard({
                         clampPantryQuantity(s - 1, guard.maxAcceptable),
                       )
                     }
-                    className="consumer-button-secondary h-11 min-h-11 w-11 px-0"
+                    className={`consumer-button-secondary h-11 min-h-11 w-11 px-0 ${OWL_MOTION_CLASSES.press}`}
                   >
                     <Minus size={16} aria-hidden="true" />
                   </button>
@@ -524,65 +607,125 @@ function CoordinatorReferralCard({
                         clampPantryQuantity(s + 1, guard.maxAcceptable),
                       )
                     }
-                    className="consumer-button-secondary h-11 min-h-11 w-11 px-0"
+                    className={`consumer-button-secondary h-11 min-h-11 w-11 px-0 ${OWL_MOTION_CLASSES.press}`}
                   >
                     <Plus size={16} aria-hidden="true" />
                   </button>
                 </div>
               </div>
 
-              <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm">
-                <input
-                  type="checkbox"
-                  data-testid={`pantry-policy-ack-${referral.id}`}
-                  checked={policyAck}
-                  onChange={(e) => setPolicyAck(e.target.checked)}
-                  className="mt-0.5 h-5 w-5 shrink-0 accent-owl-gold"
-                />
-                <span>
-                  I understand this is a <strong>demo simulation only</strong>.
-                  No real KSU CARE acceptance or authorization occurs, and this
-                  does not waive KSU catering policy.
-                </span>
-              </label>
-
               <div className="grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  data-testid={`pantry-open-accept-dialog-${referral.id}`}
+                  disabled={
+                    busyKey !== null ||
+                    guard.maxAcceptable <= 0 ||
+                    clampedAccept < 1
+                  }
+                  onClick={() => openDialog("accept")}
+                  className={`consumer-button w-full ${OWL_MOTION_CLASSES.press}`}
+                >
+                  {`Accept ${guard.maxAcceptable > 0 ? clampedAccept : 0} servings`}
+                </button>
+                <button
+                  type="button"
+                  data-testid={`pantry-open-reject-dialog-${referral.id}`}
+                  disabled={busyKey !== null}
+                  onClick={() => openDialog("reject")}
+                  className={`consumer-button-secondary w-full ${OWL_MOTION_CLASSES.press}`}
+                >
+                  Decline
+                </button>
+              </div>
+            </>
+          )}
+
+          <ConfirmDialog
+            open={dialogAction !== null && !guard.isExpired}
+            testId={`pantry-decision-dialog-${referral.id}`}
+            title={
+              dialogAction === "accept"
+                ? "Confirm simulated acceptance"
+                : "Confirm declining request"
+            }
+            description={
+              dialogAction === "accept"
+                ? `Reserve ${clampedAccept} ${clampedAccept === 1 ? "serving" : "servings"} of ${title} for ${referral.destination.name}.`
+                : `Decline the pantry request for ${title}. No servings will be reserved.`
+            }
+            onClose={closeDialog}
+            closeDisabled={busyKey !== null}
+          >
+            <PolicyNotice referral={referral} />
+
+            <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm">
+              <input
+                type="checkbox"
+                data-testid={`pantry-policy-ack-${referral.id}`}
+                checked={policyAck}
+                onChange={(e) => setPolicyAck(e.target.checked)}
+                className="mt-0.5 h-5 w-5 shrink-0 accent-owl-gold"
+              />
+              <span>
+                I understand this is a <strong>demo simulation only</strong>. No
+                real KSU CARE acceptance or authorization occurs, and this does
+                not waive KSU catering policy.
+              </span>
+            </label>
+
+            {cardError && (
+              <p
+                role="alert"
+                data-testid={`pantry-referral-error-${referral.id}`}
+                className="rounded-2xl bg-danger-tint px-4 py-3 text-sm text-danger"
+              >
+                {cardError}
+              </p>
+            )}
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                disabled={busyKey !== null}
+                onClick={closeDialog}
+                className={`consumer-button-secondary w-full ${OWL_MOTION_CLASSES.press}`}
+              >
+                Cancel
+              </button>
+              {dialogAction === "accept" ? (
                 <button
                   type="button"
                   data-testid={`pantry-accept-button-${referral.id}`}
                   disabled={busyKey !== null || !guard.canAccept}
-                  onClick={() =>
-                    void onDecide(referral.id, "accept", clampedAccept)
-                  }
-                  className="consumer-button w-full"
+                  onClick={() => void handleConfirmDecision("accept")}
+                  className={`consumer-button w-full ${OWL_MOTION_CLASSES.press}`}
                 >
                   {isAccepting
                     ? "Accepting…"
                     : `Accept ${guard.maxAcceptable > 0 ? clampedAccept : 0} servings`}
                 </button>
+              ) : (
                 <button
                   type="button"
                   data-testid={`pantry-reject-button-${referral.id}`}
                   disabled={busyKey !== null || !guard.canReject}
-                  onClick={() => void onDecide(referral.id, "reject")}
-                  className="consumer-button-secondary w-full"
+                  onClick={() => void handleConfirmDecision("reject")}
+                  className={`consumer-button-secondary w-full ${OWL_MOTION_CLASSES.press}`}
                 >
-                  {isRejecting ? "Declining…" : "Decline"}
+                  {isRejecting ? "Declining…" : "Confirm decline"}
                 </button>
-              </div>
-            </>
-          )}
+              )}
+            </div>
+          </ConfirmDialog>
         </div>
       ) : (
-        <div className="space-y-2">
-          <p
-            data-testid={`pantry-referral-state-note-${referral.id}`}
-            className="rounded-2xl bg-surface-subtle px-4 py-3 text-sm text-ink-muted"
-          >
-            {readOnlyStateNote(referral)}
-          </p>
-          <PolicyNotice referral={referral} />
-        </div>
+        <p
+          data-testid={`pantry-referral-state-note-${referral.id}`}
+          className="rounded-2xl bg-surface-subtle px-4 py-3 text-sm text-ink-muted"
+        >
+          {readOnlyStateNote(referral)}
+        </p>
       )}
     </article>
   );
@@ -615,7 +758,7 @@ function CoordinatorSectionList({
             data-testid={`pantry-section-count-${section.key}`}
             className="tabular-nums text-ink-muted"
           >
-            ({section.referrals.length})
+            (<AnimatedNumber value={section.referrals.length} />)
           </span>
         </h2>
         <p className="text-sm text-ink-muted">{section.description}</p>
@@ -629,10 +772,11 @@ function CoordinatorSectionList({
         </p>
       ) : (
         <div className="space-y-4">
-          {section.referrals.map((referral) => (
+          {section.referrals.map((referral, index) => (
             <CoordinatorReferralCard
               key={referral.id}
               referral={referral}
+              index={index}
               nowIso={nowIso}
               busyKey={busyKey}
               cardError={cardErrors[referral.id] ?? null}
@@ -693,7 +837,7 @@ export default function PantryCoordinatorPage() {
     referralId: string,
     decision: PantryDecision,
     servings?: number,
-  ) => {
+  ): Promise<boolean> => {
     setBusyKey(`${referralId}:${decision}`);
     setStatusMessage(null);
     setCardErrors((prev) => {
@@ -715,6 +859,7 @@ export default function PantryCoordinatorPage() {
             }.`
           : "Request declined. No servings were reserved.",
       );
+      return true;
     } catch (err) {
       setCardErrors((prev) => ({
         ...prev,
@@ -725,6 +870,7 @@ export default function PantryCoordinatorPage() {
       }));
       // Refresh right away so stale stock or an expired deadline shows up.
       await loadReferrals(false);
+      return false;
     } finally {
       setBusyKey(null);
     }
@@ -744,9 +890,14 @@ export default function PantryCoordinatorPage() {
           className="flex flex-wrap items-center justify-between gap-3"
         >
           <div className="space-y-1">
-            <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-              Pantry donations
-            </h1>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
+                Pantry donations
+              </h1>
+              <span data-testid="pantry-simulation-badge">
+                <StatusBadge tone="warning">Simulation only</StatusBadge>
+              </span>
+            </div>
             <p className="text-sm text-ink-muted">
               Leftover food hosts have offered to the campus pantry.
             </p>
@@ -756,7 +907,7 @@ export default function PantryCoordinatorPage() {
             data-testid="pantry-refresh-button"
             disabled={busyKey !== null}
             onClick={() => void loadReferrals(false)}
-            className="consumer-button-secondary min-h-11 px-4 text-xs"
+            className={`consumer-button-secondary min-h-11 px-4 text-xs ${OWL_MOTION_CLASSES.press}`}
           >
             <RefreshCw size={14} aria-hidden="true" />
             Refresh
@@ -767,7 +918,7 @@ export default function PantryCoordinatorPage() {
           <p
             role="status"
             data-testid="pantry-status-message"
-            className="rounded-2xl bg-success-tint px-4 py-3 text-sm text-success"
+            className={`rounded-2xl bg-success-tint px-4 py-3 text-sm text-success ${OWL_MOTION_CLASSES.pop}`}
           >
             {statusMessage}
           </p>

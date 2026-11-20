@@ -10,7 +10,10 @@ import {
   Navigation,
   Plus,
 } from "lucide-react";
+import { AnimatedNumber } from "./ui/AnimatedNumber";
+import { ConfirmDialog } from "./ui/ConfirmDialog";
 import { StatusBadge } from "./ui/StatusBadge";
+import { OWL_MOTION_CLASSES } from "../lib/motion";
 import type {
   DropResponse,
   HostPantryReferralResponse,
@@ -57,11 +60,15 @@ export function HostPantryCard({
   );
   const [policyAcknowledged, setPolicyAcknowledged] = useState<boolean>(false);
   const [handoffConfirmed, setHandoffConfirmed] = useState<boolean>(false);
+  const [requestDialogOpen, setRequestDialogOpen] = useState<boolean>(false);
+  const [handoffDialogOpen, setHandoffDialogOpen] = useState<boolean>(false);
 
-  // Reset form acknowledgments when switching to a different drop
+  // Reset form acknowledgments and dialogs when switching to a different drop
   useEffect(() => {
     setPolicyAcknowledged(false);
     setHandoffConfirmed(false);
+    setRequestDialogOpen(false);
+    setHandoffDialogOpen(false);
     setServings(Math.max(1, drop.counts.available || 1));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drop.id]);
@@ -78,9 +85,18 @@ export function HostPantryCard({
     });
   }, [actionState.eligibleServings]);
 
-  // Clear handoff checkbox once referral is no longer accepted
+  // Close request dialog once the listing can no longer be requested
+  useEffect(() => {
+    if (!actionState.canRequest) {
+      setRequestDialogOpen(false);
+      setPolicyAcknowledged(false);
+    }
+  }, [actionState.canRequest]);
+
+  // Clear handoff dialog and checkbox once referral is no longer accepted
   useEffect(() => {
     if (referral?.status !== "accepted") {
+      setHandoffDialogOpen(false);
       setHandoffConfirmed(false);
     }
   }, [referral?.status]);
@@ -100,10 +116,10 @@ export function HostPantryCard({
   const isRequesting = busyAction === "pantry:request";
   const isConfirmingHandoff = busyAction === "pantry:handoff";
 
-  // One required notice and official links per card, placed beside whichever
-  // confirmation the host can take next.
+  // One required notice and official links definition, shown inside the
+  // request or handoff confirmation dialog at the point of action.
   const policyNotice = (
-    <div className="space-y-1 rounded-xl border border-warning/30 bg-warning-tint px-3 py-2 text-sm">
+    <div className="space-y-1.5 rounded-xl border border-warning/30 bg-warning-tint px-3.5 py-2.5 text-sm">
       <p data-testid="host-pantry-notice" className="text-warning">
         {notice}
       </p>
@@ -131,9 +147,6 @@ export function HostPantryCard({
       </div>
     </div>
   );
-  const hasAction =
-    actionState.canRequest ||
-    (actionState.canConfirmHandoff && referral !== null);
 
   if (!actionState.isCampusFeed) {
     return null;
@@ -155,7 +168,7 @@ export function HostPantryCard({
             />
             <h3 className="text-lg font-extrabold">Donate remaining food</h3>
             <span data-testid="host-pantry-demo-badge">
-              <StatusBadge tone="warning">Simulated</StatusBadge>
+              <StatusBadge tone="warning">Simulation only</StatusBadge>
             </span>
           </div>
           <p
@@ -163,7 +176,9 @@ export function HostPantryCard({
             data-eligible-servings={String(actionState.eligibleServings)}
             className="text-sm text-ink-muted"
           >
-            <strong className="text-ink">{actionState.eligibleServings}</strong>{" "}
+            <strong className="text-ink">
+              <AnimatedNumber value={actionState.eligibleServings} />
+            </strong>{" "}
             of {drop.counts.total} servings are unreserved and could be offered.
           </p>
         </div>
@@ -209,7 +224,7 @@ export function HostPantryCard({
                 data-testid={tile.id}
                 className="text-xl font-extrabold tabular-nums"
               >
-                {tile.value}
+                <AnimatedNumber value={tile.value} />
               </div>
               <div className="text-xs font-semibold text-ink-muted">
                 {tile.label}
@@ -246,15 +261,13 @@ export function HostPantryCard({
             href={directionsUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="consumer-button-secondary min-h-11 px-4 text-xs"
+            className={`consumer-button-secondary min-h-11 px-4 text-xs ${OWL_MOTION_CLASSES.press}`}
           >
             <Navigation size={14} aria-hidden="true" />
             Walking directions
           </a>
         )}
       </div>
-
-      {!hasAction && policyNotice}
 
       {actionState.stateNote && (
         <p
@@ -265,7 +278,7 @@ export function HostPantryCard({
         </p>
       )}
 
-      {pantryError && (
+      {pantryError && !requestDialogOpen && !handoffDialogOpen && (
         <p
           role="alert"
           data-testid="host-pantry-error"
@@ -295,7 +308,7 @@ export function HostPantryCard({
                     clampPantryQuantity(prev - 1, actionState.eligibleServings),
                   )
                 }
-                className="consumer-button-secondary h-11 min-h-11 w-11 px-0"
+                className={`consumer-button-secondary h-11 min-h-11 w-11 px-0 ${OWL_MOTION_CLASSES.press}`}
               >
                 <Minus size={16} aria-hidden="true" />
               </button>
@@ -330,85 +343,192 @@ export function HostPantryCard({
                     clampPantryQuantity(prev + 1, actionState.eligibleServings),
                   )
                 }
-                className="consumer-button-secondary h-11 min-h-11 w-11 px-0"
+                className={`consumer-button-secondary h-11 min-h-11 w-11 px-0 ${OWL_MOTION_CLASSES.press}`}
               >
                 <Plus size={16} aria-hidden="true" />
               </button>
             </div>
           </div>
 
-          {policyNotice}
-
-          <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm">
-            <input
-              type="checkbox"
-              data-testid="host-pantry-policy-checkbox"
-              checked={policyAcknowledged}
-              onChange={(e) => setPolicyAcknowledged(e.target.checked)}
-              className="mt-0.5 h-5 w-5 shrink-0 accent-owl-gold"
-            />
-            <span>
-              I understand this is a <strong>simulation only</strong>: no
-              message is sent to KSU CARE, and acknowledging does{" "}
-              <strong>not</strong> waive KSU catering policy or establish food
-              safety.
-            </span>
-          </label>
-
           <button
             type="button"
-            data-testid="host-pantry-request-button"
+            data-testid="host-pantry-open-request-dialog"
             disabled={
               busyAction !== null ||
-              !policyAcknowledged ||
               clampedServings < 1 ||
               clampedServings > actionState.eligibleServings
             }
-            onClick={() => void onRequestReferral(clampedServings)}
-            className="consumer-button w-full"
+            onClick={() => {
+              setPolicyAcknowledged(false);
+              setRequestDialogOpen(true);
+            }}
+            className={`consumer-button w-full ${OWL_MOTION_CLASSES.press}`}
           >
-            {isRequesting ? "Requesting…" : "Request demo referral"}
+            {`Offer ${clampedServings} ${clampedServings === 1 ? "serving" : "servings"} to pantry`}
           </button>
+
+          <ConfirmDialog
+            open={requestDialogOpen}
+            testId="host-pantry-request-dialog"
+            title="Confirm demo pantry referral"
+            description={`Offer ${clampedServings} unreserved ${clampedServings === 1 ? "serving" : "servings"} to ${destination?.name ?? "KSU CARE Pantry"}.`}
+            onClose={() => {
+              setRequestDialogOpen(false);
+              setPolicyAcknowledged(false);
+            }}
+            closeDisabled={busyAction !== null}
+          >
+            {policyNotice}
+
+            <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm">
+              <input
+                type="checkbox"
+                data-testid="host-pantry-policy-checkbox"
+                checked={policyAcknowledged}
+                onChange={(e) => setPolicyAcknowledged(e.target.checked)}
+                className="mt-0.5 h-5 w-5 shrink-0 accent-owl-gold"
+              />
+              <span>
+                I understand this is a <strong>simulation only</strong>: no
+                message is sent to KSU CARE, and acknowledging does{" "}
+                <strong>not</strong> waive KSU catering policy or establish food
+                safety.
+              </span>
+            </label>
+
+            {pantryError && (
+              <p
+                role="alert"
+                data-testid="host-pantry-error"
+                className="rounded-2xl bg-danger-tint px-4 py-3 text-sm text-danger"
+              >
+                {pantryError}
+              </p>
+            )}
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                disabled={busyAction !== null}
+                onClick={() => {
+                  setRequestDialogOpen(false);
+                  setPolicyAcknowledged(false);
+                }}
+                className={`consumer-button-secondary w-full ${OWL_MOTION_CLASSES.press}`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                data-testid="host-pantry-request-button"
+                disabled={
+                  busyAction !== null ||
+                  !policyAcknowledged ||
+                  clampedServings < 1 ||
+                  clampedServings > actionState.eligibleServings
+                }
+                onClick={() => void onRequestReferral(clampedServings)}
+                className={`consumer-button w-full ${OWL_MOTION_CLASSES.press}`}
+              >
+                {isRequesting ? "Requesting…" : "Request demo referral"}
+              </button>
+            </div>
+          </ConfirmDialog>
         </div>
       )}
 
       {actionState.canConfirmHandoff && referral && (
         <div className="space-y-3 rounded-2xl border border-success/30 bg-success-tint p-4">
-          {policyNotice}
-          <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm text-ink">
-            <input
-              type="checkbox"
-              data-testid="host-pantry-handoff-checkbox"
-              checked={handoffConfirmed}
-              onChange={(e) => setHandoffConfirmed(e.target.checked)}
-              className="mt-0.5 h-5 w-5 shrink-0 accent-owl-gold"
-            />
-            <span>
-              Confirm <strong>simulated handoff</strong> of{" "}
-              <strong>{referral.accepted_servings}</strong> accepted{" "}
-              {referral.accepted_servings === 1 ? "serving" : "servings"} (demo
-              count update only; not an independently verified physical transfer
-              or KSU approval).
-            </span>
-          </label>
+          <p className="text-sm font-semibold text-ink">
+            Ready to record the simulated handoff of{" "}
+            <strong>{referral.accepted_servings}</strong> accepted{" "}
+            {referral.accepted_servings === 1 ? "serving" : "servings"}.
+          </p>
           <button
             type="button"
-            data-testid="host-pantry-handoff-button"
-            disabled={busyAction !== null || !handoffConfirmed}
-            onClick={() => void onConfirmHandoff()}
-            className="consumer-button w-full"
+            data-testid="host-pantry-open-handoff-dialog"
+            disabled={busyAction !== null}
+            onClick={() => {
+              setHandoffConfirmed(false);
+              setHandoffDialogOpen(true);
+            }}
+            className={`consumer-button w-full ${OWL_MOTION_CLASSES.press}`}
           >
-            {isConfirmingHandoff
-              ? "Confirming handoff…"
-              : "Confirm simulated handoff"}
+            Confirm simulated handoff
           </button>
+
+          <ConfirmDialog
+            open={handoffDialogOpen}
+            testId="host-pantry-handoff-dialog"
+            title="Confirm simulated handoff"
+            description={`Record transfer of ${referral.accepted_servings} accepted ${referral.accepted_servings === 1 ? "serving" : "servings"} to ${destination?.name ?? "KSU CARE Pantry"}.`}
+            onClose={() => {
+              setHandoffDialogOpen(false);
+              setHandoffConfirmed(false);
+            }}
+            closeDisabled={busyAction !== null}
+          >
+            {policyNotice}
+
+            <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm text-ink">
+              <input
+                type="checkbox"
+                data-testid="host-pantry-handoff-checkbox"
+                checked={handoffConfirmed}
+                onChange={(e) => setHandoffConfirmed(e.target.checked)}
+                className="mt-0.5 h-5 w-5 shrink-0 accent-owl-gold"
+              />
+              <span>
+                Confirm <strong>simulated handoff</strong> of{" "}
+                <strong>{referral.accepted_servings}</strong> accepted{" "}
+                {referral.accepted_servings === 1 ? "serving" : "servings"}{" "}
+                (demo count update only; not an independently verified physical
+                transfer or KSU approval).
+              </span>
+            </label>
+
+            {pantryError && (
+              <p
+                role="alert"
+                data-testid="host-pantry-error"
+                className="rounded-2xl bg-danger-tint px-4 py-3 text-sm text-danger"
+              >
+                {pantryError}
+              </p>
+            )}
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                disabled={busyAction !== null}
+                onClick={() => {
+                  setHandoffDialogOpen(false);
+                  setHandoffConfirmed(false);
+                }}
+                className={`consumer-button-secondary w-full ${OWL_MOTION_CLASSES.press}`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                data-testid="host-pantry-handoff-button"
+                disabled={busyAction !== null || !handoffConfirmed}
+                onClick={() => void onConfirmHandoff()}
+                className={`consumer-button w-full ${OWL_MOTION_CLASSES.press}`}
+              >
+                {isConfirmingHandoff
+                  ? "Confirming handoff…"
+                  : "Confirm simulated handoff"}
+              </button>
+            </div>
+          </ConfirmDialog>
         </div>
       )}
 
       <Link
         href="/pantry"
         data-testid="open-demo-pantry-coordinator"
-        className="consumer-button-secondary w-full"
+        className={`consumer-button-secondary w-full ${OWL_MOTION_CLASSES.press}`}
       >
         Open demo pantry coordinator
       </Link>
