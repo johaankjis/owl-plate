@@ -1,17 +1,37 @@
 #!/usr/bin/env python3
 """Publish an exact-drop Owl Plate pickup companion to a paired It display."""
 
+from __future__ import annotations
+
 import argparse
 import json
+import shlex
 import subprocess
 import sys
 import urllib.error
 from pathlib import Path
 
-from whats_left import IT_BIN, _get, canonical_drop_id, page_id_for_drop
+from whats_left import IT_BIN, _get, canonical_drop_id, page_id_for_drop, whats_left
 
 HERE = Path(__file__).resolve().parent
 PAGE = HERE / "whats-left.html"
+HANDLER = HERE / "whats_left.py"
+
+
+def page_url(stdout: str) -> str:
+    """Pull the page URL from `it create` JSON, or hand back its output unchanged."""
+    try:
+        url = json.loads(stdout)["url"]
+    except (ValueError, KeyError, TypeError):
+        return stdout
+    return url if isinstance(url, str) and url else stdout
+
+
+def handler_command(base: str, drop_id: str, page_id: str) -> str:
+    """Spell out the one command the answering conversation should run per tap."""
+    return shlex.join(
+        ["python3", str(HANDLER), "--base", base, "--drop-id", drop_id, "--it-patch", page_id]
+    )
 
 
 def main() -> int:
@@ -38,14 +58,7 @@ def main() -> int:
     except ValueError:
         parser.error("--drop-id must be a UUID")
     page_id = page_id_for_drop(drop_id)
-    state = {
-        "drop_id": drop_id,
-        "page_id": page_id,
-        "answer": "Tap “What's left?”",
-        "checked_at": "Not checked yet",
-        "pantry_held": 0,
-        "pantry_transferred": 0,
-    }
+    state = whats_left(args.base, drop_id)
     command = [
         args.it_bin,
         "create",
@@ -55,18 +68,18 @@ def main() -> int:
         "--file",
         str(PAGE),
         "--state",
-        json.dumps(state, separators=(",", ":")),
+        json.dumps(state, ensure_ascii=False, separators=(",", ":")),
     ]
     if args.open:
         command.append("--open")
-    completed = subprocess.run(command, check=False)
-    if completed.returncode == 0:
-        print(
-            "Action handler: python3 prototypes/itcan/whats_left.py "
-            f"--drop-id {drop_id} --it-patch {page_id}",
-            file=sys.stderr,
-        )
-    return completed.returncode
+    completed = subprocess.run(command, check=False, stdout=subprocess.PIPE, text=True)
+    if completed.returncode != 0:
+        if completed.stdout:
+            print(completed.stdout, end="")
+        return completed.returncode
+    print(f"Page: {page_url(completed.stdout.strip())}")
+    print(f"Action handler: {handler_command(args.base, drop_id, page_id)}")
+    return 0
 
 
 if __name__ == "__main__":
