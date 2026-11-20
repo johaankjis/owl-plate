@@ -3,6 +3,7 @@
 import React from "react";
 import { Inbox, Timer } from "lucide-react";
 import { StatusBadge } from "../ui/StatusBadge";
+import { entranceDelayMs, OWL_MOTION_CLASSES } from "../../lib/motion";
 import {
   PICKUP_CONFIRMATION_NOTICE,
   type HostPickupReview,
@@ -38,7 +39,11 @@ export function HostPickupReviewQueue({
     <section
       data-testid="host-pickup-reviews-panel"
       aria-label="Pickup checks to review"
-      className={reviews.length > 0 ? "consumer-card space-y-4" : ""}
+      className={
+        reviews.length > 0
+          ? `consumer-card space-y-4 ${OWL_MOTION_CLASSES.entrance}`
+          : ""
+      }
     >
       {reviews.length === 0 ? (
         <p
@@ -63,13 +68,13 @@ export function HostPickupReviewQueue({
             <p
               role="alert"
               data-testid="host-review-error"
-              className="rounded-2xl bg-danger-tint px-4 py-3 text-sm text-danger"
+              className={`rounded-2xl bg-danger-tint px-4 py-3 text-sm text-danger ${OWL_MOTION_CLASSES.fade}`}
             >
               {error}
             </p>
           )}
           <div className="space-y-3">
-            {reviews.map((rev) => {
+            {reviews.map((rev, idx) => {
               const guard = resolveHostReviewActionGuard(rev, nowIso);
               const approving = busyAction === `review:${rev.id}:approve`;
               const rejecting = busyAction === `review:${rev.id}:reject`;
@@ -78,7 +83,8 @@ export function HostPickupReviewQueue({
                   key={rev.id}
                   data-testid={`host-review-card-${rev.id}`}
                   data-match-status={rev.match_status}
-                  className="space-y-3 rounded-2xl border border-line bg-surface-subtle p-4"
+                  style={{ animationDelay: `${entranceDelayMs(idx)}ms` }}
+                  className={`space-y-3 rounded-2xl border border-line bg-surface-subtle p-4 ${OWL_MOTION_CLASSES.entrance}`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2">
@@ -136,7 +142,7 @@ export function HostPickupReviewQueue({
                       data-testid={`host-review-approve-${rev.id}`}
                       disabled={busyAction !== null || !guard.canAct}
                       onClick={() => onDecide(rev.id, "approve")}
-                      className="consumer-button px-3"
+                      className={`consumer-button px-3 ${OWL_MOTION_CLASSES.press}`}
                     >
                       {approving ? "Approving…" : "Approve pickup"}
                     </button>
@@ -145,7 +151,7 @@ export function HostPickupReviewQueue({
                       data-testid={`host-review-reject-${rev.id}`}
                       disabled={busyAction !== null || !guard.canAct}
                       onClick={() => onDecide(rev.id, "reject")}
-                      className="consumer-button-secondary px-3"
+                      className={`consumer-button-secondary px-3 ${OWL_MOTION_CLASSES.press}`}
                     >
                       {rejecting ? "Sending…" : "Ask to retake"}
                     </button>

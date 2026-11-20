@@ -17,6 +17,7 @@ import { HostPhotoStep } from "../../components/host/HostPhotoStep";
 import { HostReviewStep } from "../../components/host/HostReviewStep";
 import { HostListingDashboard } from "../../components/host/HostListingDashboard";
 import { HostListingsView } from "../../components/host/HostListingsView";
+import { OWL_MOTION_CLASSES } from "../../lib/motion";
 import type {
   Building,
   DropEdit,
@@ -501,10 +502,10 @@ function HostPageContent() {
         aria-selected={view === "share"}
         data-testid="host-view-share"
         onClick={() => setView("share")}
-        className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-4 text-sm font-bold transition ${
+        className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-4 text-sm font-bold transition ${OWL_MOTION_CLASSES.press} ${
           view === "share"
             ? "bg-surface text-ink shadow-card"
-            : "text-ink-muted"
+            : "text-ink-muted hover:text-ink"
         }`}
       >
         <Plus size={16} aria-hidden="true" />
@@ -516,10 +517,10 @@ function HostPageContent() {
         aria-selected={view === "listings"}
         data-testid="host-view-listings"
         onClick={() => setView("listings")}
-        className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-4 text-sm font-bold transition ${
+        className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-4 text-sm font-bold transition ${OWL_MOTION_CLASSES.press} ${
           view === "listings"
             ? "bg-surface text-ink shadow-card"
-            : "text-ink-muted"
+            : "text-ink-muted hover:text-ink"
         }`}
       >
         <LayoutList size={16} aria-hidden="true" />
@@ -530,7 +531,10 @@ function HostPageContent() {
 
   return (
     <AppShell variant="host" maxWidth="md">
-      <div data-testid="host-page" className="space-y-5">
+      <div
+        data-testid="host-page"
+        className={`space-y-5 ${OWL_MOTION_CLASSES.fade}`}
+      >
         <div className="space-y-1">
           <h1 className="text-3xl font-extrabold tracking-tight">
             Share leftover food
@@ -545,7 +549,7 @@ function HostPageContent() {
           <p
             role="alert"
             data-testid="host-deep-link-error"
-            className="rounded-2xl bg-warning-tint px-4 py-3 text-sm text-warning"
+            className={`rounded-2xl bg-warning-tint px-4 py-3 text-sm text-warning ${OWL_MOTION_CLASSES.fade}`}
           >
             {linkedDropError}
           </p>
@@ -554,7 +558,7 @@ function HostPageContent() {
           <p
             role="status"
             data-testid="host-status-message"
-            className="rounded-2xl bg-success-tint px-4 py-3 text-sm text-success"
+            className={`rounded-2xl bg-success-tint px-4 py-3 text-sm font-semibold text-success ${OWL_MOTION_CLASSES.pop}`}
           >
             {statusMessage}
           </p>
@@ -563,7 +567,7 @@ function HostPageContent() {
           <div
             role="alert"
             data-testid="vision-error"
-            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-danger-tint px-4 py-3 text-sm text-danger"
+            className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-danger-tint px-4 py-3 text-sm text-danger ${OWL_MOTION_CLASSES.fade}`}
           >
             <span>{visionErrorMessage}</span>
             <button
@@ -571,7 +575,7 @@ function HostPageContent() {
               data-testid="vision-retry-button"
               disabled={busyAction !== null || !selectedFile}
               onClick={() => void submitPhotoUpload()}
-              className="consumer-button-secondary min-h-11 px-4 text-xs"
+              className={`consumer-button-secondary min-h-11 px-4 text-xs ${OWL_MOTION_CLASSES.press}`}
             >
               {busyAction === "upload" ? "Retrying…" : "Try again"}
             </button>
@@ -581,84 +585,91 @@ function HostPageContent() {
           <p
             role="alert"
             data-testid="host-error-message"
-            className="rounded-2xl bg-danger-tint px-4 py-3 text-sm text-danger"
+            className={`rounded-2xl bg-danger-tint px-4 py-3 text-sm text-danger ${OWL_MOTION_CLASSES.fade}`}
           >
             {errorMessage}
           </p>
         )}
 
         {view === "listings" ? (
-          <HostListingsView
-            drops={hostDrops}
-            loading={hostDropsLoading}
-            error={hostDropsError}
-            authToken={HOST_CREDENTIAL}
-            buildings={buildings}
-            onOpen={openListing}
-            onNew={startNewListing}
-            onRefresh={() => void loadHostDrops()}
-          />
+          <div key="host-view-listings" className={OWL_MOTION_CLASSES.tabPanel}>
+            <HostListingsView
+              drops={hostDrops}
+              loading={hostDropsLoading}
+              error={hostDropsError}
+              authToken={HOST_CREDENTIAL}
+              buildings={buildings}
+              onOpen={openListing}
+              onNew={startNewListing}
+              onRefresh={() => void loadHostDrops()}
+            />
+          </div>
         ) : restoring ? (
           <DetailSkeleton />
         ) : (
-          <>
+          <div
+            key="host-view-share"
+            className={`space-y-5 ${OWL_MOTION_CLASSES.tabPanel}`}
+          >
             <HostStepIndicator current={wizardStep} />
 
-            {viewStep === "upload" && (
-              <HostPhotoStep
-                selectedFile={selectedFile}
-                onFileChange={setSelectedFile}
-                hostNote={hostNote}
-                onHostNoteChange={setHostNote}
-                busy={busyAction === "upload"}
-                onSubmit={() => void submitPhotoUpload()}
-              />
-            )}
+            <div key={viewStep} className={OWL_MOTION_CLASSES.fade}>
+              {viewStep === "upload" && (
+                <HostPhotoStep
+                  selectedFile={selectedFile}
+                  onFileChange={setSelectedFile}
+                  hostNote={hostNote}
+                  onHostNoteChange={setHostNote}
+                  busy={busyAction === "upload"}
+                  onSubmit={() => void submitPhotoUpload()}
+                />
+              )}
 
-            {drop && form && viewStep === "review" && (
-              <HostReviewStep
-                drop={drop}
-                form={form}
-                onChange={(patch) =>
-                  setForm((prev) => (prev ? { ...prev, ...patch } : prev))
-                }
-                authToken={HOST_CREDENTIAL}
-                buildings={buildings}
-                buildingsLoading={buildingsLoading}
-                buildingsError={buildingsError}
-                onRetryBuildings={() => void loadCampusBuildings()}
-                rehearsalOptions={rehearsalOptions}
-                busy={busyAction === "publish"}
-                onPublish={() => void handlePublishDrop()}
-                onStartOver={startNewListing}
-              />
-            )}
+              {drop && form && viewStep === "review" && (
+                <HostReviewStep
+                  drop={drop}
+                  form={form}
+                  onChange={(patch) =>
+                    setForm((prev) => (prev ? { ...prev, ...patch } : prev))
+                  }
+                  authToken={HOST_CREDENTIAL}
+                  buildings={buildings}
+                  buildingsLoading={buildingsLoading}
+                  buildingsError={buildingsError}
+                  onRetryBuildings={() => void loadCampusBuildings()}
+                  rehearsalOptions={rehearsalOptions}
+                  busy={busyAction === "publish"}
+                  onPublish={() => void handlePublishDrop()}
+                  onStartOver={startNewListing}
+                />
+              )}
 
-            {drop && viewStep === "counts" && (
-              <HostListingDashboard
-                drop={drop}
-                authToken={HOST_CREDENTIAL}
-                buildings={buildings}
-                nowIso={nowIso}
-                pickupReviews={pickupReviews}
-                reviewError={reviewError}
-                busyAction={busyAction}
-                onDecideReview={(id, decision) =>
-                  void handleReviewDecision(id, decision)
-                }
-                pantryData={pantryData}
-                pantryError={pantryError}
-                onRequestReferral={handleRequestPantryReferral}
-                onConfirmHandoff={handleConfirmPantryHandoff}
-                pushState={hostPush.state}
-                onEnablePush={() => void hostPush.enable()}
-                onDisablePush={() => void hostPush.disable()}
-                companionUrl={buildPickupCompanionUrl(drop.id)}
-                onShareAnother={startNewListing}
-                onOpenListings={() => setView("listings")}
-              />
-            )}
-          </>
+              {drop && viewStep === "counts" && (
+                <HostListingDashboard
+                  drop={drop}
+                  authToken={HOST_CREDENTIAL}
+                  buildings={buildings}
+                  nowIso={nowIso}
+                  pickupReviews={pickupReviews}
+                  reviewError={reviewError}
+                  busyAction={busyAction}
+                  onDecideReview={(id, decision) =>
+                    void handleReviewDecision(id, decision)
+                  }
+                  pantryData={pantryData}
+                  pantryError={pantryError}
+                  onRequestReferral={handleRequestPantryReferral}
+                  onConfirmHandoff={handleConfirmPantryHandoff}
+                  pushState={hostPush.state}
+                  onEnablePush={() => void hostPush.enable()}
+                  onDisablePush={() => void hostPush.disable()}
+                  companionUrl={buildPickupCompanionUrl(drop.id)}
+                  onShareAnother={startNewListing}
+                  onOpenListings={() => setView("listings")}
+                />
+              )}
+            </div>
+          </div>
         )}
       </div>
     </AppShell>

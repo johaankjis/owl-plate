@@ -13,6 +13,7 @@ import { DropPhoto } from "../ui/DropPhoto";
 import { AllergenCard } from "../ui/AllergenCard";
 import { StatusBadge } from "../ui/StatusBadge";
 import { BuildingSelector, type RehearsalOption } from "../BuildingSelector";
+import { entranceDelayMs, OWL_MOTION_CLASSES } from "../../lib/motion";
 import {
   ALLERGENS,
   ALLERGEN_WARNING_TEXT,
@@ -78,7 +79,7 @@ function Chip({
       data-testid={testId}
       aria-pressed={selected}
       onClick={onClick}
-      className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold capitalize transition ${
+      className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold capitalize transition ${OWL_MOTION_CLASSES.press} ${
         selected ? on : "border-line bg-surface text-ink-muted hover:text-ink"
       }`}
     >
@@ -109,7 +110,7 @@ function CheckRow({
 }) {
   return (
     <label
-      className={`flex min-h-12 cursor-pointer items-start gap-3 rounded-2xl px-3 py-3 text-sm ${
+      className={`flex min-h-12 cursor-pointer items-start gap-3 rounded-2xl px-3 py-3 text-sm transition-colors ${
         highlight ? "bg-warning-tint" : "bg-surface-subtle"
       }`}
     >
@@ -160,7 +161,10 @@ export function HostReviewStep({
 
   return (
     <section data-testid="host-review-step" className="space-y-5">
-      <div className="consumer-card space-y-4">
+      <div
+        style={{ animationDelay: `${entranceDelayMs(0)}ms` }}
+        className={`consumer-card space-y-4 ${OWL_MOTION_CLASSES.entrance}`}
+      >
         <DropPhoto
           dropId={drop.id}
           hasPhoto={drop.has_photo}
@@ -237,7 +241,7 @@ export function HostReviewStep({
               onClick={() =>
                 onChange({ servings: clampHostServings(form.servings - 1) })
               }
-              className="consumer-button-secondary h-12 w-12 px-0"
+              className={`consumer-button-secondary h-12 w-12 px-0 ${OWL_MOTION_CLASSES.press}`}
             >
               <Minus size={18} aria-hidden="true" />
             </button>
@@ -264,7 +268,7 @@ export function HostReviewStep({
               onClick={() =>
                 onChange({ servings: clampHostServings(form.servings + 1) })
               }
-              className="consumer-button-secondary h-12 w-12 px-0"
+              className={`consumer-button-secondary h-12 w-12 px-0 ${OWL_MOTION_CLASSES.press}`}
             >
               <Plus size={18} aria-hidden="true" />
             </button>
@@ -272,7 +276,10 @@ export function HostReviewStep({
         </div>
       </div>
 
-      <div className="consumer-card space-y-4">
+      <div
+        style={{ animationDelay: `${entranceDelayMs(1)}ms` }}
+        className={`consumer-card space-y-4 ${OWL_MOTION_CLASSES.entrance}`}
+      >
         <div>
           <h3 className="text-lg font-extrabold">Allergens &amp; diet</h3>
           <p className="text-sm text-ink-muted">
@@ -342,7 +349,10 @@ export function HostReviewStep({
         )}
       </div>
 
-      <div className="consumer-card space-y-4">
+      <div
+        style={{ animationDelay: `${entranceDelayMs(2)}ms` }}
+        className={`consumer-card space-y-4 ${OWL_MOTION_CLASSES.entrance}`}
+      >
         <h3 className="text-lg font-extrabold">Pickup details</h3>
         <BuildingSelector
           buildings={buildings}
@@ -417,7 +427,10 @@ export function HostReviewStep({
         </div>
       </div>
 
-      <div className="consumer-card space-y-3">
+      <div
+        style={{ animationDelay: `${entranceDelayMs(3)}ms` }}
+        className={`consumer-card space-y-3 ${OWL_MOTION_CLASSES.entrance}`}
+      >
         <div className="flex items-center gap-2">
           <ShieldCheck
             size={20}
@@ -463,7 +476,7 @@ export function HostReviewStep({
           data-testid="publish-drop-button"
           disabled={busy || !canPublish}
           onClick={onPublish}
-          className="consumer-button w-full"
+          className={`consumer-button w-full ${OWL_MOTION_CLASSES.press}`}
         >
           {busy ? (
             <>
@@ -486,7 +499,7 @@ export function HostReviewStep({
           type="button"
           data-testid="share-another-drop-button"
           onClick={onStartOver}
-          className="consumer-button-secondary w-full"
+          className={`consumer-button-secondary w-full ${OWL_MOTION_CLASSES.press}`}
         >
           Start over with a new photo
         </button>

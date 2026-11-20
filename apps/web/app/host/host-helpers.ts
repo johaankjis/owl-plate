@@ -24,7 +24,7 @@ export const HOST_REHEARSAL_LOCATION_LABEL = "Rehearsal location";
 
 /** Shown at the point of capture so hosts photograph trays, never people. */
 export const HOST_PHOTO_PRIVACY_NOTICE =
-  "Snap food trays only — avoid capturing faces or people. Photos are automatically deleted when the drop expires (max 24 hours).";
+  "Photograph food trays only — no people or faces.";
 
 export const HOST_WIZARD_STEPS = [
   { step: 1, label: "Photo" },

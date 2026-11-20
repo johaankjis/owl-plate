@@ -12,10 +12,12 @@ import {
 } from "lucide-react";
 import { DropPhoto } from "../ui/DropPhoto";
 import { AllergenCard } from "../ui/AllergenCard";
+import { AnimatedNumber } from "../ui/AnimatedNumber";
 import { StatusBadge } from "../ui/StatusBadge";
 import { PushOptIn } from "../PushOptIn";
 import { HostPantryCard } from "../HostPantryCard";
 import { HostPickupReviewQueue } from "./HostPickupReviewQueue";
+import { entranceDelayMs, OWL_MOTION_CLASSES } from "../../lib/motion";
 import type { PushState } from "../../lib/push";
 import type {
   Building,
@@ -64,13 +66,14 @@ function CountTile({
   label: string;
   tone: string;
 }) {
+  const numeric = Number(value);
   return (
     <div className="rounded-2xl bg-surface-subtle px-3 py-4 text-center">
       <div
         data-testid={testId}
         className={`text-3xl font-extrabold tabular-nums ${tone}`}
       >
-        {value}
+        {Number.isFinite(numeric) ? <AnimatedNumber value={numeric} /> : value}
       </div>
       <div className="mt-1 text-xs font-semibold text-ink-muted">{label}</div>
     </div>
@@ -107,7 +110,10 @@ export function HostListingDashboard({
 
   return (
     <section data-testid="host-drop-panel" className="space-y-5">
-      <div className="consumer-card space-y-4">
+      <div
+        style={{ animationDelay: `${entranceDelayMs(0)}ms` }}
+        className={`consumer-card space-y-4 ${OWL_MOTION_CLASSES.entrance}`}
+      >
         <DropPhoto
           dropId={drop.id}
           hasPhoto={drop.has_photo}
@@ -157,7 +163,10 @@ export function HostListingDashboard({
         </div>
       </div>
 
-      <div className="consumer-card space-y-4">
+      <div
+        style={{ animationDelay: `${entranceDelayMs(1)}ms` }}
+        className={`consumer-card space-y-4 ${OWL_MOTION_CLASSES.entrance}`}
+      >
         <div>
           <h3 className="text-lg font-extrabold">Students</h3>
           <p className="text-sm text-ink-muted">
@@ -202,14 +211,17 @@ export function HostListingDashboard({
           </div>
         </div>
         <p className="text-xs text-ink-muted">
-          <span data-testid="host-count-total">{counts.total}</span> servings
-          listed in total.
+          <span data-testid="host-count-total">
+            <AnimatedNumber value={drop.counts.total} />
+          </span>{" "}
+          servings listed in total.
         </p>
       </div>
 
       <div
         data-testid="host-pickup-display-card"
-        className="consumer-card space-y-3"
+        style={{ animationDelay: `${entranceDelayMs(2)}ms` }}
+        className={`consumer-card space-y-3 ${OWL_MOTION_CLASSES.entrance}`}
       >
         <div className="flex items-center gap-2">
           <Monitor
@@ -230,7 +242,7 @@ export function HostListingDashboard({
             href={companionUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="consumer-button-secondary w-full"
+            className={`consumer-button-secondary w-full ${OWL_MOTION_CLASSES.press}`}
           >
             <Monitor size={16} aria-hidden="true" />
             Open pickup display
@@ -257,7 +269,10 @@ export function HostListingDashboard({
         onDecide={onDecideReview}
       />
 
-      <div className="consumer-card space-y-3">
+      <div
+        style={{ animationDelay: `${entranceDelayMs(3)}ms` }}
+        className={`consumer-card space-y-3 ${OWL_MOTION_CLASSES.entrance}`}
+      >
         <div className="flex items-center gap-2">
           <Bell size={18} aria-hidden="true" className="text-owl-goldText" />
           <h3 className="text-lg font-extrabold">Pickup notifications</h3>
@@ -273,7 +288,10 @@ export function HostListingDashboard({
         />
       </div>
 
-      <div className="consumer-card space-y-4">
+      <div
+        style={{ animationDelay: `${entranceDelayMs(4)}ms` }}
+        className={`consumer-card space-y-4 ${OWL_MOTION_CLASSES.entrance}`}
+      >
         <h3 className="text-lg font-extrabold">Food details</h3>
         <AllergenCard
           allergens={drop.allergens_final}
@@ -305,7 +323,7 @@ export function HostListingDashboard({
           type="button"
           data-testid="share-another-drop-button"
           onClick={onShareAnother}
-          className="consumer-button w-full"
+          className={`consumer-button w-full ${OWL_MOTION_CLASSES.press}`}
         >
           <Plus size={18} aria-hidden="true" />
           Share another listing
@@ -314,7 +332,7 @@ export function HostListingDashboard({
           type="button"
           data-testid="host-open-listings-button"
           onClick={onOpenListings}
-          className="consumer-button-secondary w-full"
+          className={`consumer-button-secondary w-full ${OWL_MOTION_CLASSES.press}`}
         >
           <LayoutList size={18} aria-hidden="true" />
           My listings
