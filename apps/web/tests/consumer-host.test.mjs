@@ -384,7 +384,7 @@ test("pantry coordinator keeps every policy disclosure and unchecked acknowledgm
   const page = read("../app/pantry/page.tsx");
   assert.match(page, /<AppShell variant="pantry"/);
   assert.match(page, /resolvePantryNotice\(referral\.notice\)/);
-  assert.match(page, /resolvePantryNotice\(firstReferral\?\.notice\)/);
+  assert.equal(page.includes("pantry-demo-banner"), false);
   assert.match(page, /pantry-policy-ack-/);
   assert.match(page, /useState<boolean>\(false\)/);
   assert.match(page, /demo simulation only/);
