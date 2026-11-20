@@ -7,6 +7,7 @@ import {
   ExternalLink,
   LayoutList,
   MapPin,
+  Monitor,
   Plus,
 } from "lucide-react";
 import { DropPhoto } from "../ui/DropPhoto";
@@ -206,6 +207,48 @@ export function HostListingDashboard({
         </p>
       </div>
 
+      <div
+        data-testid="host-pickup-display-card"
+        className="consumer-card space-y-3"
+      >
+        <div className="flex items-center gap-2">
+          <Monitor
+            size={18}
+            aria-hidden="true"
+            className="shrink-0 text-owl-goldText"
+          />
+          <h3 className="text-lg font-extrabold">Pickup display</h3>
+        </div>
+        <p className="text-sm text-ink-muted">
+          {companionUrl
+            ? "Shows how many servings are left on a screen at the pickup table."
+            : "The pickup display isn't connected yet."}
+        </p>
+        {companionUrl ? (
+          <a
+            data-testid="open-pickup-companion"
+            href={companionUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="consumer-button-secondary w-full"
+          >
+            <Monitor size={16} aria-hidden="true" />
+            Open pickup display
+            <ExternalLink size={16} aria-hidden="true" />
+          </a>
+        ) : (
+          <button
+            type="button"
+            data-testid="open-pickup-companion"
+            disabled
+            className="consumer-button-secondary w-full"
+          >
+            <Monitor size={16} aria-hidden="true" />
+            Open pickup display
+          </button>
+        )}
+      </div>
+
       <HostPickupReviewQueue
         reviews={pickupReviews}
         nowIso={nowIso}
@@ -256,35 +299,6 @@ export function HostListingDashboard({
         onRequestReferral={onRequestReferral}
         onConfirmHandoff={onConfirmHandoff}
       />
-
-      <div className="consumer-card space-y-2">
-        {companionUrl ? (
-          <a
-            data-testid="open-pickup-companion"
-            href={companionUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="consumer-button-secondary w-full"
-          >
-            Open pickup display
-            <ExternalLink size={16} aria-hidden="true" />
-          </a>
-        ) : (
-          <button
-            type="button"
-            data-testid="open-pickup-companion"
-            disabled
-            className="consumer-button-secondary w-full"
-          >
-            Open pickup display
-          </button>
-        )}
-        <p className="text-xs text-ink-muted">
-          {companionUrl
-            ? "Shows how many servings are left on a screen at the pickup table."
-            : "The pickup display isn't connected yet."}
-        </p>
-      </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <button
