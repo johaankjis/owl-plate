@@ -16,6 +16,12 @@ export interface DropPhotoProps {
   overlayTopLeft?: ReactNode;
   overlayTopRight?: ReactNode;
   testId?: string;
+  /**
+   * Replaces the default "No photo" placeholder when no image can be shown
+   * (never stored, expired, deleted or failed to load). Must not imitate a
+   * real photo of the food.
+   */
+  fallback?: ReactNode;
 }
 /** Only authenticated host-listing images reach this component; pickup evidence never does. */
 export function DropPhoto({
@@ -29,6 +35,7 @@ export function DropPhoto({
   overlayTopLeft,
   overlayTopRight,
   testId = "drop-photo",
+  fallback,
 }: DropPhotoProps) {
   const [image, setImage] = useState<{ key: string; url: string } | null>(null);
   const [failedKey, setFailedKey] = useState<string | null>(null);
@@ -88,6 +95,8 @@ export function DropPhoto({
           aria-label="Loading food photo"
           className={`h-full w-full bg-surface-subtle ${OWL_MOTION_CLASSES.shimmer}`}
         />
+      ) : fallback ? (
+        fallback
       ) : (
         <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-surface-subtle text-ink-muted/70">
           <UtensilsCrossed size={24} strokeWidth={1.5} aria-hidden="true" />

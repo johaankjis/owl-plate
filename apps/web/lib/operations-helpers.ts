@@ -715,6 +715,152 @@ export function buildBuildingsChartModel(
   };
 }
 
+export interface CampusMapMarker extends BuildingBarItem {
+  /** One-based rank matching the server's building order. */
+  rank: number;
+  /** Marker centre in SVG viewBox units. */
+  x: number;
+  y: number;
+  /** Marker radius scaled by servings shared at this building. */
+  radius: number;
+}
+
+export interface CampusMapModel {
+  markers: CampusMapMarker[];
+  width: number;
+  height: number;
+  hasData: boolean;
+  accessibleSummary: string;
+}
+
+const CAMPUS_MARKER_MIN_RADIUS = 15;
+const CAMPUS_MARKER_MAX_RADIUS = 30;
+const CAMPUS_MARKER_GAP = 5;
+const CAMPUS_RELAXATION_PASSES = 80;
+
+/**
+ * Lays verified buildings out by their registry coordinates so the campus
+ * panel reads as a schematic map. Markers are scaled by servings shared and
+ * nudged apart deterministically so close neighbours never overlap. Positions
+ * are relative only; this is not a navigational map.
+ */
+export function buildCampusMapModel(
+  buildings: ReadonlyArray<OperationsBuilding>,
+  maxRows = 8,
+  simulatedDataset = false,
+  viewport: { width: number; height: number } = { width: 360, height: 230 },
+): CampusMapModel {
+  const chart = buildBuildingsChartModel(buildings, maxRows, simulatedDataset);
+  const { width, height } = viewport;
+  const rows = buildings.slice(0, maxRows);
+
+  const radii = chart.items.map((item) =>
+    chart.maxOffered > 0
+      ? CAMPUS_MARKER_MIN_RADIUS +
+        (CAMPUS_MARKER_MAX_RADIUS - CAMPUS_MARKER_MIN_RADIUS) *
+          Math.sqrt(item.totalOffered / chart.maxOffered)
+      : CAMPUS_MARKER_MIN_RADIUS,
+  );
+
+  const located = rows.map((row) => {
+    const lat = row.building.latitude;
+    const lng = row.building.longitude;
+    return typeof lat === "number" &&
+      typeof lng === "number" &&
+      Number.isFinite(lat) &&
+      Number.isFinite(lng)
+      ? { lat, lng }
+      : null;
+  });
+  const known = located.filter(
+    (point): point is { lat: number; lng: number } => point !== null,
+  );
+  const minLat = Math.min(...known.map((p) => p.lat));
+  const maxLat = Math.max(...known.map((p) => p.lat));
+  const minLng = Math.min(...known.map((p) => p.lng));
+  const maxLng = Math.max(...known.map((p) => p.lng));
+  const midLat = known.length > 0 ? (minLat + maxLat) / 2 : 0;
+  // Longitude degrees shrink with latitude; correct so the layout is not stretched.
+  const lngScale = Math.cos((midLat * Math.PI) / 180);
+  const spanX = known.length > 0 ? (maxLng - minLng) * lngScale : 0;
+  const spanY = known.length > 0 ? maxLat - minLat : 0;
+  const pad = CAMPUS_MARKER_MAX_RADIUS + 6;
+  const innerWidth = Math.max(1, width - pad * 2);
+  const innerHeight = Math.max(1, height - pad * 2);
+  const scale = Math.min(
+    spanX > 0 ? innerWidth / spanX : Number.POSITIVE_INFINITY,
+    spanY > 0 ? innerHeight / spanY : Number.POSITIVE_INFINITY,
+  );
+  const usedWidth = Number.isFinite(scale) ? spanX * scale : 0;
+  const usedHeight = Number.isFinite(scale) ? spanY * scale : 0;
+  const originX = (width - usedWidth) / 2;
+  const originY = (height - usedHeight) / 2;
+
+  const positions = located.map((point) =>
+    point && Number.isFinite(scale)
+      ? {
+          x: originX + (point.lng - minLng) * lngScale * scale,
+          y: originY + (maxLat - point.lat) * scale,
+        }
+      : { x: width / 2, y: height / 2 },
+  );
+
+  const clamp = (value: number, low: number, high: number) =>
+    Math.min(Math.max(value, low), Math.max(low, high));
+
+  for (let pass = 0; pass < CAMPUS_RELAXATION_PASSES; pass += 1) {
+    let moved = false;
+    for (let i = 0; i < positions.length; i += 1) {
+      for (let j = i + 1; j < positions.length; j += 1) {
+        const a = positions[i]!;
+        const b = positions[j]!;
+        const minDistance = radii[i]! + radii[j]! + CAMPUS_MARKER_GAP;
+        let dx = b.x - a.x;
+        let dy = b.y - a.y;
+        let distance = Math.hypot(dx, dy);
+        if (distance >= minDistance) continue;
+        if (distance < 1e-6) {
+          // Identical coordinates: separate along a fixed per-pair angle.
+          const angle = ((i * 7 + j * 13) % 12) * (Math.PI / 6);
+          dx = Math.cos(angle);
+          dy = Math.sin(angle);
+          distance = 1;
+        }
+        const push = (minDistance - distance) / 2;
+        const ux = dx / distance;
+        const uy = dy / distance;
+        a.x -= ux * push;
+        a.y -= uy * push;
+        b.x += ux * push;
+        b.y += uy * push;
+        moved = true;
+      }
+    }
+    positions.forEach((point, index) => {
+      const r = radii[index]!;
+      point.x = clamp(point.x, r + 2, width - r - 2);
+      point.y = clamp(point.y, r + 2, height - r - 2);
+    });
+    if (!moved) break;
+  }
+
+  const markers: CampusMapMarker[] = chart.items.map((item, index) => ({
+    ...item,
+    rank: index + 1,
+    x: Number(positions[index]!.x.toFixed(2)),
+    y: Number(positions[index]!.y.toFixed(2)),
+    radius: Number(radii[index]!.toFixed(2)),
+  }));
+
+  return {
+    markers,
+    width,
+    height,
+    hasData: chart.hasData,
+    accessibleSummary: chart.accessibleSummary,
+  };
+}
+
 /** Prepares horizontal food-category bars from backend-classified cohort totals. */
 export function buildCategoriesChartModel(
   categories: ReadonlyArray<OperationsCategory>,

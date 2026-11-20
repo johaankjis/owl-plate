@@ -558,3 +558,190 @@ test("provenance and dataset controls moved off /dispatch and /impact into /admi
   );
   assert.match(adminControlsSrc, /clearly labeled simulated recording data/);
 });
+
+test("buildCampusMapModel places verified buildings deterministically, scales by servings shared and never overlaps markers", () => {
+  const helpers = loadOperationsHelpers();
+  const row = (id, latitude, longitude, offered, pickups) => ({
+    building: makeBuilding({ id, name: `Building ${id}`, latitude, longitude }),
+    published_listings: 1,
+    active_listings: 0,
+    available_servings: 0,
+    student_reserved_servings: 0,
+    student_pickups: pickups,
+    pantry_reserved_servings: 0,
+    pantry_transfers: 0,
+    total_servings_offered: offered,
+    expired_unclaimed_servings: offered - pickups,
+  });
+  const rows = [
+    row("north", 33.9395, -84.5205, 40, 30),
+    row("south", 33.936, -84.5205, 10, 5),
+    row("east", 33.9378, -84.518, 20, 20),
+    // Two buildings sharing coordinates must still separate.
+    row("twin-a", 33.9378, -84.5221, 12, 0),
+    row("twin-b", 33.9378, -84.5221, 12, 6),
+  ];
+  const viewport = { width: 360, height: 230 };
+  const model = helpers.buildCampusMapModel(rows, 8, false, viewport);
+
+  assert.equal(model.hasData, true);
+  assert.equal(model.markers.length, 5);
+  assert.deepEqual(
+    Array.from(model.markers, (m) => m.rank),
+    [1, 2, 3, 4, 5],
+  );
+  const byId = Object.fromEntries(model.markers.map((m) => [m.id, m]));
+  // North sits above south, east sits right of the western twins.
+  assert.ok(byId.north.y < byId.south.y);
+  assert.ok(byId.east.x > byId["twin-a"].x);
+  // Largest shared count gets the largest marker.
+  assert.ok(byId.north.radius > byId.east.radius);
+  assert.ok(byId.east.radius > byId.south.radius);
+  assert.equal(byId.east.studentPickupSharePercent, 100);
+
+  for (const marker of model.markers) {
+    assert.ok(Number.isFinite(marker.x) && Number.isFinite(marker.y));
+    assert.ok(marker.x - marker.radius >= 0);
+    assert.ok(marker.x + marker.radius <= viewport.width);
+    assert.ok(marker.y - marker.radius >= 0);
+    assert.ok(marker.y + marker.radius <= viewport.height);
+  }
+  for (let i = 0; i < model.markers.length; i += 1) {
+    for (let j = i + 1; j < model.markers.length; j += 1) {
+      const a = model.markers[i];
+      const b = model.markers[j];
+      const distance = Math.hypot(a.x - b.x, a.y - b.y);
+      assert.ok(
+        distance >= a.radius + b.radius,
+        `${a.id} overlaps ${b.id}: ${distance}`,
+      );
+    }
+  }
+
+  // Deterministic: the same snapshot always yields the same layout.
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(model)),
+    JSON.parse(
+      JSON.stringify(helpers.buildCampusMapModel(rows, 8, false, viewport)),
+    ),
+  );
+
+  // A single building centres; an empty or zero-serving window has no data.
+  const single = helpers.buildCampusMapModel([rows[0]], 8, true, viewport);
+  assert.equal(single.markers[0].x, 180);
+  assert.equal(single.markers[0].y, 115);
+  assert.match(single.accessibleSummary, /Simulated recording dataset/);
+  assert.equal(helpers.buildCampusMapModel([], 8, false).hasData, false);
+  assert.equal(
+    helpers.buildCampusMapModel([row("zero", 33.93, -84.52, 0, 0)], 8, false)
+      .hasData,
+    false,
+  );
+  // Missing coordinates never produce NaN positions.
+  const missing = helpers.buildCampusMapModel(
+    [row("nowhere", null, undefined, 4, 1)],
+    8,
+    false,
+    viewport,
+  );
+  assert.equal(missing.markers[0].x, 180);
+  assert.equal(missing.markers[0].y, 115);
+});
+
+test("redesigned layout keeps every metric, labels pantry transfers once and never sums student with pantry figures", () => {
+  const opsDir = new URL("../components/operations/", import.meta.url);
+  const src = (name) => readFileSync(new URL(name, opsDir), "utf8");
+  const dashboard = src("OperationsDashboard.tsx");
+  const kpis = src("KpiGrid.tsx");
+  const secondary = src("SecondaryMetrics.tsx");
+  const header = src("OperationsHeader.tsx");
+  const listings = src("ActiveListingsTable.tsx");
+  const combined = readdirSync(opsDir)
+    .filter((f) => f.endsWith(".tsx"))
+    .map(src)
+    .join("\n");
+
+  // Order: headline KPIs, trend + campus centre, breakdown, secondary, bottom row.
+  const order = [
+    "<KpiGrid",
+    "<TrendChart",
+    "<CampusActivity",
+    "<OutcomesBreakdown",
+    "<CategoriesChart",
+    "<SecondaryMetrics",
+    "<RecentActivityFeed",
+    "<ActiveListingsTable",
+  ].map((tag) => dashboard.indexOf(tag));
+  assert.ok(order.every((index) => index > 0));
+  assert.deepEqual(
+    order,
+    [...order].sort((a, b) => a - b),
+  );
+
+  // Exactly the four headline figures sit in the top grid.
+  for (const id of [
+    "operations-kpi-shared",
+    "operations-kpi-collected",
+    "operations-kpi-available",
+    "operations-kpi-student-recovery",
+  ]) {
+    assert.ok(kpis.includes(id), id);
+  }
+  assert.equal((kpis.match(/<article/g) ?? []).length, 4);
+  assert.equal(/pantry_transfers|combined_recovery/.test(kpis), false);
+
+  // Every remaining summary metric is still rendered, consolidated in one panel.
+  for (const field of [
+    "participating_students",
+    "participating_hosts",
+    "joined_sessions",
+    "average_reservation_seconds",
+    "buildings_served",
+    "active_listings",
+    "published_listings",
+    "student_pickup_rate_percent",
+    "expired_unclaimed_servings",
+    "pantry_transfers",
+    "pantry_reserved_servings",
+    "combined_recovery_rate_percent",
+  ]) {
+    assert.ok(secondary.includes(`summary.${field}`), field);
+  }
+  for (const field of ["pending_pickup_reviews", "pending_pantry_requests"]) {
+    assert.ok(kpis.includes(`summary.${field}`), field);
+  }
+  assert.match(secondary, /not unique people/);
+  assert.match(secondary, /Illustrative only, not measured/);
+  assert.match(secondary, /resolved\.assumptions\.map/);
+
+  // One concise qualifier per pantry label; no stacked "Simulated" badge beside it.
+  assert.equal(
+    (secondary.match(/Pantry transfers \(simulated\)/g) ?? []).length,
+    1,
+  );
+  assert.equal(/Simulated pantry transfers|StatusBadge/.test(secondary), false);
+  assert.equal(/\(sim\.\)|Includes sim\./.test(combined), false);
+
+  // The UI displays server figures; it never adds student and pantry counts.
+  assert.equal(
+    /(student_pickups|studentPickups|picked_up)\s*\+\s*[\w.]*(pantry|Pantry)|(pantry_\w+|pantryTransfers)\s*\+\s*[\w.]*(student|picked_up)/.test(
+      combined,
+    ),
+    false,
+  );
+
+  // Provenance stays obvious: header badge plus a pinned banner, with the
+  // chart readout and accessible labels still naming simulated data.
+  assert.match(header, /Recording dataset · Simulated data/);
+  assert.match(header, /operations-recording-banner"[\s\S]{0,80}sticky/);
+  assert.match(dashboard, /<RecordingDatasetBanner dataset=/);
+  assert.match(src("TrendChart.tsx"), /isSimulated \? " · Simulated data"/);
+  assert.match(src("CampusActivity.tsx"), /isSimulated \? " · Simulated data"/);
+
+  // Listings without a stored photo show the labelled illustration.
+  assert.match(
+    listings,
+    /authToken=\{PROJECTOR_PHOTO_TOKEN\}[\s\S]*?fallback=\{\s*<FoodCategoryIllustration/,
+  );
+  assert.equal(combined.includes("No photo"), false);
+});

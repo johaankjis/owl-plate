@@ -175,6 +175,111 @@ test("historical accepted servings stay separate from current pantry stock", () 
   assert.match(hostCardSource, /Accepted \(total\)/);
   assert.match(hostCardSource, /Pantry reserved now/);
   assert.match(hostCardSource, /host-pantry-reserved-servings/);
+  // The coordinator strip keeps the same split under explicit group headings.
+  assert.match(pageSource, /pantry_held: "Reserved now"/);
+  assert.match(pageSource, /accepted: "Accepted \(total\)"/);
+  assert.match(pageSource, /title: "Students"/);
+  assert.match(pageSource, /title: "Pantry \(simulated\)"/);
+});
+
+test("pantry transfers carry exactly one simulation qualifier and never merge with student counts", () => {
+  assert.equal(
+    (hostCardSource.match(/Pantry transfers \(simulated\)/g) ?? []).length,
+    1,
+  );
+  assert.equal(
+    /Simulated[\s\S]{0,40}\(simulated\)/.test(hostCardSource),
+    false,
+  );
+  // No expression adds student and pantry counts together on either screen.
+  for (const src of [pageSource, hostCardSource]) {
+    assert.equal(
+      /(picked_up|held)\s*\+\s*[\w.?]*pantry_|pantry_\w+\s*\+\s*[\w.?]*(picked_up|held)\b/.test(
+        src,
+      ),
+      false,
+    );
+  }
+});
+
+test("host card drops the header simulation badge and demo wording outside the confirmation dialogs", () => {
+  assert.equal(hostCardSource.includes("host-pantry-demo-badge"), false);
+  assert.equal(hostCardSource.includes("(demo destination)"), false);
+  assert.equal(hostCardSource.includes("Open demo pantry coordinator"), false);
+  assert.match(
+    hostCardSource,
+    /data-testid="open-demo-pantry-coordinator"[\s\S]{0,200}View pantry/,
+  );
+  // Everything before the first dialog trigger is free of the removed badge copy.
+  const beforeDialogs = hostCardSource.slice(
+    hostCardSource.indexOf("<section"),
+    hostCardSource.indexOf("<ConfirmDialog"),
+  );
+  assert.equal(/Simulation only/.test(beforeDialogs), false);
+});
+
+test("expired or deleted photos fall back to a labelled illustration, never a blank or fake photo", () => {
+  const dropPhoto = read("../components/ui/DropPhoto.tsx");
+  const illustration = read("../components/ui/FoodCategoryIllustration.tsx");
+  // Optional prop: screens that do not pass it keep the existing placeholder.
+  assert.match(dropPhoto, /fallback\?: ReactNode/);
+  assert.match(dropPhoto, /\) : fallback \? \(\s+fallback\s+\) : \(/);
+  assert.match(dropPhoto, /No photo/);
+  // The illustration is always captioned and announced as not a photo.
+  assert.match(illustration, />\s*Illustration\s*</);
+  assert.match(illustration, /Illustration, not a photo of this food/);
+  assert.equal(
+    /<img|getDropPhotoBlob|\.jpe?g|\.png|\.webp/.test(illustration),
+    false,
+  );
+  assert.match(
+    pageSource,
+    /authToken=\{PANTRY_COORDINATOR_CREDENTIAL\}[\s\S]*?fallback=\{\s*<FoodCategoryIllustration/,
+  );
+  assert.equal(pageSource.includes("No photo"), false);
+
+  const kinds = {};
+  runInNewContext(compile("../lib/food-illustration.ts"), {
+    exports: kinds,
+    require: () => ({}),
+  });
+  assert.equal(kinds.resolveFoodIllustrationKind("Pizza"), "pizza");
+  assert.equal(
+    kinds.resolveFoodIllustrationKind("Sandwiches & wraps"),
+    "sandwich",
+  );
+  assert.equal(kinds.resolveFoodIllustrationKind("Salads & bowls"), "salad");
+  assert.equal(kinds.resolveFoodIllustrationKind("Snacks & sides"), "snack");
+  assert.equal(kinds.resolveFoodIllustrationKind("Other"), "other");
+  assert.equal(kinds.resolveFoodIllustrationKind(null, "", "  "), "other");
+  assert.equal(
+    kinds.resolveFoodIllustrationKind("Other", "veggie wraps"),
+    "sandwich",
+  );
+  assert.equal(kinds.FOOD_ILLUSTRATION_LABELS.other, "Shared food");
+});
+
+test("completed referrals render compactly while keeping every disclosure reachable", () => {
+  assert.match(
+    pageSource,
+    /COMPACT_STATUSES[\s\S]{0,120}"handoff_confirmed",\s+"rejected",\s+"expired"/,
+  );
+  const card = pageSource.slice(
+    pageSource.indexOf("function CoordinatorReferralCard"),
+    pageSource.indexOf("function CoordinatorSectionList"),
+  );
+  assert.match(card, /data-layout=\{compact \? "compact" : "full"\}/);
+  assert.match(card, /aspect=\{compact \? "square" : "4\/3"\}/);
+  // Compact rows fold details away instead of dropping them.
+  assert.match(
+    card,
+    /pantry-referral-details-toggle-\$\{referral\.id\}[\s\S]*?\{locationFacts\}\s+\{disclosures\}/,
+  );
+  // Only requested referrals can ever reach the action branch.
+  assert.equal(
+    (card.match(/referral\.status === "requested" \? \(/g) ?? []).length,
+    1,
+  );
 });
 
 test("pantry portal drops repeated banners and developer copy", () => {
@@ -295,7 +400,6 @@ test("existing harness test ids survive the cleanup", () => {
   }
   for (const id of [
     "host-pantry-card",
-    "host-pantry-demo-badge",
     "host-pantry-status",
     "host-pantry-eligible",
     "host-pantry-notice",
@@ -333,7 +437,19 @@ test("host card moves policy notice into request and handoff confirmation dialog
     hostCardSource,
     /useState<boolean>\(false\);\s+const \[handoffConfirmed, setHandoffConfirmed\] =\s+useState<boolean>\(false\)/,
   );
-  assert.match(hostCardSource, /Simulation only/);
+  // The mandatory simulation wording stays in both dialogs' acknowledgments.
+  assert.match(
+    hostCardSource,
+    /host-pantry-policy-checkbox[\s\S]*?<strong>simulation only<\/strong>[\s\S]*?does\{" "\}\s+<strong>not<\/strong> waive KSU catering policy/,
+  );
+  assert.match(
+    hostCardSource,
+    /disabled=\{\s+busyAction !== null \|\|\s+!policyAcknowledged \|\|/,
+  );
+  assert.match(
+    hostCardSource,
+    /disabled=\{busyAction !== null \|\| !handoffConfirmed\}/,
+  );
   assert.match(hostCardSource, /Confirm simulated handoff/);
   assert.match(hostCardSource, /not an independently verified physical/);
 });

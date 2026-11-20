@@ -19,6 +19,7 @@ import { AppShell } from "../../components/ui/AppShell";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { DropPhoto } from "../../components/ui/DropPhoto";
 import { EmptyState } from "../../components/ui/EmptyState";
+import { FoodCategoryIllustration } from "../../components/ui/FoodCategoryIllustration";
 import { ListRowSkeleton } from "../../components/ui/Skeleton";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { buildWalkingDirectionsUrl } from "../../lib/buildings";
@@ -75,6 +76,13 @@ const TILE_TEST_IDS: Record<PantryInventoryTile["key"], string> = {
   pantry_transferred: "pantry-referral-transferred",
 };
 
+/** Finished referrals collapse to a short row; nothing on them can be acted on. */
+const COMPACT_STATUSES: ReadonlySet<PantryReferral["status"]> = new Set([
+  "handoff_confirmed",
+  "rejected",
+  "expired",
+]);
+
 function statusTone(
   status: PantryReferral["status"],
 ): "neutral" | "success" | "warning" | "gold" {
@@ -110,38 +118,62 @@ function formatPickupBy(iso: string): string {
   });
 }
 
-function InventoryGroup({
-  title,
+/** Short labels are safe here because each group heading names its owner. */
+const TILE_LABELS: Record<PantryInventoryTile["key"], string> = {
+  available: "Available",
+  held: "Held",
+  picked_up: "Picked up",
+  pantry_held: "Reserved now",
+  accepted: "Accepted (total)",
+  pantry_transferred: "Transferred",
+};
+
+const INVENTORY_GROUPS: ReadonlyArray<{
+  group: PantryInventoryTile["group"];
+  title: string;
+}> = [
+  { group: "student", title: "Students" },
+  { group: "pantry", title: "Pantry (simulated)" },
+];
+
+/** Student and pantry counts side by side, never summed together. */
+function InventoryStrip({
   tiles,
   referralId,
+  compact,
 }: {
-  title: string;
   tiles: PantryInventoryTile[];
   referralId: string;
+  compact: boolean;
 }) {
   return (
-    <div className="space-y-1.5">
-      <h4 className="text-xs font-bold uppercase tracking-wide text-ink-muted">
-        {title}
-      </h4>
-      <dl className="grid grid-cols-3 gap-2 text-center">
-        {tiles.map((tile) => (
-          <div
-            key={tile.key}
-            className="rounded-xl bg-surface-subtle px-2 py-2"
-          >
-            <dd
-              data-testid={`${TILE_TEST_IDS[tile.key]}-${referralId}`}
-              className="text-lg font-extrabold tabular-nums"
-            >
-              <AnimatedNumber value={tile.value} />
-            </dd>
-            <dt className="text-xs font-semibold text-ink-muted">
-              {tile.label}
-            </dt>
-          </div>
-        ))}
-      </dl>
+    <div className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+      {INVENTORY_GROUPS.map(({ group, title }) => (
+        <div key={group} className="space-y-1">
+          <h4 className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
+            {title}
+          </h4>
+          <dl className="grid grid-cols-3 gap-2">
+            {tiles
+              .filter((tile) => tile.group === group)
+              .map((tile) => (
+                <div key={tile.key} className="flex flex-col-reverse">
+                  <dt className="text-xs text-ink-muted">
+                    {TILE_LABELS[tile.key]}
+                  </dt>
+                  <dd
+                    data-testid={`${TILE_TEST_IDS[tile.key]}-${referralId}`}
+                    className={`tabular-nums ${
+                      compact ? "text-base font-bold" : "text-xl font-extrabold"
+                    }`}
+                  >
+                    <AnimatedNumber value={tile.value} />
+                  </dd>
+                </div>
+              ))}
+          </dl>
+        </div>
+      ))}
     </div>
   );
 }
@@ -250,6 +282,7 @@ function CoordinatorReferralCard({
     (item) => item.confirmed,
   ).length;
   const expired = guard.isExpired || referral.status === "expired";
+  const compact = COMPACT_STATUSES.has(referral.status);
   const isAccepting = busyKey === `${referral.id}:accept`;
   const isRejecting = busyKey === `${referral.id}:reject`;
   const clampedAccept = clampPantryQuantity(
@@ -282,26 +315,235 @@ function CoordinatorReferralCard({
     }
   };
 
+  const stateNote = (
+    <p
+      data-testid={`pantry-referral-state-note-${referral.id}`}
+      className="text-sm text-ink-muted"
+    >
+      {readOnlyStateNote(referral)}
+    </p>
+  );
+
+  const quantity = (
+    <p
+      data-testid={`pantry-referral-quantity-${referral.id}`}
+      className="text-sm font-semibold"
+    >
+      <span
+        data-testid={`pantry-referral-requested-${referral.id}`}
+        data-value={referral.requested_servings}
+        className="sr-only"
+      >
+        {referral.requested_servings}
+      </span>
+      <span
+        data-testid={`pantry-referral-eligible-${referral.id}`}
+        data-value={currentEligible}
+        className="sr-only"
+      >
+        {currentEligible}
+      </span>
+      {quantityLine}
+    </p>
+  );
+
+  const locationFacts = (
+    <>
+      <p
+        data-testid={`pantry-referral-pickup-${referral.id}`}
+        className="flex items-start gap-1.5 text-sm font-semibold"
+      >
+        <MapPin
+          size={16}
+          aria-hidden="true"
+          className="mt-0.5 shrink-0 text-owl-goldText"
+        />
+        <span className="min-w-0 break-words">
+          {formatHostDropLocation(referral.drop, [])}
+        </span>
+      </p>
+      {referral.drop.pickup_instructions?.trim() && (
+        <p
+          data-testid={`pantry-referral-instructions-${referral.id}`}
+          className="break-words text-sm text-ink-muted"
+        >
+          {referral.drop.pickup_instructions.trim()}
+        </p>
+      )}
+      <p
+        data-testid={`pantry-referral-destination-${referral.id}`}
+        className="flex items-start gap-1.5 text-sm text-ink-muted"
+      >
+        <HandHeart
+          size={16}
+          aria-hidden="true"
+          className="mt-0.5 shrink-0 text-owl-goldText"
+        />
+        <span className="min-w-0 break-words">
+          To {referral.destination.name},{" "}
+          {formatPantryDestinationLocation(referral.destination)}
+        </span>
+      </p>
+    </>
+  );
+
+  const directions = (
+    <div className="flex flex-wrap gap-x-4 text-sm font-semibold">
+      {pickupDirectionsUrl && (
+        <a
+          data-testid={`pantry-referral-pickup-directions-${referral.id}`}
+          href={pickupDirectionsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-11 items-center gap-1.5 text-owl-goldText underline-offset-4 hover:underline"
+        >
+          <Navigation size={14} aria-hidden="true" />
+          Directions to pickup
+        </a>
+      )}
+      {destDirectionsUrl && (
+        <a
+          data-testid={`pantry-referral-directions-${referral.id}`}
+          href={destDirectionsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-11 items-center gap-1.5 text-owl-goldText underline-offset-4 hover:underline"
+        >
+          <Navigation size={14} aria-hidden="true" />
+          Directions to pantry
+        </a>
+      )}
+    </div>
+  );
+
+  const disclosures = (
+    <div className="space-y-2">
+      <div
+        data-testid="allergen-display-box"
+        className="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-xl bg-warning-tint px-3 py-2 text-xs"
+      >
+        <span className="font-bold text-warning">Allergens:</span>
+        {referral.drop.allergens_final.length > 0 ? (
+          <span
+            data-testid={`pantry-referral-allergens-${referral.id}`}
+            className="inline-flex flex-wrap items-center gap-1"
+          >
+            {referral.drop.allergens_final.map((alg) => (
+              <span
+                key={alg}
+                className="inline-flex items-center rounded-md bg-surface/70 px-2 py-0.5 font-semibold text-warning"
+              >
+                {alg.replaceAll("_", " ")}
+              </span>
+            ))}
+          </span>
+        ) : (
+          <span
+            data-testid={`pantry-referral-allergens-${referral.id}`}
+            className="font-semibold text-warning"
+          >
+            None listed
+          </span>
+        )}
+        <span
+          data-testid="allergen-warning-banner"
+          className="font-medium text-warning/90"
+        >
+          · {referral.drop.allergen_notice || ALLERGEN_WARNING_TEXT}
+        </span>
+      </div>
+
+      {referral.drop.diet_tags_final.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {referral.drop.diet_tags_final.map((diet) => (
+            <StatusBadge key={diet}>{diet.replaceAll("_", " ")}</StatusBadge>
+          ))}
+        </div>
+      )}
+
+      <details className="group rounded-xl bg-surface-subtle/60 px-3 py-0.5">
+        <summary
+          data-testid={`pantry-referral-safety-toggle-${referral.id}`}
+          className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 text-xs font-semibold text-ink-muted select-none [&::-webkit-details-marker]:hidden"
+        >
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="font-bold text-ink">
+              Host assertions (not certified)
+            </span>
+            <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-semibold text-ink-muted ring-1 ring-line">
+              {safetyAssertions.length > 0
+                ? `${confirmedSafetyCount}/${safetyAssertions.length} confirmed`
+                : "None recorded"}
+            </span>
+          </span>
+          <ChevronDown
+            size={15}
+            aria-hidden="true"
+            className="shrink-0 text-ink-muted transition-transform duration-200 group-open:rotate-180"
+          />
+        </summary>
+        <div
+          data-testid={`pantry-referral-safety-${referral.id}`}
+          className="flex flex-wrap items-center gap-1.5 border-t border-line/70 pb-2.5 pt-2 text-xs"
+        >
+          {safetyAssertions.length > 0 ? (
+            safetyAssertions.map((item) => (
+              <span
+                key={item.key}
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold ${
+                  item.confirmed
+                    ? "bg-success-tint text-success"
+                    : "bg-surface text-ink-muted"
+                }`}
+              >
+                {item.confirmed && <Check size={12} aria-hidden="true" />}
+                {item.label}
+              </span>
+            ))
+          ) : (
+            <span className="text-ink-muted">None recorded</span>
+          )}
+        </div>
+      </details>
+    </div>
+  );
+
   return (
     <article
       data-testid={`pantry-referral-card-${referral.id}`}
       data-status={referral.status}
       data-drop-id={referral.drop_id}
+      data-layout={compact ? "compact" : "full"}
       style={{ animationDelay: `${entranceDelayMs(index)}ms` }}
-      className={`consumer-card space-y-4 ${OWL_MOTION_CLASSES.entrance}`}
+      className={`consumer-card ${compact ? "space-y-3 p-4" : "space-y-4"} ${OWL_MOTION_CLASSES.entrance}`}
     >
-      <div className="grid gap-4 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
-        <DropPhoto
-          dropId={referral.drop_id}
-          hasPhoto={listing.has_photo}
-          photoUrl={listing.photo_url}
-          authToken={PANTRY_COORDINATOR_CREDENTIAL}
-          alt={title}
-          aspect="4/3"
-          testId={`pantry-referral-photo-${referral.id}`}
-        />
-        <div className="min-w-0 space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+      <div
+        className={
+          compact
+            ? "flex items-start gap-3.5"
+            : "grid gap-4 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]"
+        }
+      >
+        <div className={compact ? "w-[4.5rem] shrink-0" : "min-w-0"}>
+          <DropPhoto
+            dropId={referral.drop_id}
+            hasPhoto={listing.has_photo}
+            photoUrl={listing.photo_url}
+            authToken={PANTRY_COORDINATOR_CREDENTIAL}
+            alt={title}
+            aspect={compact ? "square" : "4/3"}
+            testId={`pantry-referral-photo-${referral.id}`}
+            fallback={
+              <FoodCategoryIllustration
+                hints={[title, description]}
+                size={compact ? "thumb" : "card"}
+                testId={`pantry-referral-illustration-${referral.id}`}
+              />
+            }
+          />
+        </div>
+        <div className={`min-w-0 ${compact ? "space-y-1" : "space-y-2"}`}>
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <span data-testid={`pantry-referral-status-${referral.id}`}>
               <StatusBadge tone={statusTone(referral.status)}>
                 {formatPantryStatusLabel(referral.status)}
@@ -309,221 +551,84 @@ function CoordinatorReferralCard({
             </span>
             <p
               data-testid={`pantry-referral-deadline-${referral.id}`}
-              className={`flex items-center gap-1.5 text-sm font-semibold ${
-                expired ? "text-ink-muted" : "text-ink"
-              }`}
+              className={`flex items-center gap-1.5 font-semibold ${
+                compact ? "text-xs" : "text-sm"
+              } ${expired || compact ? "text-ink-muted" : "text-ink"}`}
             >
               <Clock
-                size={16}
+                size={compact ? 13 : 16}
                 aria-hidden="true"
-                className="text-owl-goldText"
+                className={compact ? "" : "text-owl-goldText"}
               />
               {expired
                 ? "Pickup window ended"
-                : `By ${formatPickupBy(referral.expires_at)} · ${formatRemainingTime(referral.expires_at, nowIso)} left`}
+                : compact
+                  ? `Pickup by ${formatPickupBy(referral.expires_at)}`
+                  : `By ${formatPickupBy(referral.expires_at)} · ${formatRemainingTime(referral.expires_at, nowIso)} left`}
             </p>
           </div>
           <h3
             data-testid={`pantry-referral-food-${referral.id}`}
-            className="break-words text-xl font-extrabold tracking-tight"
+            className={`break-words tracking-tight ${
+              compact ? "text-base font-bold" : "text-xl font-extrabold"
+            }`}
           >
             {title}
           </h3>
-          <p
-            data-testid={`pantry-referral-description-${referral.id}`}
-            className="break-words text-sm text-ink-muted"
-          >
-            {description}
-          </p>
-          <p
-            data-testid={`pantry-referral-quantity-${referral.id}`}
-            className="text-sm font-semibold"
-          >
-            <span
-              data-testid={`pantry-referral-requested-${referral.id}`}
-              data-value={referral.requested_servings}
-              className="sr-only"
-            >
-              {referral.requested_servings}
-            </span>
-            <span
-              data-testid={`pantry-referral-eligible-${referral.id}`}
-              data-value={currentEligible}
-              className="sr-only"
-            >
-              {currentEligible}
-            </span>
-            {quantityLine}
-          </p>
-          <p
-            data-testid={`pantry-referral-pickup-${referral.id}`}
-            className="flex items-start gap-1.5 text-sm font-semibold"
-          >
-            <MapPin
-              size={16}
-              aria-hidden="true"
-              className="mt-0.5 shrink-0 text-owl-goldText"
-            />
-            <span className="min-w-0 break-words">
-              {formatHostDropLocation(referral.drop, [])}
-            </span>
-          </p>
-          {referral.drop.pickup_instructions?.trim() && (
-            <p
-              data-testid={`pantry-referral-instructions-${referral.id}`}
-              className="break-words text-sm text-ink-muted"
-            >
-              {referral.drop.pickup_instructions.trim()}
-            </p>
-          )}
-          <p
-            data-testid={`pantry-referral-destination-${referral.id}`}
-            className="flex items-start gap-1.5 text-sm text-ink-muted"
-          >
-            <HandHeart
-              size={16}
-              aria-hidden="true"
-              className="mt-0.5 shrink-0 text-owl-goldText"
-            />
-            <span className="min-w-0 break-words">
-              To {referral.destination.name},{" "}
-              {formatPantryDestinationLocation(referral.destination)}
-            </span>
-          </p>
-          <div className="flex flex-wrap gap-x-4 text-sm font-semibold">
-            {pickupDirectionsUrl && (
-              <a
-                data-testid={`pantry-referral-pickup-directions-${referral.id}`}
-                href={pickupDirectionsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex min-h-11 items-center gap-1.5 text-owl-goldText underline-offset-4 hover:underline"
-              >
-                <Navigation size={14} aria-hidden="true" />
-                Directions to pickup
-              </a>
-            )}
-            {destDirectionsUrl && (
-              <a
-                data-testid={`pantry-referral-directions-${referral.id}`}
-                href={destDirectionsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex min-h-11 items-center gap-1.5 text-owl-goldText underline-offset-4 hover:underline"
-              >
-                <Navigation size={14} aria-hidden="true" />
-                Directions to pantry
-              </a>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div
-        data-testid={`pantry-referral-counts-${referral.id}`}
-        className="grid gap-3 md:grid-cols-2"
-      >
-        <InventoryGroup
-          title="Students"
-          tiles={tiles.filter((t) => t.group === "student")}
-          referralId={referral.id}
-        />
-        <InventoryGroup
-          title="Pantry (simulated)"
-          tiles={tiles.filter((t) => t.group === "pantry")}
-          referralId={referral.id}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <div
-          data-testid="allergen-display-box"
-          className="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-xl border border-warning/30 bg-warning-tint px-3 py-2 text-xs"
-        >
-          <span className="font-bold text-warning">Allergens:</span>
-          {referral.drop.allergens_final.length > 0 ? (
-            <span
-              data-testid={`pantry-referral-allergens-${referral.id}`}
-              className="inline-flex flex-wrap items-center gap-1"
-            >
-              {referral.drop.allergens_final.map((alg) => (
-                <span
-                  key={alg}
-                  className="inline-flex items-center rounded-md border border-warning/30 bg-surface/70 px-2 py-0.5 font-semibold text-warning"
-                >
-                  {alg.replaceAll("_", " ")}
-                </span>
-              ))}
-            </span>
+          {compact ? (
+            stateNote
           ) : (
-            <span
-              data-testid={`pantry-referral-allergens-${referral.id}`}
-              className="font-semibold text-warning"
-            >
-              None listed
-            </span>
+            <>
+              <p
+                data-testid={`pantry-referral-description-${referral.id}`}
+                className="break-words text-sm text-ink-muted"
+              >
+                {description}
+              </p>
+              {quantity}
+              {locationFacts}
+              {directions}
+            </>
           )}
-          <span
-            data-testid="allergen-warning-banner"
-            className="font-medium text-warning/90"
-          >
-            · {referral.drop.allergen_notice || ALLERGEN_WARNING_TEXT}
-          </span>
         </div>
+      </div>
 
-        {referral.drop.diet_tags_final.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {referral.drop.diet_tags_final.map((diet) => (
-              <StatusBadge key={diet}>{diet.replaceAll("_", " ")}</StatusBadge>
-            ))}
-          </div>
-        )}
+      <div data-testid={`pantry-referral-counts-${referral.id}`}>
+        <InventoryStrip
+          tiles={tiles}
+          referralId={referral.id}
+          compact={compact}
+        />
+      </div>
 
-        <details className="group rounded-xl border border-line bg-surface-subtle/60 px-3 py-0.5">
+      {compact ? (
+        <details className="group border-t border-line pt-1">
           <summary
-            data-testid={`pantry-referral-safety-toggle-${referral.id}`}
-            className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 text-xs font-semibold text-ink-muted select-none [&::-webkit-details-marker]:hidden"
+            data-testid={`pantry-referral-details-toggle-${referral.id}`}
+            className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 text-xs font-bold text-ink select-none [&::-webkit-details-marker]:hidden"
           >
-            <span className="flex flex-wrap items-center gap-2">
-              <span className="font-bold text-ink">
-                Host assertions (not certified)
-              </span>
-              <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-semibold text-ink-muted ring-1 ring-line">
-                {safetyAssertions.length > 0
-                  ? `${confirmedSafetyCount}/${safetyAssertions.length} confirmed`
-                  : "None recorded"}
-              </span>
-            </span>
+            Listing details
             <ChevronDown
               size={15}
               aria-hidden="true"
               className="shrink-0 text-ink-muted transition-transform duration-200 group-open:rotate-180"
             />
           </summary>
-          <div
-            data-testid={`pantry-referral-safety-${referral.id}`}
-            className="flex flex-wrap items-center gap-1.5 border-t border-line/70 pb-2.5 pt-2 text-xs"
-          >
-            {safetyAssertions.length > 0 ? (
-              safetyAssertions.map((item) => (
-                <span
-                  key={item.key}
-                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold ${
-                    item.confirmed
-                      ? "bg-success-tint text-success"
-                      : "bg-surface text-ink-muted"
-                  }`}
-                >
-                  {item.confirmed && <Check size={12} aria-hidden="true" />}
-                  {item.label}
-                </span>
-              ))
-            ) : (
-              <span className="text-ink-muted">None recorded</span>
-            )}
+          <div className="space-y-2 pb-1">
+            <p
+              data-testid={`pantry-referral-description-${referral.id}`}
+              className="break-words text-sm text-ink-muted"
+            >
+              {description}
+            </p>
+            {quantity}
+            {locationFacts}
+            {disclosures}
           </div>
         </details>
-      </div>
+      ) : (
+        disclosures
+      )}
 
       {cardError && !dialogAction && (
         <p
@@ -536,7 +641,7 @@ function CoordinatorReferralCard({
       )}
 
       {referral.status === "requested" ? (
-        <div className="space-y-3 rounded-2xl border border-line p-4">
+        <div className="space-y-3 border-t border-line pt-4">
           {guard.staleReason && (
             <p
               data-testid={`pantry-referral-guard-${referral.id}`}
@@ -720,12 +825,7 @@ function CoordinatorReferralCard({
           </ConfirmDialog>
         </div>
       ) : (
-        <p
-          data-testid={`pantry-referral-state-note-${referral.id}`}
-          className="rounded-2xl bg-surface-subtle px-4 py-3 text-sm text-ink-muted"
-        >
-          {readOnlyStateNote(referral)}
-        </p>
+        !compact && stateNote
       )}
     </article>
   );

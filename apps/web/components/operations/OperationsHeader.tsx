@@ -4,8 +4,6 @@ import React from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
-  BarChart3,
-  Clock,
   FlaskConical,
   Pause,
   Play,
@@ -21,6 +19,7 @@ import type {
   OperationsDataset,
   OperationsPeriod,
 } from "../../lib/types/operations";
+import { OPS_EYEBROW } from "./styles";
 
 interface OperationsHeaderProps {
   period: OperationsPeriod;
@@ -35,10 +34,12 @@ interface OperationsHeaderProps {
   staleMessage: string | null;
 }
 
+const ICON_BUTTON =
+  "inline-flex h-11 w-11 items-center justify-center rounded-full text-ink-muted transition hover:bg-surface-subtle hover:text-ink disabled:opacity-60";
+
 /**
- * Analytics page header with date range filters (Today / Last 7 days / All time),
- * America/New_York updated timestamp, auto-refresh controls, and persistent
- * simulated-dataset banner when the recording dataset is loaded.
+ * Analytics page header: title, dataset provenance badge, date range filter
+ * and refresh controls, plus the stale-snapshot warning.
  */
 export function OperationsHeader({
   period,
@@ -56,13 +57,10 @@ export function OperationsHeader({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="min-w-0 space-y-1.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-owl-goldTint px-3 py-1 text-xs font-bold text-owl-goldText">
-              <BarChart3 size={14} strokeWidth={2} aria-hidden="true" />
-              KSU Marietta Campus
-            </span>
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0 space-y-2">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <span className={OPS_EYEBROW}>KSU Marietta Campus</span>
             {dataset && (
               <span data-testid="operations-dataset-badge">
                 <StatusBadge tone={simulated ? "warning" : "neutral"}>
@@ -75,23 +73,18 @@ export function OperationsHeader({
           </div>
           <h1
             data-testid="operations-heading"
-            className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl"
+            className="text-3xl font-extrabold tracking-tight text-ink sm:text-4xl"
           >
             Food Rescue Analytics
           </h1>
-          <p className="max-w-2xl text-sm text-ink-muted">
-            Campus food sharing, student pickups, and reconciled serving
-            outcomes across verified Marietta buildings.
-          </p>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
-          {/* Date period selector: Today / Last 7 days / All time */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
           <div
             role="group"
             aria-label="Analytics time period"
             data-testid="operations-period-group"
-            className="inline-flex w-full items-center rounded-full border border-line bg-surface p-1 shadow-sm sm:w-auto"
+            className="inline-flex w-full items-center rounded-full bg-surface p-1 shadow-card ring-1 ring-line/60 sm:w-auto"
           >
             {OPERATIONS_UI_PERIODS.map((item) => {
               const active = period === item.id;
@@ -102,113 +95,74 @@ export function OperationsHeader({
                   data-testid={`operations-period-${item.id}`}
                   aria-pressed={active}
                   onClick={() => onSelectPeriod(item.id)}
-                  className={`min-h-11 flex-1 rounded-full px-4 py-2 text-xs font-bold transition sm:flex-initial sm:text-sm ${
+                  className={`min-h-11 flex-1 whitespace-nowrap rounded-full px-3 text-sm font-bold transition sm:flex-initial sm:px-4 ${
                     active
-                      ? "bg-owl-gold text-owl-goldInk shadow-sm"
-                      : "text-ink-muted hover:bg-surface-subtle hover:text-ink"
+                      ? "bg-owl-gold text-owl-goldInk"
+                      : "text-ink-muted hover:text-ink"
                   }`}
                 >
-                  <span className="sm:hidden">{item.shortLabel}</span>
-                  <span className="hidden sm:inline">{item.label}</span>
+                  {item.label}
                 </button>
               );
             })}
           </div>
 
-          {/* Updated timestamp + refresh controls */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div
+          <div className="flex items-center justify-between gap-1 sm:justify-end">
+            <span
               data-testid="operations-updated-at"
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-xs font-medium text-ink-muted tabular-nums"
+              className="text-xs font-medium text-ink-muted tabular-nums"
             >
-              <Clock size={14} aria-hidden="true" className="shrink-0" />
-              <span>
-                {serverTime
-                  ? `Updated ${formatEasternClock(serverTime)}`
-                  : "Waiting for snapshot"}
-              </span>
-            </div>
-
-            <button
-              type="button"
-              data-testid="operations-auto-refresh-toggle"
-              aria-pressed={autoRefresh}
-              onClick={onToggleAutoRefresh}
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-xs font-semibold text-ink transition hover:bg-surface-subtle"
-            >
-              {autoRefresh ? (
-                <>
-                  <Pause size={13} aria-hidden="true" />
-                  <span>Auto</span>
-                </>
-              ) : (
-                <>
-                  <Play size={13} aria-hidden="true" />
-                  <span>Paused</span>
-                </>
-              )}
-            </button>
-
-            <button
-              type="button"
-              data-testid="operations-refresh-button"
-              onClick={onRefresh}
-              disabled={refreshing}
-              aria-label="Refresh analytics"
-              className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-xs font-semibold text-ink transition hover:bg-surface-subtle disabled:opacity-60"
-            >
-              <RefreshCw
-                size={14}
-                aria-hidden="true"
-                className={refreshing ? "animate-spin" : ""}
-              />
-              <span className="sr-only sm:not-sr-only">Refresh</span>
-            </button>
+              {serverTime
+                ? `Updated ${formatEasternClock(serverTime)}`
+                : "Waiting for snapshot"}
+            </span>
+            <span className="flex items-center">
+              <button
+                type="button"
+                data-testid="operations-auto-refresh-toggle"
+                aria-pressed={autoRefresh}
+                aria-label={
+                  autoRefresh
+                    ? "Auto refresh on. Pause auto refresh"
+                    : "Auto refresh paused. Resume auto refresh"
+                }
+                title={
+                  autoRefresh ? "Pause auto refresh" : "Resume auto refresh"
+                }
+                onClick={onToggleAutoRefresh}
+                className={ICON_BUTTON}
+              >
+                {autoRefresh ? (
+                  <Pause size={16} aria-hidden="true" />
+                ) : (
+                  <Play size={16} aria-hidden="true" />
+                )}
+              </button>
+              <button
+                type="button"
+                data-testid="operations-refresh-button"
+                onClick={onRefresh}
+                disabled={refreshing}
+                aria-label="Refresh analytics"
+                title="Refresh analytics"
+                className={ICON_BUTTON}
+              >
+                <RefreshCw
+                  size={16}
+                  aria-hidden="true"
+                  className={refreshing ? "animate-spin" : ""}
+                />
+              </button>
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Persistent prominent banner when the simulated recording dataset is loaded */}
-      {simulated && (
-        <div
-          role="status"
-          data-testid="operations-recording-banner"
-          className="flex flex-col gap-3 rounded-2xl border-2 border-warning/60 bg-warning-tint px-4 py-3.5 text-warning sm:flex-row sm:items-center sm:justify-between"
-        >
-          <div className="flex items-start gap-3">
-            <FlaskConical
-              size={20}
-              aria-hidden="true"
-              className="mt-0.5 shrink-0"
-            />
-            <div className="min-w-0 space-y-0.5 text-sm">
-              <p className="font-extrabold">
-                Recording dataset · Simulated data active
-              </p>
-              <p className="text-xs leading-relaxed opacity-90">
-                All KPIs, charts, listings, and estimates on this page come from
-                the deterministic demonstration recording dataset — not measured
-                campus demand or verified physical impact.
-                {dataset?.seed_version ? ` (${dataset.seed_version})` : ""}
-              </p>
-            </div>
-          </div>
-          <Link
-            href="/admin"
-            data-testid="operations-recording-banner-admin-link"
-            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-warning/50 bg-surface px-4 text-xs font-bold text-ink transition hover:bg-surface-subtle"
-          >
-            Reset in Admin
-          </Link>
-        </div>
-      )}
-
-      {/* Stale data banner when a periodic refresh fails while keeping last good snapshot */}
       {isStale && (
         <div
           role="alert"
           data-testid="operations-stale-banner"
-          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-danger/40 bg-danger-tint px-4 py-3 text-sm text-danger"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-danger-tint px-4 py-2.5 text-sm text-danger"
         >
           <div className="flex items-center gap-2.5">
             <AlertTriangle size={18} aria-hidden="true" className="shrink-0" />
@@ -220,12 +174,55 @@ export function OperationsHeader({
           <button
             type="button"
             onClick={onRefresh}
-            className="inline-flex min-h-11 items-center rounded-full border border-danger/40 bg-surface px-4 text-xs font-bold text-ink transition hover:bg-surface-subtle"
+            className="inline-flex min-h-11 items-center rounded-full bg-surface px-4 text-xs font-bold text-ink transition hover:bg-surface-subtle"
           >
             Try again
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Persistent provenance ribbon shown while the simulated recording dataset is
+ * loaded. It stays pinned under the app header so every chart below it is read
+ * as demonstration data without repeating the label on each panel.
+ */
+export function RecordingDatasetBanner({
+  dataset,
+}: {
+  dataset: OperationsDataset | null;
+}) {
+  if (!isRecordingDataset(dataset)) return null;
+  return (
+    <div
+      role="status"
+      data-testid="operations-recording-banner"
+      className="sticky top-[76px] z-30 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-2xl bg-warning-tint px-4 py-2 text-warning shadow-card ring-1 ring-warning/40"
+    >
+      <p className="flex min-w-0 items-start gap-2.5 text-sm">
+        <FlaskConical
+          size={18}
+          aria-hidden="true"
+          className="mt-0.5 shrink-0"
+        />
+        <span>
+          <strong className="font-extrabold">
+            Recording dataset · Simulated data.
+          </strong>{" "}
+          Every figure on this page is demonstration data, not measured campus
+          activity.
+          {dataset?.seed_version ? ` (${dataset.seed_version})` : ""}
+        </span>
+      </p>
+      <Link
+        href="/admin"
+        data-testid="operations-recording-banner-admin-link"
+        className="inline-flex min-h-11 shrink-0 items-center text-xs font-bold underline underline-offset-4"
+      >
+        Reset in Admin
+      </Link>
     </div>
   );
 }

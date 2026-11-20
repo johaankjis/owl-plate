@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  ArrowRight,
   ExternalLink,
   HandHeart,
   MapPin,
@@ -156,10 +157,10 @@ export function HostPantryCard({
     <section
       data-testid="host-pantry-card"
       data-status={actionState.status ?? "none"}
-      className="consumer-card space-y-4"
+      className="consumer-card space-y-3.5"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           <div className="flex flex-wrap items-center gap-2">
             <HandHeart
               size={20}
@@ -167,9 +168,6 @@ export function HostPantryCard({
               className="text-owl-goldText"
             />
             <h3 className="text-lg font-extrabold">Donate remaining food</h3>
-            <span data-testid="host-pantry-demo-badge">
-              <StatusBadge tone="warning">Simulation only</StatusBadge>
-            </span>
           </div>
           <p
             data-testid="host-pantry-eligible"
@@ -179,7 +177,7 @@ export function HostPantryCard({
             <strong className="text-ink">
               <AnimatedNumber value={actionState.eligibleServings} />
             </strong>{" "}
-            of {drop.counts.total} servings are unreserved and could be offered.
+            of {drop.counts.total} servings unreserved
           </p>
         </div>
         <span
@@ -193,7 +191,7 @@ export function HostPantryCard({
       </div>
 
       {referral && (
-        <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
           {[
             {
               id: "host-pantry-requested-servings",
@@ -213,30 +211,27 @@ export function HostPantryCard({
             {
               id: "host-pantry-transferred-servings",
               value: referral.transferred_servings,
-              label: "Pantry transfers",
+              label: "Pantry transfers (simulated)",
             },
           ].map((tile) => (
-            <div
-              key={tile.id}
-              className="rounded-2xl bg-surface-subtle px-2 py-3"
-            >
-              <div
+            <div key={tile.id} className="flex flex-col-reverse">
+              <dt className="text-xs font-medium text-ink-muted">
+                {tile.label}
+              </dt>
+              <dd
                 data-testid={tile.id}
                 className="text-xl font-extrabold tabular-nums"
               >
                 <AnimatedNumber value={tile.value} />
-              </div>
-              <div className="text-xs font-semibold text-ink-muted">
-                {tile.label}
-              </div>
+              </dd>
             </div>
           ))}
-        </div>
+        </dl>
       )}
 
       <div
         data-testid="host-pantry-destination"
-        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-surface-subtle px-4 py-3 text-sm"
+        className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm"
       >
         <div className="flex items-start gap-2">
           <MapPin
@@ -246,7 +241,7 @@ export function HostPantryCard({
           />
           <div>
             <div className="font-bold">
-              {destination?.name ?? "KSU CARE Pantry"} (demo destination)
+              {destination?.name ?? "KSU CARE Pantry"}
             </div>
             <div className="text-ink-muted">
               {destination
@@ -261,10 +256,10 @@ export function HostPantryCard({
             href={directionsUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className={`consumer-button-secondary min-h-11 px-4 text-xs ${OWL_MOTION_CLASSES.press}`}
+            className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-owl-goldText underline-offset-4 hover:underline"
           >
             <Navigation size={14} aria-hidden="true" />
-            Walking directions
+            Directions
           </a>
         )}
       </div>
@@ -289,7 +284,7 @@ export function HostPantryCard({
       )}
 
       {actionState.canRequest && (
-        <div className="space-y-3 rounded-2xl border border-line p-4">
+        <div className="space-y-3 border-t border-line pt-3.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <label
               htmlFor="host-pantry-servings-input"
@@ -438,12 +433,7 @@ export function HostPantryCard({
       )}
 
       {actionState.canConfirmHandoff && referral && (
-        <div className="space-y-3 rounded-2xl border border-success/30 bg-success-tint p-4">
-          <p className="text-sm font-semibold text-ink">
-            Ready to record the simulated handoff of{" "}
-            <strong>{referral.accepted_servings}</strong> accepted{" "}
-            {referral.accepted_servings === 1 ? "serving" : "servings"}.
-          </p>
+        <div>
           <button
             type="button"
             data-testid="host-pantry-open-handoff-dialog"
@@ -528,9 +518,10 @@ export function HostPantryCard({
       <Link
         href="/pantry"
         data-testid="open-demo-pantry-coordinator"
-        className={`consumer-button-secondary w-full ${OWL_MOTION_CLASSES.press}`}
+        className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-owl-goldText underline-offset-4 hover:underline"
       >
-        Open demo pantry coordinator
+        View pantry
+        <ArrowRight size={14} aria-hidden="true" />
       </Link>
     </section>
   );

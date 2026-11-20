@@ -437,7 +437,8 @@ test("pantry coordinator keeps every policy disclosure and unchecked acknowledgm
   assert.match(card, /not an independently verified physical\s+transfer/);
   assert.match(card, /officialLinks\.careSourceUrl/);
   assert.equal(card.match(/officialLinks\.cateringPolicyUrl/g)?.length, 1);
-  assert.match(card, /Open demo pantry coordinator/);
+  assert.match(card, /open-demo-pantry-coordinator/);
+  assert.match(card, /View pantry/);
 });
 
 test("pantry inventory tiles separate student counts, current pantry stock and historical acceptance", () => {

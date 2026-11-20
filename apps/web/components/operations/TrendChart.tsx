@@ -1,32 +1,52 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays } from "lucide-react";
-import { StatusBadge } from "../ui/StatusBadge";
 import {
   buildTrendChartModel,
   formatCount,
 } from "../../lib/operations-helpers";
 import type { OperationsSeriesPoint } from "../../lib/types/operations";
+import { OpsEmptyState } from "./OpsEmptyState";
+import { OPS_CARD, OPS_FILL, OPS_HEADING, OPS_SWATCH } from "./styles";
 
 interface TrendChartProps {
   series: ReadonlyArray<OperationsSeriesPoint>;
   isSimulated: boolean;
 }
 
-const VIEW_WIDTH = 640;
-const VIEW_HEIGHT = 250;
-const PAD_LEFT = 42;
-const PAD_RIGHT = 18;
+const DEFAULT_WIDTH = 760;
+const PAD_LEFT = 36;
+const PAD_RIGHT = 8;
 const PAD_TOP = 16;
-const PAD_BOTTOM = 40;
-const PLOT_WIDTH = VIEW_WIDTH - PAD_LEFT - PAD_RIGHT;
-const PLOT_HEIGHT = VIEW_HEIGHT - PAD_TOP - PAD_BOTTOM;
+const PAD_BOTTOM = 34;
 
 /**
- * Accessible SVG chart displaying actual-date servings shared (by listing
- * publication date) alongside student pickups (by actual collection date) and
- * explicitly labeled simulated pantry transfers.
+ * Tracks the rendered chart width so the SVG draws at one unit per pixel and
+ * axis text stays the same readable size on phones and projectors.
+ */
+function useChartWidth(
+  mounted: boolean,
+): [React.RefObject<HTMLElement | null>, number] {
+  const ref = useRef<HTMLElement | null>(null);
+  const [width, setWidth] = useState(DEFAULT_WIDTH);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => {
+      const next = Math.round(entries[0]?.contentRect.width ?? 0);
+      if (next > 0) setWidth(next);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [mounted]);
+  return [ref, width];
+}
+
+/**
+ * Daily servings shared (by publication date) beside student pickups (by
+ * collection date). Simulated pantry transfers are a separate marker and are
+ * never stacked onto student pickups.
  */
 export function TrendChart({ series, isSimulated }: TrendChartProps) {
   const model = useMemo(
@@ -34,113 +54,142 @@ export function TrendChart({ series, isSimulated }: TrendChartProps) {
     [series, isSimulated],
   );
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [chartRef, viewWidth] = useChartWidth(model.hasData);
+  const viewHeight = viewWidth < 520 ? 230 : 430;
+  const plotWidth = Math.max(1, viewWidth - PAD_LEFT - PAD_RIGHT);
+  const plotHeight = viewHeight - PAD_TOP - PAD_BOTTOM;
+  const baseline = PAD_TOP + plotHeight;
 
   const activePoint =
-    selectedIndex !== null && model.points[selectedIndex]
-      ? model.points[selectedIndex]!
-      : null;
+    selectedIndex !== null ? (model.points[selectedIndex] ?? null) : null;
 
-  const yPos = (value: number): number => {
-    if (model.maxY <= 0) return PAD_TOP + PLOT_HEIGHT;
-    return PAD_TOP + PLOT_HEIGHT - (value / model.maxY) * PLOT_HEIGHT;
-  };
+  const yPos = (value: number): number =>
+    model.maxY <= 0 ? baseline : baseline - (value / model.maxY) * plotHeight;
 
   const stepX =
-    model.points.length > 0 ? PLOT_WIDTH / model.points.length : PLOT_WIDTH;
-  const barWidth = Math.max(8, Math.min(26, stepX * 0.28));
+    model.points.length > 0 ? plotWidth / model.points.length : plotWidth;
+  const barWidth = Math.max(6, Math.min(30, stepX * 0.26));
+  const maxLabels = Math.max(2, Math.floor(plotWidth / 64));
+  const labelEvery = Math.max(1, Math.ceil(model.points.length / maxLabels));
+
+  const readout = activePoint
+    ? {
+        title: activePoint.fullDate,
+        shared: activePoint.servingsOffered,
+        pickups: activePoint.studentPickups,
+        pantry: activePoint.pantryTransfers,
+        listings: activePoint.publishedListings,
+      }
+    : {
+        title: `${model.points.length} ${model.points.length === 1 ? "day" : "days"} in view`,
+        shared: model.totals.servingsOffered,
+        pickups: model.totals.studentPickups,
+        pantry: model.totals.pantryTransfers,
+        listings: model.totals.publishedListings,
+      };
 
   return (
     <section
       aria-labelledby="operations-trend-heading"
       data-testid="operations-trend-chart"
-      className="consumer-card flex flex-col justify-between gap-4"
+      className={`${OPS_CARD} flex h-full flex-col gap-5`}
     >
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2
-              id="operations-trend-heading"
-              className="text-base font-extrabold tracking-tight text-ink sm:text-lg"
-            >
-              Publishing &amp; Collection by Actual Date
-            </h2>
-            {isSimulated && (
-              <span data-testid="operations-simulated-chip-trend">
-                <StatusBadge tone="warning">Simulated data</StatusBadge>
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-ink-muted">
-            Grouped by actual event day in America/New_York — publication date
-            for shared servings, collection date for student pickups.
-          </p>
-        </div>
-
-        {/* Chart Legend */}
-        <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-ink-muted">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm bg-owl-gold" />
-            Shared
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm bg-[#15803d] dark:bg-[#4ade80]" />
-            Student pickups
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#9333ea] dark:bg-[#c084fc]" />
-            Pantry (sim.)
-          </span>
-        </div>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+        <h2 id="operations-trend-heading" className={OPS_HEADING}>
+          Shared and collected by day
+        </h2>
+        <span className="text-xs text-ink-muted">
+          Event dates, Eastern Time
+        </span>
       </div>
 
       {!model.hasData ? (
-        <div
-          data-testid="operations-trend-empty"
-          className="flex min-h-[210px] flex-col items-center justify-center rounded-2xl border border-dashed border-line bg-surface-subtle/50 px-4 py-8 text-center"
-        >
-          <CalendarDays
-            size={28}
-            strokeWidth={1.5}
-            aria-hidden="true"
-            className="text-ink-muted"
-          />
-          <p className="mt-2.5 text-sm font-bold text-ink">
-            No dated food rescue activity in this period
-          </p>
-          <p className="mt-1 max-w-sm text-xs text-ink-muted">
-            Published servings and confirmed pickups will plot here on their
-            actual America/New_York dates.
-          </p>
-        </div>
+        <OpsEmptyState
+          testId="operations-trend-empty"
+          minHeightClass="min-h-[280px] flex-1"
+          icon={<CalendarDays size={28} strokeWidth={1.5} aria-hidden="true" />}
+          title="No dated food rescue activity in this period"
+        />
       ) : (
-        <div className="space-y-3">
-          <figure className="w-full">
+        <>
+          <div
+            data-testid="operations-trend-tooltip"
+            aria-live="polite"
+            className="flex flex-wrap items-end gap-x-8 gap-y-2"
+          >
+            <div className="w-full">
+              <div
+                data-testid="operations-trend-summary"
+                className="text-xs font-semibold text-ink-muted"
+              >
+                {readout.title}
+                {isSimulated ? " · Simulated data" : ""}
+              </div>
+              <div className="mt-0.5 text-xs text-ink-muted tabular-nums">
+                {formatCount(readout.listings)}{" "}
+                {readout.listings === 1 ? "listing" : "listings"} published
+              </div>
+            </div>
+            {[
+              {
+                label: "Shared",
+                value: readout.shared,
+                swatch: `rounded-sm ${OPS_SWATCH.shared}`,
+              },
+              {
+                label: "Student pickups",
+                value: readout.pickups,
+                swatch: `rounded-sm ${OPS_SWATCH.pickups}`,
+              },
+              {
+                label: "Pantry transfers (simulated)",
+                value: readout.pantry,
+                swatch: `rounded-full ${OPS_SWATCH.pantry}`,
+              },
+            ].map((item) => (
+              <div key={item.label}>
+                <div className="text-2xl font-extrabold text-ink tabular-nums">
+                  {formatCount(item.value)}
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-ink-muted">
+                  <span
+                    aria-hidden="true"
+                    className={`h-2.5 w-2.5 shrink-0 ${item.swatch}`}
+                  />
+                  {item.label}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <figure ref={chartRef} className="w-full">
             <svg
               role="img"
               aria-label={model.accessibleSummary}
               data-testid="operations-trend-svg"
-              viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
-              className="h-auto w-full overflow-visible"
+              viewBox={`0 0 ${viewWidth} ${viewHeight}`}
+              width={viewWidth}
+              height={viewHeight}
+              className="block h-auto max-w-full overflow-visible"
             >
-              {/* Horizontal Y gridlines & integer labels */}
               {model.yTicks.map((tick) => {
                 const y = yPos(tick);
                 return (
                   <g key={tick}>
                     <line
                       x1={PAD_LEFT}
-                      x2={VIEW_WIDTH - PAD_RIGHT}
+                      x2={viewWidth - PAD_RIGHT}
                       y1={y}
                       y2={y}
                       stroke="var(--owl-border)"
-                      strokeDasharray={tick === 0 ? undefined : "3 3"}
+                      strokeOpacity={tick === 0 ? 1 : 0.6}
                       strokeWidth={1}
                     />
                     <text
-                      x={PAD_LEFT - 8}
+                      x={PAD_LEFT - 10}
                       y={y + 4}
                       textAnchor="end"
-                      fontSize="11"
+                      fontSize="12"
                       fill="var(--owl-ink-muted)"
                       className="tabular-nums"
                     >
@@ -150,24 +199,10 @@ export function TrendChart({ series, isSimulated }: TrendChartProps) {
                 );
               })}
 
-              {/* Grouped bars per actual date */}
               {model.points.map((pt, idx) => {
-                const groupCenter = PAD_LEFT + stepX * idx + stepX / 2;
-                const sharedHeight = Math.max(
-                  0,
-                  PAD_TOP + PLOT_HEIGHT - yPos(pt.servingsOffered),
-                );
-                const pickupHeight = Math.max(
-                  0,
-                  PAD_TOP + PLOT_HEIGHT - yPos(pt.studentPickups),
-                );
-                const pantryY = yPos(pt.pantryTransfers);
+                const center = PAD_LEFT + stepX * idx + stepX / 2;
                 const isSelected = selectedIndex === idx;
-                const showXLabel =
-                  model.points.length <= 8 ||
-                  idx === 0 ||
-                  idx === model.points.length - 1 ||
-                  idx % Math.ceil(model.points.length / 7) === 0;
+                const showLabel = idx % labelEvery === 0;
 
                 return (
                   <g
@@ -184,61 +219,52 @@ export function TrendChart({ series, isSimulated }: TrendChartProps) {
                     }
                     className="cursor-pointer outline-none"
                   >
-                    {/* Subtle hover/focus column highlight */}
                     <rect
                       x={PAD_LEFT + stepX * idx + 2}
-                      y={PAD_TOP}
+                      y={PAD_TOP - 6}
                       width={Math.max(4, stepX - 4)}
-                      height={PLOT_HEIGHT}
-                      rx={8}
+                      height={plotHeight + 6}
+                      rx={10}
                       fill={
                         isSelected ? "var(--owl-surface-subtle)" : "transparent"
                       }
                     />
-
-                    {/* Servings shared bar (KSU Gold) */}
                     {pt.servingsOffered > 0 && (
                       <rect
-                        x={groupCenter - barWidth - 1.5}
+                        x={center - barWidth - 2}
                         y={yPos(pt.servingsOffered)}
                         width={barWidth}
-                        height={sharedHeight}
-                        rx={4}
+                        height={baseline - yPos(pt.servingsOffered)}
+                        rx={Math.min(5, barWidth / 2)}
                         fill="var(--owl-gold)"
                       />
                     )}
-
-                    {/* Student pickups bar (Success green) */}
                     {pt.studentPickups > 0 && (
                       <rect
-                        x={groupCenter + 1.5}
+                        x={center + 2}
                         y={yPos(pt.studentPickups)}
                         width={barWidth}
-                        height={pickupHeight}
-                        rx={4}
+                        height={baseline - yPos(pt.studentPickups)}
+                        rx={Math.min(5, barWidth / 2)}
                         fill="var(--owl-success)"
                       />
                     )}
-
-                    {/* Simulated pantry transfers dot */}
                     {pt.pantryTransfers > 0 && (
                       <circle
-                        cx={groupCenter}
-                        cy={pantryY}
-                        r={5}
-                        fill="#9333ea"
+                        cx={center}
+                        cy={yPos(pt.pantryTransfers)}
+                        r={5.5}
                         stroke="var(--owl-surface)"
                         strokeWidth={2}
+                        className={OPS_FILL.pantry}
                       />
                     )}
-
-                    {/* X-axis date label */}
-                    {showXLabel && (
+                    {showLabel && (
                       <text
-                        x={groupCenter}
-                        y={VIEW_HEIGHT - 12}
+                        x={center}
+                        y={viewHeight - 10}
                         textAnchor="middle"
-                        fontSize="11"
+                        fontSize="12"
                         fontWeight={isSelected ? "700" : "500"}
                         fill={
                           isSelected ? "var(--owl-ink)" : "var(--owl-ink-muted)"
@@ -255,80 +281,7 @@ export function TrendChart({ series, isSimulated }: TrendChartProps) {
               {model.accessibleSummary}
             </figcaption>
           </figure>
-
-          {/* Interactive day tooltip / textual totals readout */}
-          <div
-            data-testid="operations-trend-tooltip"
-            aria-live="polite"
-            className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-line bg-surface-subtle/60 px-3.5 py-2.5 text-xs text-ink-muted"
-          >
-            {activePoint ? (
-              <>
-                <span className="font-bold text-ink">
-                  {activePoint.fullDate}
-                  {isSimulated ? " · Simulated data" : ""}
-                </span>
-                <div className="flex flex-wrap items-center gap-3 tabular-nums">
-                  <span>
-                    Shared:{" "}
-                    <strong className="text-ink">
-                      {formatCount(activePoint.servingsOffered)}
-                    </strong>
-                  </span>
-                  <span>
-                    Student pickups:{" "}
-                    <strong className="text-success">
-                      {formatCount(activePoint.studentPickups)}
-                    </strong>
-                  </span>
-                  <span>
-                    Pantry (sim.):{" "}
-                    <strong className="text-ink">
-                      {formatCount(activePoint.pantryTransfers)}
-                    </strong>
-                  </span>
-                  <span>
-                    Listings:{" "}
-                    <strong className="text-ink">
-                      {formatCount(activePoint.publishedListings)}
-                    </strong>
-                  </span>
-                </div>
-              </>
-            ) : (
-              <>
-                <span
-                  data-testid="operations-trend-summary"
-                  className="font-semibold text-ink"
-                >
-                  Window totals ({model.points.length}{" "}
-                  {model.points.length === 1 ? "day" : "days"})
-                  {isSimulated ? " · Simulated data" : ""}
-                </span>
-                <div className="flex flex-wrap items-center gap-3 tabular-nums">
-                  <span>
-                    Shared:{" "}
-                    <strong className="text-ink">
-                      {formatCount(model.totals.servingsOffered)}
-                    </strong>
-                  </span>
-                  <span>
-                    Student pickups:{" "}
-                    <strong className="text-success">
-                      {formatCount(model.totals.studentPickups)}
-                    </strong>
-                  </span>
-                  <span>
-                    Pantry (sim.):{" "}
-                    <strong className="text-ink">
-                      {formatCount(model.totals.pantryTransfers)}
-                    </strong>
-                  </span>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+        </>
       )}
     </section>
   );

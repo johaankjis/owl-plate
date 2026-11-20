@@ -3,15 +3,16 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { AppShell } from "../ui/AppShell";
-import { OperationsHeader } from "./OperationsHeader";
+import { OperationsHeader, RecordingDatasetBanner } from "./OperationsHeader";
 import { KpiGrid } from "./KpiGrid";
-import { ImpactEstimatesPanel } from "./ImpactEstimatesPanel";
+import { SecondaryMetrics } from "./SecondaryMetrics";
 import { TrendChart } from "./TrendChart";
-import { OutcomesDonutChart } from "./OutcomesDonutChart";
-import { BuildingsBarChart } from "./BuildingsBarChart";
+import { OutcomesBreakdown } from "./OutcomesBreakdown";
+import { CampusActivity } from "./CampusActivity";
 import { CategoriesChart } from "./CategoriesChart";
 import { ActiveListingsTable } from "./ActiveListingsTable";
 import { RecentActivityFeed } from "./RecentActivityFeed";
+import { OPS_CARD } from "./styles";
 import { getOperations } from "../../lib/operations-api";
 import { isRecordingDataset } from "../../lib/operations-helpers";
 import type {
@@ -22,29 +23,26 @@ import type {
 const AUTO_REFRESH_INTERVAL_MS = 5000;
 
 function DashboardSkeleton() {
+  const block = `${OPS_CARD} animate-pulse`;
   return (
     <div
       data-testid="operations-loading-skeleton"
       aria-label="Loading analytics"
       className="space-y-6"
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4 xl:gap-6">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-32 animate-pulse rounded-3xl border border-line bg-surface p-5"
-          >
+          <div key={i} className={`${block} h-40`}>
             <div className="h-3 w-24 rounded bg-surface-subtle" />
-            <div className="mt-5 h-8 w-20 rounded bg-surface-subtle" />
-            <div className="mt-3 h-3 w-36 rounded bg-surface-subtle" />
+            <div className="mt-5 h-10 w-20 rounded bg-surface-subtle" />
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <div className="h-72 animate-pulse rounded-3xl border border-line bg-surface lg:col-span-7" />
-        <div className="h-72 animate-pulse rounded-3xl border border-line bg-surface lg:col-span-5" />
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+        <div className={`${block} h-96 xl:col-span-7`} />
+        <div className={`${block} h-96 xl:col-span-5`} />
       </div>
-      <div className="h-56 animate-pulse rounded-3xl border border-line bg-surface" />
+      <div className={`${block} h-48`} />
     </div>
   );
 }
@@ -52,8 +50,10 @@ function DashboardSkeleton() {
 /**
  * Main Food Rescue Analytics dashboard (mounted at /dispatch and aliased at
  * /impact). Strictly database-driven via GET /analytics/operations with zero
- * fabricated fallback metrics, automatic polling, and explicit confirmation for
- * fixture/log recording-dataset loading.
+ * fabricated fallback metrics and automatic polling. Layout: four headline
+ * figures, the daily trend beside the campus view, a compact reconciled
+ * breakdown, consolidated secondary metrics, then recent activity and active
+ * listings.
  */
 export function OperationsDashboard() {
   const [period, setPeriod] = useState<OperationsPeriod>("7d");
@@ -135,7 +135,7 @@ export function OperationsDashboard() {
         data-testid="operations-dashboard"
         data-dataset-kind={data?.dataset.kind ?? "loading"}
         data-period={period}
-        className="space-y-6"
+        className="space-y-6 pb-4 xl:space-y-8"
       >
         <OperationsHeader
           period={period}
@@ -150,6 +150,8 @@ export function OperationsDashboard() {
           staleMessage={error}
         />
 
+        <RecordingDatasetBanner dataset={data?.dataset ?? null} />
+
         {/* Initial loading skeleton */}
         {loading && !data && <DashboardSkeleton />}
 
@@ -158,7 +160,7 @@ export function OperationsDashboard() {
           <section
             role="alert"
             data-testid="operations-error-banner"
-            className="consumer-card flex flex-col items-center justify-center gap-3 py-12 text-center"
+            className={`${OPS_CARD} flex flex-col items-center justify-center gap-3 py-12 text-center`}
           >
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-danger-tint text-danger">
               <AlertTriangle size={24} aria-hidden="true" />
@@ -179,36 +181,28 @@ export function OperationsDashboard() {
           </section>
         )}
 
-        {/* Database-backed analytics content */}
         {data && (
           <>
-            <KpiGrid summary={data.summary} isSimulated={isSimulated} />
+            <KpiGrid summary={data.summary} />
 
-            <ImpactEstimatesPanel
-              summary={data.summary}
-              estimates={data.estimates}
-              isSimulated={isSimulated}
-            />
-
-            {/* Primary Analytics Charts: Actual-date Trend + 6-Bucket Reconciled Outcomes */}
+            {/* Centre stage: daily trend beside the campus view. */}
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
               <div className="min-w-0 xl:col-span-7">
                 <TrendChart series={data.series} isSimulated={isSimulated} />
               </div>
               <div className="min-w-0 xl:col-span-5">
-                <OutcomesDonutChart
-                  outcomes={data.outcomes}
-                  totalOffered={data.summary.total_servings_offered}
+                <CampusActivity
+                  buildings={data.buildings}
                   isSimulated={isSimulated}
                 />
               </div>
             </div>
 
-            {/* Secondary Breakdown Charts: Top Campus Buildings + Food Categories */}
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
               <div className="min-w-0 xl:col-span-7">
-                <BuildingsBarChart
-                  buildings={data.buildings}
+                <OutcomesBreakdown
+                  outcomes={data.outcomes}
+                  totalOffered={data.summary.total_servings_offered}
                   isSimulated={isSimulated}
                 />
               </div>
@@ -220,24 +214,23 @@ export function OperationsDashboard() {
               </div>
             </div>
 
-            {/* Active Listings Table with Scoped Photos */}
-            <ActiveListingsTable
-              listings={data.active_listings}
-              serverTime={data.server_time}
-              isSimulated={isSimulated}
+            <SecondaryMetrics
+              summary={data.summary}
+              estimates={data.estimates}
             />
 
-            {/* Recent Persisted Activity */}
-            <RecentActivityFeed
-              activity={data.activity}
-              isSimulated={isSimulated}
-            />
-
-            {/*
-              The provenance panel and the recording-dataset control moved to
-              /admin (components/admin/AnalyticsDatasetControls.tsx). The
-              header dataset badge keeps sample data discreetly labeled here.
-            */}
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+              <div className="min-w-0 xl:col-span-5">
+                <RecentActivityFeed activity={data.activity} />
+              </div>
+              <div className="min-w-0 xl:col-span-7">
+                <ActiveListingsTable
+                  listings={data.active_listings}
+                  serverTime={data.server_time}
+                  isSimulated={isSimulated}
+                />
+              </div>
+            </div>
           </>
         )}
       </div>
