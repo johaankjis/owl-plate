@@ -12,11 +12,13 @@ import {
   X,
 } from "lucide-react";
 import { AllergenCard } from "./ui/AllergenCard";
+import { AnimatedNumber } from "./ui/AnimatedNumber";
 import { DropPhoto } from "./ui/DropPhoto";
 import { EmptyState } from "./ui/EmptyState";
 import { ListRowSkeleton } from "./ui/Skeleton";
 import { StatusBadge } from "./ui/StatusBadge";
 import { CampusMapCanvas } from "./CampusMapCanvas";
+import { entranceDelayMs, OWL_MOTION_CLASSES } from "../lib/motion";
 import {
   buildWalkingDirectionsUrl,
   isVerifiedBuilding,
@@ -175,7 +177,9 @@ export function StudentCampusMap({
         aria-live="polite"
         className="space-y-4"
       >
-        <div className="h-[360px] animate-pulse rounded-3xl border border-line bg-surface-subtle" />
+        <div
+          className={`h-[360px] rounded-3xl border border-line bg-surface-subtle ${OWL_MOTION_CLASSES.shimmer}`}
+        />
         <ListRowSkeleton />
       </section>
     );
@@ -226,7 +230,7 @@ export function StudentCampusMap({
             data-testid="campus-map-mode-map"
             aria-pressed={displayMode === "map"}
             onClick={() => setDisplayMode("map")}
-            className={`inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-full px-4 text-xs font-bold transition ${
+            className={`inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-full px-4 text-xs font-bold transition ${OWL_MOTION_CLASSES.press} ${
               displayMode === "map"
                 ? "bg-owl-gold text-owl-goldInk"
                 : "text-ink-muted hover:text-ink"
@@ -240,7 +244,7 @@ export function StudentCampusMap({
             data-testid="campus-map-mode-list"
             aria-pressed={displayMode === "list"}
             onClick={() => setDisplayMode("list")}
-            className={`inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-full px-4 text-xs font-bold transition ${
+            className={`inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-full px-4 text-xs font-bold transition ${OWL_MOTION_CLASSES.press} ${
               displayMode === "list"
                 ? "bg-owl-gold text-owl-goldInk"
                 : "text-ink-muted hover:text-ink"
@@ -256,13 +260,13 @@ export function StudentCampusMap({
       {deepLinkResolution.notice && (
         <div
           data-testid="campus-map-deeplink-notice"
-          className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-warning/30 bg-warning-tint px-4 py-3 text-xs text-warning"
+          className={`flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-warning/30 bg-warning-tint px-4 py-3 text-xs text-warning ${OWL_MOTION_CLASSES.fade}`}
         >
           <span className="font-medium">{deepLinkResolution.notice}</span>
           <button
             type="button"
             onClick={onSwitchToFeed}
-            className="inline-flex min-h-[44px] shrink-0 items-center rounded-full border border-warning/40 bg-surface px-3.5 text-xs font-bold text-warning hover:bg-warning-tint"
+            className={`inline-flex min-h-[44px] shrink-0 items-center rounded-full border border-warning/40 bg-surface px-3.5 text-xs font-bold text-warning hover:bg-warning-tint ${OWL_MOTION_CLASSES.press}`}
           >
             Browse Home
           </button>
@@ -292,12 +296,12 @@ export function StudentCampusMap({
                 {mapModel.markers.length > 0 ? (
                   <>
                     <span className="tabular-nums text-success">
-                      {mapModel.totalAvailableServings}{" "}
+                      <AnimatedNumber value={mapModel.totalAvailableServings} />{" "}
                       {mapModel.totalAvailableServings === 1
                         ? "serving"
                         : "servings"}
                     </span>{" "}
-                    at {mapModel.markers.length}{" "}
+                    at <AnimatedNumber value={mapModel.markers.length} />{" "}
                     {mapModel.markers.length === 1 ? "building" : "buildings"}
                   </>
                 ) : (
@@ -317,7 +321,7 @@ export function StudentCampusMap({
               mapModel.markers.length === 0 ? (
                 <div
                   data-testid="campus-map-empty"
-                  className="space-y-3 rounded-3xl border border-line bg-surface/95 p-5 text-center shadow-lg backdrop-blur"
+                  className={`space-y-3 rounded-3xl border border-line bg-surface/95 p-5 text-center shadow-lg backdrop-blur ${OWL_MOTION_CLASSES.fade}`}
                 >
                   <h2 className="text-sm font-extrabold text-ink">
                     {mapQuery.trim()
@@ -337,7 +341,7 @@ export function StudentCampusMap({
                     <button
                       type="button"
                       onClick={() => setMapQuery("")}
-                      className="consumer-button-secondary w-full"
+                      className={`consumer-button-secondary w-full ${OWL_MOTION_CLASSES.press}`}
                     >
                       Clear search
                     </button>
@@ -348,7 +352,7 @@ export function StudentCampusMap({
                         type="button"
                         data-testid="campus-map-empty-switch-to-feed"
                         onClick={onSwitchToFeed}
-                        className="consumer-button w-full"
+                        className={`consumer-button w-full ${OWL_MOTION_CLASSES.press}`}
                       >
                         Browse Home
                       </button>
@@ -428,6 +432,11 @@ export function StudentCampusMap({
         {/* Uber Eats-style Building Preview Sheet */}
         {selectedState.status !== "none" && (
           <section
+            key={
+              selectedState.status === "active"
+                ? selectedState.marker.building.id
+                : selectedState.buildingId
+            }
             data-testid="campus-map-detail-panel"
             data-building-id={
               selectedState.status === "active"
@@ -436,7 +445,7 @@ export function StudentCampusMap({
             }
             data-status={selectedState.status}
             aria-live="polite"
-            className="consumer-card space-y-4 border-owl-gold/60"
+            className={`consumer-card space-y-4 border-owl-gold/60 ${OWL_MOTION_CLASSES.entrance}`}
           >
             {selectedState.status !== "active" ? (
               <div
@@ -455,7 +464,7 @@ export function StudentCampusMap({
                     data-testid="campus-map-detail-close"
                     aria-label="Close building details"
                     onClick={() => setSelectedBuildingId(null)}
-                    className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full border border-line bg-surface-subtle text-ink hover:bg-surface"
+                    className={`inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full border border-line bg-surface-subtle text-ink hover:bg-surface ${OWL_MOTION_CLASSES.press}`}
                   >
                     <X size={18} aria-hidden="true" />
                   </button>
@@ -466,7 +475,7 @@ export function StudentCampusMap({
                 <button
                   type="button"
                   onClick={onSwitchToFeed}
-                  className="consumer-button-secondary w-full"
+                  className={`consumer-button-secondary w-full ${OWL_MOTION_CLASSES.press}`}
                 >
                   Browse Home
                 </button>
@@ -485,7 +494,9 @@ export function StudentCampusMap({
                         <div className="flex flex-wrap items-center gap-1.5">
                           <StatusBadge tone="success">
                             <span className="tabular-nums">
-                              {marker.availableServings}{" "}
+                              <AnimatedNumber
+                                value={marker.availableServings}
+                              />{" "}
                               {marker.availableServings === 1
                                 ? "serving"
                                 : "servings"}{" "}
@@ -493,7 +504,7 @@ export function StudentCampusMap({
                             </span>
                           </StatusBadge>
                           <StatusBadge tone="neutral">
-                            {marker.drops.length}{" "}
+                            <AnimatedNumber value={marker.drops.length} />{" "}
                             {marker.drops.length === 1 ? "listing" : "listings"}
                           </StatusBadge>
                         </div>
@@ -512,7 +523,7 @@ export function StudentCampusMap({
                         data-testid="campus-map-detail-close"
                         aria-label="Close building details"
                         onClick={() => setSelectedBuildingId(null)}
-                        className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full border border-line bg-surface-subtle text-ink hover:bg-surface"
+                        className={`inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full border border-line bg-surface-subtle text-ink hover:bg-surface ${OWL_MOTION_CLASSES.press}`}
                       >
                         <X size={18} aria-hidden="true" />
                       </button>
@@ -524,7 +535,7 @@ export function StudentCampusMap({
                         href={buildingDirectionsUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="consumer-button-secondary w-full"
+                        className={`consumer-button-secondary w-full ${OWL_MOTION_CLASSES.press}`}
                       >
                         <Navigation size={16} aria-hidden="true" />
                         <span>Walking directions</span>
@@ -532,7 +543,7 @@ export function StudentCampusMap({
                     )}
 
                     <div className="space-y-4">
-                      {marker.drops.map((item) => {
+                      {marker.drops.map((item, dropIdx) => {
                         const { drop, can_reserve, unavailable_reason, claim } =
                           item;
                         const isFocused =
@@ -557,7 +568,10 @@ export function StudentCampusMap({
                             data-latitude={String(marker.latitude)}
                             data-longitude={String(marker.longitude)}
                             data-focused={isFocused ? "true" : "false"}
-                            className={`space-y-3 rounded-2xl border bg-surface-subtle p-3.5 ${
+                            style={{
+                              animationDelay: `${entranceDelayMs(dropIdx)}ms`,
+                            }}
+                            className={`space-y-3 rounded-2xl border bg-surface-subtle p-3.5 ${OWL_MOTION_CLASSES.entrance} ${
                               isFocused
                                 ? "border-owl-gold ring-2 ring-owl-gold/40"
                                 : "border-line"
@@ -644,7 +658,7 @@ export function StudentCampusMap({
                                 href={directionsUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-full border border-line bg-surface px-4 text-xs font-bold text-ink transition hover:bg-surface-subtle"
+                                className={`inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-full border border-line bg-surface px-4 text-xs font-bold text-ink transition hover:bg-surface-subtle ${OWL_MOTION_CLASSES.press}`}
                               >
                                 <Navigation size={14} aria-hidden="true" />
                                 <span>Walking directions</span>
@@ -665,14 +679,14 @@ export function StudentCampusMap({
                               <Link
                                 href={`/student/drops/${drop.id}`}
                                 data-testid={`map-view-details-${drop.id}`}
-                                className="consumer-button-secondary px-3 text-xs"
+                                className={`consumer-button-secondary px-3 text-xs ${OWL_MOTION_CLASSES.press}`}
                               >
                                 View details
                               </Link>
                               {isOwnHeld ? (
                                 <Link
                                   href="/student?tab=reservations"
-                                  className="consumer-button px-3 text-xs"
+                                  className={`consumer-button px-3 text-xs ${OWL_MOTION_CLASSES.press}`}
                                 >
                                   View hold
                                 </Link>
@@ -682,7 +696,7 @@ export function StudentCampusMap({
                                   data-testid={`map-reserve-drop-button-${drop.id}`}
                                   disabled={!can_reserve || busyId !== null}
                                   onClick={() => void onReserveDrop(drop.id)}
-                                  className="consumer-button px-3 text-xs"
+                                  className={`consumer-button px-3 text-xs ${OWL_MOTION_CLASSES.press}`}
                                 >
                                   {busyId === drop.id
                                     ? "Reserving..."
@@ -720,12 +734,16 @@ export function StudentCampusMap({
             </span>
           </div>
           <ul className="space-y-2">
-            {mapModel.markers.map((marker) => {
+            {mapModel.markers.map((marker, idx) => {
               const isSelected = selectedBuildingId === marker.building.id;
               const dropCount = marker.drops.length;
               const dropIds = marker.drops.map((d) => d.drop.id).join(",");
               return (
-                <li key={`list-${marker.building.id}`}>
+                <li
+                  key={`list-${marker.building.id}`}
+                  style={{ animationDelay: `${entranceDelayMs(idx)}ms` }}
+                  className={OWL_MOTION_CLASSES.entrance}
+                >
                   <button
                     type="button"
                     data-testid={`campus-map-list-button-${marker.building.id}`}
@@ -744,7 +762,7 @@ export function StudentCampusMap({
                         marker.building.name,
                       )
                     }
-                    className={`flex min-h-[52px] w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                    className={`flex min-h-[52px] w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition ${OWL_MOTION_CLASSES.press} ${
                       isSelected
                         ? "border-owl-gold bg-owl-goldTint text-ink"
                         : "border-line bg-surface-subtle text-ink hover:border-ink-muted/40"
@@ -784,7 +802,7 @@ export function StudentCampusMap({
                 <button
                   type="button"
                   onClick={() => setMapQuery("")}
-                  className="consumer-button-secondary"
+                  className={`consumer-button-secondary ${OWL_MOTION_CLASSES.press}`}
                 >
                   Clear search
                 </button>
@@ -792,7 +810,7 @@ export function StudentCampusMap({
                 <button
                   type="button"
                   onClick={onSwitchToFeed}
-                  className="consumer-button"
+                  className={`consumer-button ${OWL_MOTION_CLASSES.press}`}
                 >
                   Browse Home
                 </button>
@@ -806,7 +824,7 @@ export function StudentCampusMap({
       {mapModel.unplottableAvailableDrops.length > 0 && (
         <section
           data-testid="campus-map-unplottable-notice"
-          className="consumer-card space-y-3 border-warning/30 bg-warning-tint/40"
+          className={`consumer-card space-y-3 border-warning/30 bg-warning-tint/40 ${OWL_MOTION_CLASSES.fade}`}
         >
           <h3 className="text-xs font-bold uppercase tracking-wide text-warning">
             Additional campus listings (
@@ -820,7 +838,7 @@ export function StudentCampusMap({
             type="button"
             data-testid="campus-map-switch-to-feed"
             onClick={onSwitchToFeed}
-            className="consumer-button-secondary w-full"
+            className={`consumer-button-secondary w-full ${OWL_MOTION_CLASSES.press}`}
           >
             Open Home ({mapModel.unplottableAvailableDrops.length})
           </button>
