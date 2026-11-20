@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { UtensilsCrossed } from "lucide-react";
 import type { ReactNode } from "react";
+import { OWL_MOTION_CLASSES } from "../../lib/motion";
 import { useTheme, type ThemePreference } from "../../lib/theme";
 import { PrototypeNotice } from "./PrototypeNotice";
 export type AppShellVariant =
@@ -25,7 +26,7 @@ export function ThemeControl() {
         data-testid="theme-select"
         value={preference}
         onChange={(e) => setPreference(e.target.value as ThemePreference)}
-        className="min-h-11 rounded-full border border-line bg-surface px-3 text-xs text-ink"
+        className="min-h-11 rounded-full border border-line bg-surface px-3 text-xs font-medium text-ink transition-colors hover:border-ink-muted/40"
       >
         <option value="light">Light</option>
         <option value="dark">Dark</option>
@@ -56,16 +57,16 @@ export function AppShell({
       data-role={variant}
       className="min-h-screen bg-canvas text-ink"
     >
-      <header className="sticky top-0 z-40 border-b border-line bg-surface/95 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-line bg-surface/95 backdrop-blur-md">
         <div
-          className={`mx-auto flex min-h-20 ${widths[maxWidth]} items-center justify-between gap-3 px-4 sm:px-6`}
+          className={`mx-auto flex min-h-[72px] ${widths[maxWidth]} items-center justify-between gap-3 px-4 sm:px-6`}
         >
           <Link
             href="/"
             aria-label="Owl Plate home"
-            className="flex min-h-11 shrink-0 items-center gap-2.5 font-extrabold tracking-tight"
+            className={`flex min-h-11 shrink-0 items-center gap-2.5 font-extrabold tracking-tight ${OWL_MOTION_CLASSES.press}`}
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-owl-gold text-owl-goldInk">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-owl-gold text-owl-goldInk shadow-sm">
               <UtensilsCrossed size={21} strokeWidth={1.75} />
             </span>
             <span className="text-lg">Owl Plate</span>

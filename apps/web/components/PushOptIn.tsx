@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { OWL_MOTION_CLASSES } from "../lib/motion";
 import type { PushState } from "../lib/push";
 import type { PushRole } from "../lib/push-helpers";
 
@@ -26,7 +27,7 @@ export function PushOptIn({
     return (
       <div
         data-testid={isHost ? "host-notifications-on" : "notifications-on"}
-        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-success/30 bg-success-tint px-4 py-3 text-sm font-semibold text-success"
+        className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border border-success/30 bg-success-tint px-4 py-3 text-sm font-semibold text-success ${OWL_MOTION_CLASSES.fade}`}
       >
         <span>
           {isHost
@@ -38,7 +39,7 @@ export function PushOptIn({
             type="button"
             data-testid="disable-host-notifications-button"
             onClick={onDisable}
-            className="min-h-[44px] shrink-0 rounded-lg border border-success/30 bg-surface px-3 py-1.5 text-xs font-bold text-success transition hover:bg-surface-subtle"
+            className={`min-h-[44px] shrink-0 rounded-lg border border-success/30 bg-surface px-3 py-1.5 text-xs font-bold text-success transition hover:bg-surface-subtle ${OWL_MOTION_CLASSES.press}`}
           >
             Turn off
           </button>
@@ -61,7 +62,7 @@ export function PushOptIn({
     return (
       <div
         data-testid="push-home-screen-hint"
-        className="space-y-1 rounded-xl border border-owl-gold/30 bg-owl-gold/5 px-4 py-3 text-sm text-ink"
+        className={`space-y-1 rounded-xl border border-owl-gold/30 bg-owl-gold/5 px-4 py-3 text-sm text-ink ${OWL_MOTION_CLASSES.fade}`}
       >
         <p className="font-semibold text-owl-goldText">
           {isHost
@@ -88,7 +89,7 @@ export function PushOptIn({
         }
         disabled={state.kind === "working"}
         onClick={onEnable}
-        className="min-h-[48px] w-full rounded-xl border border-owl-gold/60 bg-surface px-4 py-3 text-sm font-bold text-owl-goldText transition hover:bg-owl-gold/10 disabled:opacity-60"
+        className={`min-h-[48px] w-full rounded-xl border border-owl-gold/60 bg-surface px-4 py-3 text-sm font-bold text-owl-goldText transition hover:bg-owl-gold/10 disabled:opacity-60 ${OWL_MOTION_CLASSES.press}`}
       >
         {state.kind === "working"
           ? "Turning on…"

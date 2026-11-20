@@ -3,6 +3,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { UtensilsCrossed } from "lucide-react";
 import { getDropPhotoBlob } from "../../lib/api-client";
+import { OWL_MOTION_CLASSES } from "../../lib/motion";
+
 export interface DropPhotoProps {
   dropId: string;
   hasPhoto?: boolean;
@@ -31,7 +33,7 @@ export function DropPhoto({
   const [image, setImage] = useState<{ key: string; url: string } | null>(null);
   const [failedKey, setFailedKey] = useState<string | null>(null);
   const key = `${dropId}:${authToken}:${hasPhoto}:${photoUrl}`;
-  const eligible = Boolean(hasPhoto && authToken);
+  const eligible = Boolean((hasPhoto || photoUrl) && authToken);
   useEffect(() => {
     if (!eligible || !authToken) return;
     let active = true;
@@ -74,24 +76,22 @@ export function DropPhoto({
         <img
           src={url}
           alt={alt}
-          className="h-full w-full object-cover"
+          className={`h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02] ${OWL_MOTION_CLASSES.fade}`}
           onError={() => {
             setFailedKey(key);
             setImage(null);
           }}
         />
-      ) : (
+      ) : state === "loading" ? (
         <div
-          className={`flex h-full w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-owl-goldTint via-surface-subtle to-surface ${state === "loading" ? "animate-pulse" : ""}`}
-        >
-          <UtensilsCrossed
-            className="text-owl-goldText"
-            size={40}
-            strokeWidth={1.25}
-          />
-          <span className="text-xs font-medium text-ink-muted">
-            {state === "loading" ? "Loading photo" : "Fresh finds on campus"}
-          </span>
+          role="status"
+          aria-label="Loading food photo"
+          className={`h-full w-full bg-surface-subtle ${OWL_MOTION_CLASSES.shimmer}`}
+        />
+      ) : (
+        <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-surface-subtle text-ink-muted/70">
+          <UtensilsCrossed size={24} strokeWidth={1.5} aria-hidden="true" />
+          <span className="text-[11px] font-medium">No photo</span>
         </div>
       )}
       {overlayTopLeft && (
