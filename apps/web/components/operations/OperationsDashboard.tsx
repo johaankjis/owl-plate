@@ -12,8 +12,7 @@ import { BuildingsBarChart } from "./BuildingsBarChart";
 import { CategoriesChart } from "./CategoriesChart";
 import { ActiveListingsTable } from "./ActiveListingsTable";
 import { RecentActivityFeed } from "./RecentActivityFeed";
-import { RecordingDatasetSection } from "./RecordingDatasetSection";
-import { getOperations, loadRecordingDataset } from "../../lib/operations-api";
+import { getOperations } from "../../lib/operations-api";
 import { isRecordingDataset } from "../../lib/operations-helpers";
 import type {
   OperationsPeriod,
@@ -128,16 +127,6 @@ export function OperationsDashboard() {
     setPeriod(nextPeriod);
   };
 
-  const handleLoadRecordingDataset = async () => {
-    const seeded = await loadRecordingDataset();
-    hasSnapshotRef.current = true;
-    setPeriod(seeded.period);
-    setData(seeded);
-    setError(null);
-    setIsStale(false);
-    setLoading(false);
-  };
-
   const isSimulated = isRecordingDataset(data?.dataset);
 
   return (
@@ -244,15 +233,11 @@ export function OperationsDashboard() {
               isSimulated={isSimulated}
             />
 
-            {/* Provenance, Methodology Notes & Confirmed Recording Dataset Controls */}
-            <RecordingDatasetSection
-              dataset={data.dataset}
-              recordingAvailable={data.recording_available}
-              period={data.period}
-              windowStart={data.window_start}
-              notes={data.notes}
-              onLoadRecordingDataset={handleLoadRecordingDataset}
-            />
+            {/*
+              The provenance panel and the recording-dataset control moved to
+              /admin (components/admin/AnalyticsDatasetControls.tsx). The
+              header dataset badge keeps sample data discreetly labeled here.
+            */}
           </>
         )}
       </div>

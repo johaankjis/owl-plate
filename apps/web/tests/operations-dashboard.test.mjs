@@ -461,8 +461,6 @@ test("analytics UI source preserves clean Food Rescue Analytics scope, stable op
   assert.match(combinedOpsSrc, /operations-active-listings/);
   assert.match(combinedOpsSrc, /operations-recent-activity/);
   assert.match(combinedOpsSrc, /operations-recording-banner/);
-  assert.match(combinedOpsSrc, /operations-recording-confirm-checkbox/);
-  assert.match(combinedOpsSrc, /operations-recording-confirm-button/);
   assert.match(combinedOpsSrc, /operations-error-banner/);
   assert.match(combinedOpsSrc, /operations-stale-banner/);
 
@@ -485,4 +483,78 @@ test("analytics UI source preserves clean Food Rescue Analytics scope, stable op
     combinedOpsSrc,
     /OpenRouter|Gemini|VAPID|Firebase|demo gates|vision provider/i,
   );
+});
+
+test("provenance and dataset controls moved off /dispatch and /impact into /admin; a discreet dataset badge stays", () => {
+  const dispatchSrc = readFileSync(
+    new URL("../app/dispatch/page.tsx", import.meta.url),
+    "utf8",
+  );
+  const opsDir = new URL("../components/operations/", import.meta.url);
+  const opsFiles = readdirSync(opsDir).filter((f) => f.endsWith(".tsx"));
+  const combinedOpsSrc = [
+    dispatchSrc,
+    ...opsFiles.map((f) => readFileSync(new URL(f, opsDir), "utf8")),
+  ].join("\n");
+
+  // The moved panels are gone from the audience-facing analytics scope.
+  assert.doesNotMatch(
+    combinedOpsSrc,
+    /Data Provenance &amp; Methodology|Dataset Controls/,
+  );
+  assert.doesNotMatch(
+    combinedOpsSrc,
+    /operations-recording-open-button|operations-recording-confirm-panel|operations-recording-confirm-checkbox|operations-recording-confirm-button|operations-recording-cancel-button|operations-recording-disabled|operations-methodology-notes/,
+  );
+  assert.doesNotMatch(combinedOpsSrc, /loadRecordingDataset/);
+
+  // A discreet dataset indicator stays on the analytics header (badge +
+  // prominent banner only while the simulated recording dataset is loaded).
+  assert.match(combinedOpsSrc, /operations-dataset-badge/);
+  assert.match(combinedOpsSrc, /operations-recording-banner/);
+
+  // Estimated impact and simulated transfers keep their accurate labels.
+  assert.match(combinedOpsSrc, /Simulated data/);
+  assert.match(combinedOpsSrc, /excludes simulated pantry/);
+  assert.match(combinedOpsSrc, /Illustrative/);
+
+  // Both panels now render on /admin.
+  const adminPageSrc = readFileSync(
+    new URL("../app/admin/page.tsx", import.meta.url),
+    "utf8",
+  );
+  const adminControlsSrc = readFileSync(
+    new URL(
+      "../components/admin/AnalyticsDatasetControls.tsx",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(adminPageSrc, /<AnalyticsDatasetControls\s*\/>/);
+  assert.match(adminControlsSrc, /Data Provenance &amp; Methodology/);
+  assert.match(adminControlsSrc, /Dataset Controls/);
+  assert.match(adminControlsSrc, /operations-recording-open-button/);
+  assert.match(adminControlsSrc, /operations-recording-confirm-panel/);
+  assert.match(adminControlsSrc, /operations-recording-confirm-checkbox/);
+  assert.match(adminControlsSrc, /operations-recording-confirm-button/);
+  assert.match(adminControlsSrc, /operations-recording-cancel-button/);
+  assert.match(adminControlsSrc, /operations-recording-disabled/);
+  assert.match(adminControlsSrc, /loadRecordingDataset/);
+  assert.match(adminControlsSrc, /getOperations/);
+
+  // Methodology and labeling copy move verbatim (whitespace-insensitive).
+  assert.match(
+    adminControlsSrc,
+    /Metrics reflect saved campus food listings only/,
+  );
+  assert.match(
+    adminControlsSrc,
+    /Student pickups reflect\s+recorded app confirmations/,
+  );
+  assert.match(
+    adminControlsSrc,
+    /Pantry transfers are explicitly simulated\s+demonstration records/,
+  );
+  assert.match(adminControlsSrc, /clearly labeled simulated recording data/);
 });

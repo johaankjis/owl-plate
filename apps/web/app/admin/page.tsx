@@ -16,6 +16,7 @@ import { AppShell } from "../../components/ui/AppShell";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { PresenterControls } from "../../components/presenter/PresenterControls";
 import { PickupDisplayStatusSection } from "../../components/admin/PickupDisplayStatusSection";
+import { AnalyticsDatasetControls } from "../../components/admin/AnalyticsDatasetControls";
 import {
   getDemoStatus,
   getDrop,
@@ -208,6 +209,9 @@ export default function AdminDiagnosticsPage() {
           }}
           onError={(msg) => setError(msg)}
         />
+
+        {/* Analytics provenance panel & recording-dataset controls (moved off /dispatch) */}
+        <AnalyticsDatasetControls />
 
         {/* Quick Workspace & Rehearsal Links */}
         <section
