@@ -725,6 +725,8 @@ export interface components {
       building: components["schemas"]["Building"] | null;
       /** Active Drops */
       active_drops: number;
+      /** Available Drops */
+      available_drops: number;
       counts: components["schemas"]["Counts"];
     };
     /** BuildingSource */
@@ -754,6 +756,8 @@ export interface components {
       distribution_mode: "campus_feed" | "seeded_waves";
       /** Active Drops */
       active_drops: number;
+      /** Available Drops */
+      available_drops: number;
       /** Joined Students */
       joined_students: number;
       counts: components["schemas"]["Counts"];

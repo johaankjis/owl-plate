@@ -508,7 +508,7 @@ function privateSafe(value) {
       .waitFor();
     assert.equal(
       await projector
-        .locator('[data-testid^="distribution-building-"]')
+        .locator('li[data-testid^="distribution-building-"]')
         .count(),
       2,
     );

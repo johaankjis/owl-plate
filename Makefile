@@ -80,3 +80,7 @@ verify-pickup:
 .PHONY: verify-pickup-mobile
 verify-pickup-mobile:
 	OWL_WEB_URL=http://127.0.0.1:3027 node scripts/verify_pickup_mobile.cjs
+
+.PHONY: verify-map
+verify-map:
+	OWL_WEB_URL=http://127.0.0.1:3027 node scripts/verify_campus_map.cjs

@@ -3990,13 +3990,24 @@
             "type": "integer",
             "title": "Active Drops"
           },
+          "available_drops": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Available Drops"
+          },
           "counts": {
             "$ref": "#/components/schemas/Counts"
           }
         },
         "additionalProperties": false,
         "type": "object",
-        "required": ["building_code", "building", "active_drops", "counts"],
+        "required": [
+          "building_code",
+          "building",
+          "active_drops",
+          "available_drops",
+          "counts"
+        ],
         "title": "BuildingDistribution",
         "description": "Host pickup aggregate per building; never a student position."
       },
@@ -4053,6 +4064,11 @@
             "type": "integer",
             "title": "Active Drops"
           },
+          "available_drops": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Available Drops"
+          },
           "joined_students": {
             "type": "integer",
             "title": "Joined Students"
@@ -4082,6 +4098,7 @@
         "required": [
           "distribution_mode",
           "active_drops",
+          "available_drops",
           "joined_students",
           "counts",
           "buildings",
