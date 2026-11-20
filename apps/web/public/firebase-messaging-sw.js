@@ -5,8 +5,10 @@
  * - When `notification_mode === "host_pickup"`, routes to `/host?drop=<drop_id>` (or `/host`),
  *   uses title `"Owl Plate: Pickup update"`, allows generic food/count body text without student data,
  *   and enforces a stable tag bounded to 32 characters.
- * - For student alerts, the push carries generic lock-screen text plus `notification_mode`, `drop_id`
- *   (or legacy `invite_id`) only. Never carries credentials, food, building, diet, or tier data.
+ * - For student alerts, the push carries listing-specific lock-screen text (food, servings and pickup
+ *   place from the published listing) plus `notification_mode`, `drop_id` (or legacy `invite_id`).
+ *   The text is length-bounded and replaced by generic wording if it looks like it contains a
+ *   credential or identifier (the server never builds diet, allergen or student text). Never carries credentials, diet, allergen, student or tier data.
  * - When `notification_mode === "campus_feed"` (or only `drop_id` is provided),
  *   prefers `drop_id`, routes to `/student?drop=<drop_id>`, and uses stable tag `owl-drop-<drop_id>`.
  * - Legacy `seeded_waves` or payloads without `notification_mode` fall back to `invite_id`
@@ -44,6 +46,27 @@ function sanitizeHostNotificationBody(rawBody) {
     return fallback;
   }
   return trimmed.slice(0, 180);
+}
+
+const UNSAFE_STUDENT_TEXT =
+  /demo-session-|demo-student-|Bearer\s+|@|\bnickname\b|\bclaim_id\b|\bclaim-[a-z0-9-]+|\btoken\b/i;
+
+/**
+ * Accepts server-built student alert text only when it is a plain, short string.
+ * Anything else falls back to the generic wording so a malformed push never shows
+ * unexpected content on a lock screen.
+ */
+function sanitizeStudentAlertText(raw, maxLength, fallback) {
+  if (typeof raw !== "string") return fallback;
+  const text = raw
+    .replace(
+      /[\u0000-\u001f\u007f\u200b-\u200f\u2028-\u202e\u2066-\u2069]/g,
+      " ",
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text || UNSAFE_STUDENT_TEXT.test(text)) return fallback;
+  return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
 }
 
 function resolveNotificationTarget(data) {
@@ -88,8 +111,16 @@ function resolveNotificationTarget(data) {
 
   if (isCampusFeed && dropId) {
     return {
-      title: "Owl Plate: Free food on campus",
-      body: "New food was just posted. Tap to view it.",
+      title: sanitizeStudentAlertText(
+        safe.title,
+        80,
+        "Owl Plate: Free food on campus",
+      ),
+      body: sanitizeStudentAlertText(
+        safe.body,
+        180,
+        "New food was just posted. Tap to view it.",
+      ),
       tag: `owl-drop-${dropId}`,
       url: `/student?drop=${encodeURIComponent(dropId)}`,
     };
@@ -97,8 +128,12 @@ function resolveNotificationTarget(data) {
 
   if (inviteId) {
     return {
-      title: "Owl Plate: Food nearby",
-      body: "You have a new invite. Tap to view it.",
+      title: sanitizeStudentAlertText(safe.title, 80, "Owl Plate: Food nearby"),
+      body: sanitizeStudentAlertText(
+        safe.body,
+        180,
+        "You have a new invite. Tap to view it.",
+      ),
       tag: `owl-${inviteId}`,
       url: `/student?invite=${encodeURIComponent(inviteId)}`,
     };

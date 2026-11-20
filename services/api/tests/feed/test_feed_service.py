@@ -202,7 +202,8 @@ def test_publish_announces_once_to_every_eligible_student_without_geography(feed
     drop = publish_drop(feed, servings=2)
     recipients = [student for _, student, _, options in feed.sent]
     assert sorted(recipients) == sorted(a.id for a in actors.values())
-    assert all(options == {"mode": "campus_feed"} for *_, options in feed.sent)
+    assert all(options["mode"] == "campus_feed" for *_, options in feed.sent)
+    assert all(options["content"].body.startswith("2 servings at ") for *_, options in feed.sent)
     assert all(sent_drop == str(drop.id) for _, _, sent_drop, _ in feed.sent)
 
     host = feed.actor("demo-host")

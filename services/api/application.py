@@ -85,6 +85,7 @@ from services.api.pickup.service import (
     verification_response,
 )
 from services.api.pickup.verifiers import PickupVerifier
+from services.api.providers.notification_content import AlertContent, build_alert_content
 from services.api.providers.notifications import HostPushRegistry
 from services.api.schemas.api import (
     BuildingsResponse,
@@ -1459,8 +1460,12 @@ class Backend:
         ).all():
             if now >= timestamp(invite.expires_at):
                 continue
+            drop = session.get(Drop, invite.drop_id)
+            content = self._alert_content(session, drop) if drop else None
+            if content is None:
+                continue  # Listing gone or fully reserved: do not buzz for food nobody can get.
             try:
-                self.notify(invite.id, invite.student_id, invite.drop_id)
+                self.notify(invite.id, invite.student_id, invite.drop_id, content=content)
             except Exception:  # noqa: BLE001 - adapter failures must not roll back committed waves
                 logger.warning("Notification delivery deferred")
             else:
@@ -1478,13 +1483,40 @@ class Backend:
                 record.sent = True
                 session.add(record)
                 continue
+            content = self._alert_content(session, drop)
+            if content is None:
+                continue  # Fully reserved since publication; the record stays unsent.
             try:
-                self.notify(record.id, record.student_id, record.drop_id, mode="campus_feed")
+                self.notify(
+                    record.id,
+                    record.student_id,
+                    record.drop_id,
+                    mode="campus_feed",
+                    content=content,
+                )
             except Exception:  # noqa: BLE001 - adapter failures must not roll back publishes
                 logger.warning("Notification delivery deferred")
             else:
                 record.sent = True
                 session.add(record)
+
+    def _alert_content(self, session: Session, drop: Drop) -> AlertContent | None:
+        """Lock-screen text from this listing's own data, or None when nothing is left.
+
+        Servings are counted at send time. Food names are the ones the host reviewed;
+        nothing about the recipient, their diet or allergens is included.
+        """
+        available = self._counts(session, drop).available
+        if drop.status not in {"live"} or available <= 0:
+            return None
+        building = drop.data.get("building") or {}
+        return build_alert_content(
+            item_names=[item["name"] for item in drop.data["vision"]["items"]],
+            servings_available=available,
+            building_name=building.get("name") if isinstance(building, dict) else None,
+            building_code=drop.data.get("building_code", ""),
+            room=drop.data.get("room", ""),
+        )
 
     def _deliver_host_updates(self, session: Session) -> None:
         """Send each committed pickup event to its publishing host, once when accepted."""

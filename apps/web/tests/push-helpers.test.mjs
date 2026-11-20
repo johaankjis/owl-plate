@@ -271,3 +271,169 @@ test("firebase-messaging-sw.js prefers drop_id for campus_feed, supports host_pi
     "https://owlplate.example.edu/host?drop=drop-uuid-123",
   );
 });
+
+function loadServiceWorker({ windows = [] } = {}) {
+  const source = readFileSync(
+    new URL("../public/firebase-messaging-sw.js", import.meta.url),
+    "utf8",
+  );
+  const listeners = {};
+  const shown = [];
+  const opened = [];
+  const navigated = [];
+  const self = {
+    location: { origin: "https://owlplate.example.edu" },
+    skipWaiting: () => {},
+    clients: {
+      claim: async () => {},
+      matchAll: async () =>
+        windows.map(() => {
+          const client = {
+            navigate: async (url) => {
+              navigated.push(url);
+              return client;
+            },
+            focus: async () => client,
+          };
+          return client;
+        }),
+      openWindow: async (url) => {
+        opened.push(url);
+      },
+    },
+    registration: {
+      showNotification: async (title, options) => {
+        shown.push({ title, options });
+      },
+    },
+    addEventListener: (type, handler) => {
+      listeners[type] = handler;
+    },
+  };
+  runInNewContext(source, { self, URL });
+  const push = async (data) => {
+    let pending = null;
+    listeners.push({
+      data: { json: () => ({ data }) },
+      waitUntil: (p) => {
+        pending = p;
+      },
+    });
+    await pending;
+    return shown.at(-1);
+  };
+  const click = async (notification) => {
+    let pending = null;
+    listeners.notificationclick({
+      notification: { ...notification, close: () => {} },
+      waitUntil: (p) => {
+        pending = p;
+      },
+    });
+    await pending;
+  };
+  return { push, click, opened, navigated };
+}
+
+const DROP_ID = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
+
+test("student alert shows the listing-specific title and body from the push", async () => {
+  const sw = loadServiceWorker();
+  const shown = await sw.push({
+    notification_mode: "campus_feed",
+    drop_id: DROP_ID,
+    title: "🍕 Free Margherita pizza on campus!",
+    body: "5 servings at Atrium Building, Room 120. Reserve yours before it's gone!",
+  });
+  assert.equal(shown.title, "🍕 Free Margherita pizza on campus!");
+  assert.equal(
+    shown.options.body,
+    "5 servings at Atrium Building, Room 120. Reserve yours before it's gone!",
+  );
+  assert.equal(shown.options.tag, `owl-drop-${DROP_ID}`);
+  assert.equal(shown.options.data.url, `/student?drop=${DROP_ID}`);
+});
+
+test("seeded invite alert shows the listing text and keeps its invite link", async () => {
+  const sw = loadServiceWorker();
+  const shown = await sw.push({
+    notification_mode: "seeded_waves",
+    invite_id: "inv-1",
+    drop_id: DROP_ID,
+    title: "🍗 Free roasted chicken on campus!",
+    body: "2 servings at DEMO-ORIGIN. Reserve yours before it's gone!",
+  });
+  assert.equal(shown.title, "🍗 Free roasted chicken on campus!");
+  assert.equal(shown.options.data.url, "/student?invite=inv-1");
+});
+
+test("missing, non-string or unsafe alert text falls back to generic wording", async () => {
+  const sw = loadServiceWorker();
+  const missing = await sw.push({
+    notification_mode: "campus_feed",
+    drop_id: DROP_ID,
+  });
+  assert.equal(missing.title, "Owl Plate: Free food on campus");
+  assert.equal(
+    missing.options.body,
+    "New food was just posted. Tap to view it.",
+  );
+
+  const wrongType = await sw.push({
+    notification_mode: "campus_feed",
+    drop_id: DROP_ID,
+    title: { x: 1 },
+    body: 42,
+  });
+  assert.equal(wrongType.title, "Owl Plate: Free food on campus");
+
+  const unsafe = await sw.push({
+    notification_mode: "campus_feed",
+    drop_id: DROP_ID,
+    title: "Free pizza",
+    body: "Hi ivy@example.com Bearer demo-session-abc",
+  });
+  assert.equal(unsafe.title, "Free pizza");
+  assert.equal(
+    unsafe.options.body,
+    "New food was just posted. Tap to view it.",
+  );
+});
+
+test("long or control-character text is bounded before display", async () => {
+  const sw = loadServiceWorker();
+  const shown = await sw.push({
+    notification_mode: "campus_feed",
+    drop_id: DROP_ID,
+    title: `Free‮ ${"x".repeat(200)}`,
+    body: "Line one\nLine two",
+  });
+  assert.ok(shown.title.length <= 80);
+  assert.ok(!shown.title.includes("‮"));
+  assert.equal(shown.options.body, "Line one Line two");
+});
+
+test("tapping opens the specific listing, or navigates an open window to it", async () => {
+  const closed = loadServiceWorker();
+  const shown = await closed.push({
+    notification_mode: "campus_feed",
+    drop_id: DROP_ID,
+    title: "🍕 Free pizza on campus!",
+    body: "3 servings at Atrium Building. Reserve yours before it's gone!",
+  });
+  await closed.click({ data: shown.options.data });
+  assert.deepEqual(closed.opened, [
+    `https://owlplate.example.edu/student?drop=${DROP_ID}`,
+  ]);
+
+  const open = loadServiceWorker({ windows: [{}] });
+  const shownOpen = await open.push({
+    notification_mode: "campus_feed",
+    drop_id: DROP_ID,
+  });
+  await open.click({ data: shownOpen.options.data });
+  assert.deepEqual(open.navigated, [
+    `https://owlplate.example.edu/student?drop=${DROP_ID}`,
+  ]);
+  assert.deepEqual(open.opened, []);
+});

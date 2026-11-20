@@ -11,6 +11,7 @@ from sqlalchemy import Engine, delete
 from sqlmodel import Field, Session, SQLModel
 
 from services.api.db.session import transaction
+from services.api.providers.notification_content import AlertContent
 from services.api.providers.notifications import NotificationMode
 
 logger = logging.getLogger(__name__)
@@ -103,12 +104,13 @@ class FcmNotifications:
         drop_id: str,
         *,
         mode: NotificationMode = "seeded_waves",
+        content: AlertContent | None = None,
     ) -> None:
         """Send one push per new invite or feed drop; acceptance is not proof of receipt."""
         if not self.is_allowed(student_id) or not self.vault.has(student_id):
             logger.info("Simulated notification (no opted-in device)")
             return
-        self._send(push_message(self.vault.resolve(student_id), invite_id, drop_id, mode))
+        self._send(push_message(self.vault.resolve(student_id), invite_id, drop_id, mode, content))
 
     def notify_host(self, notification_id: str, host_id: str, drop_id: str, body: str) -> None:
         """Push one pickup update to the publishing host's own opted-in device, if any.
@@ -140,9 +142,16 @@ FEED_TTL_SECONDS = 900
 
 
 def push_message(
-    token: str, invite_id: str, drop_id: str, mode: NotificationMode = "seeded_waves"
+    token: str,
+    invite_id: str,
+    drop_id: str,
+    mode: NotificationMode = "seeded_waves",
+    content: AlertContent | None = None,
 ) -> dict:
-    """Keep lock-screen text generic; the tap opens the drop or this student's own invite.
+    """Lock-screen text names the listing only; the tap opens the drop or the student's invite.
+
+    ``content`` is built from the published listing (food, servings, place) and never
+    includes a student, diet or allergen detail. Without it the text stays generic.
 
     Feed alerts carry only the drop ID and a stable per-drop tag and Web Push topic, so a
     retried or duplicated send collapses on the device instead of buzzing twice.
@@ -152,8 +161,8 @@ def push_message(
         return {
             "token": token,
             "data": {
-                "title": "Owl Plate: Free food on campus",
-                "body": "New food was just posted. Tap to view it.",
+                "title": content.title if content else "Owl Plate: Free food on campus",
+                "body": content.body if content else "New food was just posted. Tap to view it.",
                 "notification_mode": "campus_feed",
                 "drop_id": drop_id,
                 "tag": f"owl-drop-{drop_id}",
@@ -166,8 +175,8 @@ def push_message(
     return {
         "token": token,
         "data": {
-            "title": "Owl Plate: Food nearby",
-            "body": "You have a new invite. Tap to view it.",
+            "title": content.title if content else "Owl Plate: Food nearby",
+            "body": content.body if content else "You have a new invite. Tap to view it.",
             "notification_mode": "seeded_waves",
             "invite_id": invite_id,
             "drop_id": drop_id,

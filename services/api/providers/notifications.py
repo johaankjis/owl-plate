@@ -3,6 +3,8 @@
 import logging
 from typing import Literal, Protocol
 
+from services.api.providers.notification_content import AlertContent
+
 NotificationMode = Literal["campus_feed", "seeded_waves"]
 
 logger = logging.getLogger(__name__)
@@ -18,8 +20,12 @@ class NotificationProvider(Protocol):
         drop_id: str,
         *,
         mode: NotificationMode = "seeded_waves",
+        content: AlertContent | None = None,
     ) -> None:
-        """Deliver one uniform alert using private recipient resolution.
+        """Deliver one alert using private recipient resolution.
+
+        ``content`` is the listing-specific lock-screen text; without it a transport
+        falls back to generic wording.
 
         Seeded waves pass a legacy invite ID; the campus feed passes its outbox entry ID
         with ``mode="campus_feed"`` and the alert must link to the drop, not an invite.
@@ -37,6 +43,7 @@ class SimulatedNotifications:
         drop_id: str,
         *,
         mode: NotificationMode = "seeded_waves",
+        content: AlertContent | None = None,
     ) -> None:
         """Make offline delivery visible while never implying physical phone receipt."""
         logger.info("Simulated notification queued; physical device receipt unverified")
