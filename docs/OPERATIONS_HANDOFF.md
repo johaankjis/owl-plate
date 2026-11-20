@@ -41,14 +41,14 @@ Start an isolated fixture/log runtime from the verified worktree:
 
 ```bash
 NEXT_PUBLIC_IT_COMPANION_BASE_URL=http://127.0.0.1:9 PYTHONPATH=. \
-  /home/node/projects/owl-plate/.venv/bin/python -m scripts.present \
+  .venv/bin/python -m scripts.present \
   --port 3027 --api-port 8027 --vision fixture --notifications simulated --rebuild
 ```
 
 In another terminal in that same checkout, explicitly replace only its demo records:
 
 ```bash
-PYTHONPATH=. /home/node/projects/owl-plate/.venv/bin/python \
+PYTHONPATH=. .venv/bin/python \
   -m scripts.load_recording_dataset --confirm-replace-demo-data
 ```
 

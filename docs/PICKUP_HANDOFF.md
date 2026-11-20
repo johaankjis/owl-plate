@@ -7,7 +7,7 @@ privacy rules are frozen in `docs/PICKUP_CONFIRMATION_CONTRACT.md`.
 ## Source and candidate bindings
 
 - Required and verified entry HEAD: `d0a62666053a68ba8facc2eb131fe35817871a2e`.
-- Worktree: `/home/node/.t3/worktrees/owl-plate/t3-ff981a24`.
+- Worktree: `<local-path>`.
 - Branch: `t3/pickup-confirmation-flow`; clean at entry.
 - Actual provider/model: `codex` / `gpt-6.1-sol`, medium effort, confirmed from
   runtime metadata.
@@ -93,17 +93,17 @@ Run from this worktree. This container lacks GNU Make; direct recipe commands:
 
 ```bash
 npm ci --prefix apps/web
-/home/node/projects/owl-plate/.venv/bin/python -m scripts.export_openapi
+.venv/bin/python -m scripts.export_openapi
 npx --prefix apps/web --yes openapi-typescript@7.10.1 apps/web/openapi.json -o apps/web/lib/api.generated.ts
 apps/web/node_modules/.bin/prettier --write apps/web/openapi.json apps/web/lib/api.generated.ts
-/home/node/projects/owl-plate/.venv/bin/python -m pytest -q
-/home/node/projects/owl-plate/.venv/bin/python -m unittest discover -s data/eval -p 'test_*.py'
-/home/node/projects/owl-plate/.venv/bin/python -m unittest discover -s data/campus -p 'test_*.py'
-/home/node/projects/owl-plate/.venv/bin/python -m unittest discover -s prototypes/itcan/tests -p 'test_*.py'
-/home/node/projects/owl-plate/.venv/bin/ruff check services scripts data/eval data/campus
-/home/node/projects/owl-plate/.venv/bin/ruff format --check services scripts data/eval data/campus
-/home/node/projects/owl-plate/.venv/bin/python data/campus/validate_marietta.py
-/home/node/projects/owl-plate/.venv/bin/python data/eval/run.py --fixtures
+.venv/bin/python -m pytest -q
+.venv/bin/python -m unittest discover -s data/eval -p 'test_*.py'
+.venv/bin/python -m unittest discover -s data/campus -p 'test_*.py'
+.venv/bin/python -m unittest discover -s prototypes/itcan/tests -p 'test_*.py'
+.venv/bin/ruff check services scripts data/eval data/campus
+.venv/bin/ruff format --check services scripts data/eval data/campus
+.venv/bin/python data/campus/validate_marietta.py
+.venv/bin/python data/eval/run.py --fixtures
 npm --prefix apps/web test
 npm --prefix apps/web run lint
 npm --prefix apps/web run types
@@ -114,7 +114,7 @@ apps/web/lib/api.generated.ts` to check schema drift. Start ONLY the candidate:
 
 ```bash
 NEXT_PUBLIC_IT_COMPANION_BASE_URL=http://127.0.0.1:9 \
-  /home/node/projects/owl-plate/.venv/bin/python -m scripts.present \
+  .venv/bin/python -m scripts.present \
   --port 3027 --api-port 8027 --vision fixture --notifications simulated --rebuild
 ```
 
@@ -124,10 +124,10 @@ reports demo, fixture vision/pickup and simulated notifications before reset.
 In a separate terminal:
 
 ```bash
-export OWL_PLAYWRIGHT_MODULE=/tmp/owl-browser-run/node_modules/playwright-core
-export OWL_BROWSER_EXECUTABLE=/home/node/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome
-export LD_LIBRARY_PATH=/tmp/owl-https-review/libs/usr/lib/x86_64-linux-gnu:/tmp/owl-https-review/libs/lib/x86_64-linux-gnu
-export FONTCONFIG_FILE=/tmp/owl-campus-tools/fonts.conf
+export OWL_PLAYWRIGHT_MODULE=<local-tool-path>
+export OWL_BROWSER_EXECUTABLE=<local-path>
+export LD_LIBRARY_PATH=<local-tool-path>
+export FONTCONFIG_FILE=<local-tool-path>
 OWL_WEB_URL=http://127.0.0.1:3027 node scripts/verify_campus_feed.cjs
 OWL_WEB_URL=http://127.0.0.1:3027 node scripts/verify_pickup_routes.cjs
 OWL_RECORD_VIDEO=false OWL_WEB_URL=http://127.0.0.1:3027 OWL_API_URL=http://127.0.0.1:8027 node scripts/rehearse_demo.cjs

@@ -1,10 +1,10 @@
 PYTHON ?= .venv/bin/python
 RUFF ?= .venv/bin/ruff
 
-.PHONY: setup seed dev test lint types eval demo smoke deck present present-live present-openrouter present-zima present-live-zima present-openrouter-zima demo-reset campus
+.PHONY: setup seed dev test lint types eval demo smoke present present-live present-openrouter present-zima present-live-zima present-openrouter-zima demo-reset campus
 setup:
 	test -x $(PYTHON) || uv venv --python 3.11 .venv
-	uv pip install --python $(PYTHON) -e '.[dev,submission]'
+	uv pip install --python $(PYTHON) -e '.[dev]'
 	cd apps/web && npm ci
 
 seed:
@@ -41,9 +41,6 @@ eval:
 
 smoke:
 	AUTH_MODE=demo DEMO_MODE=true VISION_PROVIDER=fixture NOTIFICATION_PROVIDER=log $(PYTHON) -m scripts.demo --verify
-
-deck:
-	$(PYTHON) scripts/build_deck.py
 
 present:
 	$(PYTHON) -m scripts.present

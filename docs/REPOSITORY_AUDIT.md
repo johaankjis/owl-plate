@@ -4,7 +4,7 @@ The submission preserves the application baseline `ecb881285d5c5c9de9db9443650c3
 
 ## Scope and reproducibility
 
-Source, dependency manifests and the npm lockfile, OpenAPI schema, generated API types, verified campus dataset, fixtures, tests and working fallback implementations remain tracked. Private environment files, credentials, local It installations, caches, dependencies, runtime databases, test output and separately submitted deliverables are ignored. The 50 previously tracked files under `submission/` are excluded from the final tree; their existing history and local copies are preserved. Historic media therefore remains in Git history by design.
+Source, dependency manifests and the npm lockfile, OpenAPI schema, generated API types, verified campus dataset, fixtures, tests and working fallback implementations remain tracked. Private environment files, credentials, local It installations, caches, dependencies, runtime databases, test output and separately submitted deliverables are ignored. Obsolete deck, recording and rehearsal builders are also excluded; normal setup no longer installs slide-building dependencies. The optional `qr` extra supports the retained QR helper. The 50 previously tracked files under `submission/` are excluded from the final tree; their existing history and local copies are preserved. Historic media therefore remains in Git history by design.
 
 No deployment work from the dirty canonical checkout is included. No production deployment or Nudox indexing is claimed. Nudox is already installed on the owner's Mac; nothing was installed on the server.
 
@@ -27,7 +27,7 @@ No deployment work from the dirty canonical checkout is included. No production 
 - Browser verification scripts share a harness named for pantry; a later naming cleanup would clarify its wider role.
 - Root Ruff targets omit the It prototype. Its independent test suite remains part of `make test`.
 - The existing deployment Dockerfile omits the campus dataset; it must be corrected and validated before any deployment. Deployment is outside this submission's verified scope.
-- Historical milestone handoffs contain environment-specific records and superseded plans. Current README and architecture describe the supported local application; historical records are evidence, not current deployment instructions.
+- Historical milestone handoffs contain superseded plans. Local filesystem and private-host details have been replaced with placeholders in the current tree. Current README and architecture describe the supported local application; historical records are evidence, not current deployment instructions.
 - Python dependencies use bounded ranges rather than a committed resolved lockfile. npm dependencies have a committed lockfile.
 
 ## Publication boundary

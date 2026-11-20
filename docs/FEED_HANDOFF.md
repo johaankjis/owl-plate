@@ -6,7 +6,7 @@ are committed. The isolated fixture/log candidate was verified and stopped.
 ## Baseline and ownership
 
 - Required starting application HEAD: `65b138860a288d7e5d3418ad87eec2361bb457e6`.
-- Worktree: `/home/node/.t3/worktrees/owl-plate/t3-6914e326`.
+- Worktree: `<local-path>`.
 - Branch: `t3/campus-feed-integration`; clean at entry.
 - Runtime: Codex harness, `gpt-6.1-sol`, medium reasoning effort.
 - Backend source commit: `6c6f82932ffdf6f481749d02c47e0517a66bace3`;
@@ -29,17 +29,17 @@ Run all commands from this worktree. Leave ports 3017/8017 and DeckScout8000 alo
 
 ```bash
 npm ci --prefix apps/web
-/home/node/projects/owl-plate/.venv/bin/python -m scripts.export_openapi
+.venv/bin/python -m scripts.export_openapi
 npx --prefix apps/web --yes openapi-typescript@7.10.1 apps/web/openapi.json -o apps/web/lib/api.generated.ts
 apps/web/node_modules/.bin/prettier --write apps/web/openapi.json apps/web/lib/api.generated.ts
-/home/node/projects/owl-plate/.venv/bin/python -m pytest -q
-/home/node/projects/owl-plate/.venv/bin/python -m unittest discover -s data/eval -p 'test_*.py'
-/home/node/projects/owl-plate/.venv/bin/python -m unittest discover -s data/campus -p 'test_*.py'
-/home/node/projects/owl-plate/.venv/bin/python -m unittest discover -s prototypes/itcan/tests -p 'test_*.py'
-/home/node/projects/owl-plate/.venv/bin/ruff check services scripts data/eval data/campus
-/home/node/projects/owl-plate/.venv/bin/ruff format --check services scripts data/eval data/campus
-/home/node/projects/owl-plate/.venv/bin/python data/campus/validate_marietta.py
-/home/node/projects/owl-plate/.venv/bin/python data/eval/run.py --fixtures
+.venv/bin/python -m pytest -q
+.venv/bin/python -m unittest discover -s data/eval -p 'test_*.py'
+.venv/bin/python -m unittest discover -s data/campus -p 'test_*.py'
+.venv/bin/python -m unittest discover -s prototypes/itcan/tests -p 'test_*.py'
+.venv/bin/ruff check services scripts data/eval data/campus
+.venv/bin/ruff format --check services scripts data/eval data/campus
+.venv/bin/python data/campus/validate_marietta.py
+.venv/bin/python data/eval/run.py --fixtures
 npm --prefix apps/web test
 npm --prefix apps/web run lint
 npm --prefix apps/web run types
@@ -51,7 +51,7 @@ for exact-drop link checks (the browser harness never clicks that link):
 
 ```bash
 NEXT_PUBLIC_IT_COMPANION_BASE_URL=http://127.0.0.1:9 \
-  /home/node/projects/owl-plate/.venv/bin/python -m scripts.present \
+  .venv/bin/python -m scripts.present \
   --port 3027 --api-port 8027 --vision fixture --notifications simulated --rebuild
 ```
 
@@ -63,10 +63,10 @@ HTTP routes or substituted campus dataset are used by the harness.
 Browser prerequisites on this machine:
 
 ```bash
-export OWL_PLAYWRIGHT_MODULE=/tmp/owl-browser-run/node_modules/playwright-core
-export OWL_BROWSER_EXECUTABLE=/home/node/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome
-export LD_LIBRARY_PATH=/tmp/owl-https-review/libs/usr/lib/x86_64-linux-gnu:/tmp/owl-https-review/libs/lib/x86_64-linux-gnu
-export FONTCONFIG_FILE=/tmp/owl-campus-tools/fonts.conf
+export OWL_PLAYWRIGHT_MODULE=<local-tool-path>
+export OWL_BROWSER_EXECUTABLE=<local-path>
+export LD_LIBRARY_PATH=<local-tool-path>
+export FONTCONFIG_FILE=<local-tool-path>
 OWL_WEB_URL=http://127.0.0.1:3027 node scripts/verify_campus_feed.cjs
 OWL_RECORD_VIDEO=false OWL_WEB_URL=http://127.0.0.1:3027 OWL_API_URL=http://127.0.0.1:8027 node scripts/rehearse_demo.cjs
 ```

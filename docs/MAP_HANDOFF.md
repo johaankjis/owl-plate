@@ -5,7 +5,7 @@ physical push, physical pickup, live accuracy or a paired It tap.
 
 ## Source bindings
 
-- Worktree: `/home/node/.t3/worktrees/owl-plate/t3-50c95505`.
+- Worktree: `<local-path>`.
 - Branch: `t3/map-handoff-harness`; clean entry HEAD:
   `80edd58cd5fa52db7bafddd6b90c9322a013c19a`.
 - Application baseline: `32c630afb28c4066347fc3297ec867d0bb2f7438`.
@@ -81,14 +81,14 @@ the authorized fallback paths below. No shared preview tab was created.
 This container lacks GNU Make; use direct recipes from this worktree:
 
 ```bash
-PYTHONPATH=. /home/node/projects/owl-plate/.venv/bin/python -m pytest -q
-PYTHONPATH=. /home/node/projects/owl-plate/.venv/bin/python -m unittest discover -s data/eval -p 'test_*.py'
-PYTHONPATH=. /home/node/projects/owl-plate/.venv/bin/python -m unittest discover -s data/campus -p 'test_*.py'
-PYTHONPATH=. /home/node/projects/owl-plate/.venv/bin/python -m unittest discover -s prototypes/itcan/tests -p 'test_*.py'
-PYTHONPATH=. /home/node/projects/owl-plate/.venv/bin/python data/campus/validate_marietta.py
-PYTHONPATH=. /home/node/projects/owl-plate/.venv/bin/python data/eval/run.py --fixtures
-/home/node/projects/owl-plate/.venv/bin/ruff check services scripts data/eval data/campus
-/home/node/projects/owl-plate/.venv/bin/ruff format --check services scripts data/eval data/campus
+PYTHONPATH=. .venv/bin/python -m pytest -q
+PYTHONPATH=. .venv/bin/python -m unittest discover -s data/eval -p 'test_*.py'
+PYTHONPATH=. .venv/bin/python -m unittest discover -s data/campus -p 'test_*.py'
+PYTHONPATH=. .venv/bin/python -m unittest discover -s prototypes/itcan/tests -p 'test_*.py'
+PYTHONPATH=. .venv/bin/python data/campus/validate_marietta.py
+PYTHONPATH=. .venv/bin/python data/eval/run.py --fixtures
+.venv/bin/ruff check services scripts data/eval data/campus
+.venv/bin/ruff format --check services scripts data/eval data/campus
 npm --prefix apps/web test
 npm --prefix apps/web run lint
 npm --prefix apps/web run types
@@ -97,7 +97,7 @@ npm --prefix apps/web run types
 Regenerate twice and compare file hashes:
 
 ```bash
-PYTHONPATH=. /home/node/projects/owl-plate/.venv/bin/python -m scripts.export_openapi
+PYTHONPATH=. .venv/bin/python -m scripts.export_openapi
 npx --prefix apps/web --yes openapi-typescript@7.10.1 apps/web/openapi.json -o apps/web/lib/api.generated.ts
 apps/web/node_modules/.bin/prettier --write apps/web/openapi.json apps/web/lib/api.generated.ts
 ```
@@ -106,17 +106,17 @@ Start candidate ONLY:
 
 ```bash
 NEXT_PUBLIC_IT_COMPANION_BASE_URL=http://127.0.0.1:9 PYTHONPATH=. \
-  /home/node/projects/owl-plate/.venv/bin/python -m scripts.present \
+  .venv/bin/python -m scripts.present \
   --port 3027 --api-port 8027 --vision fixture --notifications simulated --rebuild
 ```
 
 Browser environment and sequential checks:
 
 ```bash
-export OWL_PLAYWRIGHT_MODULE=/tmp/owl-browser-run/node_modules/playwright-core
-export OWL_BROWSER_EXECUTABLE=/home/node/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome
-export LD_LIBRARY_PATH=/tmp/owl-https-review/libs/usr/lib/x86_64-linux-gnu:/tmp/owl-https-review/libs/lib/x86_64-linux-gnu
-export FONTCONFIG_FILE=/tmp/owl-campus-tools/fonts.conf
+export OWL_PLAYWRIGHT_MODULE=<local-tool-path>
+export OWL_BROWSER_EXECUTABLE=<local-path>
+export LD_LIBRARY_PATH=<local-tool-path>
+export FONTCONFIG_FILE=<local-tool-path>
 export OWL_WEB_URL=http://127.0.0.1:3027
 export OWL_API_URL=http://127.0.0.1:8027
 export OWL_RECORD_VIDEO=false

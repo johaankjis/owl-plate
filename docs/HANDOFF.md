@@ -21,7 +21,7 @@ on `demo/owl-plate-ready`; no application code changed in this checkpoint.
   proxied health return 200. Local certificate/loopback only. Fixture vision,
   simulated notifications, survey `accepting:false`, actual local n=0 verified.
   API/web/TLS ports 8017/3017/3443; keep running during review. Supervisor PID
-  `/tmp/owl-https-review/preview.pid`; SIGTERM that process for clean owned shutdown.
+  `<local-tool-path>`; SIGTERM that process for clean owned shutdown.
   DeckScout port 8000 untouched. No public URL or final phone-sharing QR yet.
 - Exact-SHA OpenCode GLM 5.3 review of `98e5074` completed: PASS for the local
   approval candidate, no blocking app-preview finding. Conditional medium:
@@ -75,7 +75,7 @@ actual evidence once access exists.
 Canonical branch `demo/owl-plate-ready`; independently reviewed application SHA
 `98e5074e86139500127b2b96c51c4de5af56fed6`. Reviewer: OpenCode,
 `openrouter/z-ai/glm-5.3`, isolated worktree
-`/home/node/.t3/worktrees/owl-plate/t3-34f17ffa`, branch
+`<local-path>`, branch
 `t3/review-survey-approval`, clean and exact-SHA bound. Completed report accepted;
 no new worker launched. This checkpoint changes only approval/checklist documents
 and hashes. Application code remains unchanged.
@@ -313,7 +313,7 @@ outside this rehearsal slice; live-readiness limits below still apply.
 
 **Reviewed application/checkpoint SHA: `f025edd224fe06d2dadd94ae699dd393e8adf8da`.**
 Fresh OpenCode `openrouter/z-ai/glm-5.3` verified that exact SHA in clean isolated
-worktree `/home/node/.t3/worktrees/owl-plate/t3-c25c3d0f`, branch
+worktree `<local-path>`, branch
 `t3/review-provider-recheck`. Verdict: **PASS for the local demo milestone**;
 all three prior findings resolved, no objections. Review record:
 <t3-thread://v2/214ef463-8ab8-4ced-aae2-db0dbf63011f/thread:delegated-task:command%3Amcp%3Abc385daf-2cbb-4ebd-8d99-5c263e1bcab1%3Adelegate-task%3Aowl-review-f025edd>.
@@ -354,7 +354,7 @@ merges, deployment, distribution or submission occurred. Existing worktrees rema
 
 Independent OpenCode `openrouter/z-ai/glm-5.3` review verified exact HEAD
 `94773c9520fa9e4ec5b2ab3a53d75788f777b13e` in clean worktree
-`/home/node/.t3/worktrees/owl-plate/t3-c912437d`, branch
+`<local-path>`, branch
 `t3/review-local-demo-milestone`. It passed 62 API tests, 116 eval tests, five
 client tests, Ruff and route smoke, plus concurrency, inventory and ownership
 probes. No blocking findings for the local milestone; it found one medium
@@ -400,21 +400,21 @@ Integrator: <t3-thread://v2/214ef463-8ab8-4ced-aae2-db0dbf63011f/mcp:launch:8f85
 
 Browser proof: separate host, projector and mobile student contexts completed upload → safety review → publish → A/C first wave → A hold → C expiry → D ring 4 → reset, through actual API routes. B had no invite; D saw only its own invite; projector discovered the host's drop with empty browser storage; deck.gl canvas rendered; no uncaught browser errors. A–E fit at 1920×1080. The initial 1440×1000 fit assertion failed; the supported proof viewport is Full HD. These are synthetic pixels, fixture vision and simulated notifications, **not physical phone push or measured vision accuracy**.
 
-Reproducible browser entrypoint: `scripts/browser_smoke.cjs`. It requires a separately installed Playwright Core module and Chromium, running Owl API/web servers, and explicit demo auth. It resets the demo DB at both ends; never run against a real-data deployment. Module/executable/API/web/artifact paths are configurable through `OWL_PLAYWRIGHT_MODULE`, `OWL_BROWSER_EXECUTABLE`, `OWL_API_URL`, `OWL_WEB_URL`, `OWL_BROWSER_ARTIFACTS`. Screenshots default to gitignored `test-results/browser/`. Manager evidence exists locally in `/tmp/owl-browser-run/proof/`.
+Reproducible browser entrypoint: `scripts/browser_smoke.cjs`. It requires a separately installed Playwright Core module and Chromium, running Owl API/web servers, and explicit demo auth. It resets the demo DB at both ends; never run against a real-data deployment. Module/executable/API/web/artifact paths are configurable through `OWL_PLAYWRIGHT_MODULE`, `OWL_BROWSER_EXECUTABLE`, `OWL_API_URL`, `OWL_WEB_URL`, `OWL_BROWSER_ARTIFACTS`. Screenshots default to gitignored `test-results/browser/`. Manager evidence exists locally in `<local-tool-path>`.
 
-Shared preview failed twice because host browser libraries are absent. Manager used Playwright Core 1.58.2 with cached Chromium, Debian libraries and fonts extracted only under `/tmp/owl-browser-libs`, `FONTCONFIG_FILE=/tmp/owl-browser-libs/fonts.conf`, and `LD_LIBRARY_PATH=/tmp/owl-browser-libs/root/usr/lib/x86_64-linux-gnu:/tmp/owl-browser-libs/root/lib/x86_64-linux-gnu`. No system packages were installed. Temporary Owl servers on 8017/3017 were stopped after proof; all browser contexts were closed. DeckScout's port 8000 process was never contacted, signaled or reused. Owl defaults are API **8017**, web **3017**.
+Shared preview failed twice because host browser libraries are absent. Manager used Playwright Core 1.58.2 with cached Chromium, Debian libraries and fonts extracted only under `<local-tool-path>`, `FONTCONFIG_FILE=<local-tool-path>`, and `LD_LIBRARY_PATH=<local-tool-path>`. No system packages were installed. Temporary Owl servers on 8017/3017 were stopped after proof; all browser contexts were closed. DeckScout's port 8000 process was never contacted, signaled or reused. Owl defaults are API **8017**, web **3017**.
 
 Submission package: `submission/Owl_Plate_Pitch.pptx` (seven editable slides, speaker notes and archive integrity verified), survey and distribution copy, recording plan, and draft live-demo note. Visual PowerPoint/LibreOffice review, actual team contributions and device capture remain pending. Real survey n=0; no live vision metrics or physical phone receipts exist. Thursday evening is reserved for integrated rehearsal and backup capture. Deadline remains Friday Nov 20 noon Eastern / 17:00 UTC, Johaan submits.
 
 Next: fresh OpenCode `openrouter/z-ai/glm-5.3` review of the exact checkpoint SHA for overbooking, privacy and offline reliability. Review status and any fixes will be recorded in the manager thread and a subsequent handoff checkpoint. Questions for Johaan below remain the prioritized return queue; no secrets belong in chat. The latest useful decisions are approved Android/iPhone recipients and private Firebase/Gemini access, labeled food photos, survey distribution ownership, and campus policy/coordinates. Live Entra and deployment remain deferred; the local app deliberately fails closed outside explicit demo mode.
 
-Canonical checkout checks: clean switch to the ready branch, `main` SHA unchanged, route smoke passed again from `/home/node/projects/owl-plate`, and `npm ci` succeeded. Its audit reported 35 dependency advisories overall; `npm audit --omit=dev` reported 17 (13 high, four moderate, zero critical), through deck.gl loaders/texture tooling, Firebase's unused Firestore/gRPC dependency path, and Next's nested PostCSS. These were inspected; no forced downgrades or major migrations were applied. The local demo uses trusted repository CSS and H3 cells, no external archives/models, and only Firebase messaging imports. Dependency remediation is a deployment-readiness item, in addition to production auth/live service access; this branch is a local demo milestone, not approved for public deployment.
+Canonical checkout checks: clean switch to the ready branch, `main` SHA unchanged, route smoke passed again from `<local-path>`, and `npm ci` succeeded. Its audit reported 35 dependency advisories overall; `npm audit --omit=dev` reported 17 (13 high, four moderate, zero critical), through deck.gl loaders/texture tooling, Firebase's unused Firestore/gRPC dependency path, and Next's nested PostCSS. These were inspected; no forced downgrades or major migrations were applied. The local demo uses trusted repository CSS and H3 cells, no external archives/models, and only Firebase messaging imports. Dependency remediation is a deployment-readiness item, in addition to production auth/live service access; this branch is a local demo milestone, not approved for public deployment.
 
 Deadline: Friday November 20, 2026 at noon America/New_York (17:00 UTC). Johaan submits. Thursday evening reserved for rehearsal, physical-phone capture and backup. No pushes, default-branch merges, deployments, survey distribution or submission authorized.
 
 ## Preflight
 
-Canonical root `/home/node/projects/owl-plate`, T3 Owl Plate project `093405f7-8dec-4840-b584-9743d828c0b5`. Separate from DeckScout. Original `main` SHA `d11c4be01bcbd375dafabf50c2f59c6daaf513ec`, clean. No other workers/worktrees at start. Local integration branch `integration/owl-plate-demo`. Full project brief attachment unavailable; user message plus existing docs are working spec. Read AGENTS.md, CLAUDE.md and all project docs.
+Canonical root `<local-path>`, T3 Owl Plate project `093405f7-8dec-4840-b584-9743d828c0b5`. Separate from DeckScout. Original `main` SHA `d11c4be01bcbd375dafabf50c2f59c6daaf513ec`, clean. No other workers/worktrees at start. Local integration branch `integration/owl-plate-demo`. Full project brief attachment unavailable; user message plus existing docs are working spec. Read AGENTS.md, CLAUDE.md and all project docs.
 
 ## Routing and ownership
 
@@ -438,9 +438,9 @@ Shared starting SHA: `68ec96b44ec1db81039c405a867e1d7b5d499800`. All worktrees v
 
 | Assignment | Thread link | Branch / worktree | Actual provider/model | State |
 |---|---|---|---|---|
-| Backend fallback | <t3-thread://v2/214ef463-8ab8-4ced-aae2-db0dbf63011f/mcp:launch:71a8e43bc4c8b57c1c234254debae65192534617b27fe2e6a171b14d191b9da0> | `worker/owl-backend`, `/home/node/.t3/worktrees/owl-plate/worker-owl-backend` | codex / gpt-6.1-sol | Editing |
-| Web | <t3-thread://v2/214ef463-8ab8-4ced-aae2-db0dbf63011f/mcp:launch:fe974b4a28e2d0e0a1a3b965f4956b2533de81ee496eb5541fcf54de2f6e85e2> | `worker/owl-web`, `/home/node/.t3/worktrees/owl-plate/worker-owl-web` | antigravity / gemini-4-argon | Editing |
-| Eval | <t3-thread://v2/214ef463-8ab8-4ced-aae2-db0dbf63011f/mcp:launch:97e9634f666ab743c06f04e9ce216e3edaa39118c12700abe25af821f287d368> | `worker/owl-eval`, `/home/node/.t3/worktrees/owl-plate/worker-owl-eval` | opencode / openrouter/z-ai/glm-5.3 | Editing |
+| Backend fallback | <t3-thread://v2/214ef463-8ab8-4ced-aae2-db0dbf63011f/mcp:launch:71a8e43bc4c8b57c1c234254debae65192534617b27fe2e6a171b14d191b9da0> | `worker/owl-backend`, `<local-path>` | codex / gpt-6.1-sol | Editing |
+| Web | <t3-thread://v2/214ef463-8ab8-4ced-aae2-db0dbf63011f/mcp:launch:fe974b4a28e2d0e0a1a3b965f4956b2533de81ee496eb5541fcf54de2f6e85e2> | `worker/owl-web`, `<local-path>` | antigravity / gemini-4-argon | Editing |
+| Eval | <t3-thread://v2/214ef463-8ab8-4ced-aae2-db0dbf63011f/mcp:launch:97e9634f666ab743c06f04e9ce216e3edaa39118c12700abe25af821f287d368> | `worker/owl-eval`, `<local-path>` | opencode / openrouter/z-ai/glm-5.3 | Editing |
 
 Manager checks so far: four vision safety/provenance tests passed; manager Python Ruff check and format passed. PowerPoint reload/archive integrity passed, seven slides with notes on all seven. Actual PowerPoint visual inspection remains pending. Initial python venv creation failed due missing ensurepip; `uv venv --python 3.11` succeeded, dependencies installed locally. Credentials check found no `.env`, Gemini, Firebase or Entra config; no values were printed. KSU News source returned HTTP 200 and verified the narrow CARE program-description claim, not policy or demand.
 
@@ -448,7 +448,7 @@ Next: inspect committed worker diffs, compose backend using its documented hooks
 
 ## Verified integrator: initial local pass (Nov 18)
 
-This checkpoint supersedes the earlier worker states for backend integration only. T3 configuration and active-run readback confirm actual `codex/gpt-6.1-sol` (medium), bound to canonical `/home/node/.t3/worktrees/owl-plate/integration-owl-plate-verified`, branch `integration/owl-plate-verified`. `pwd -P`, Git top-level and T3 worktree binding agree; the manager checkout remains distinct. Starting HEAD was exactly `68ec96b44ec1db81039c405a867e1d7b5d499800`, with clean status before edits.
+This checkpoint supersedes the earlier worker states for backend integration only. T3 configuration and active-run readback confirm actual `codex/gpt-6.1-sol` (medium), bound to canonical `<local-path>`, branch `integration/owl-plate-verified`. `pwd -P`, Git top-level and T3 worktree binding agree; the manager checkout remains distinct. Starting HEAD was exactly `68ec96b44ec1db81039c405a867e1d7b5d499800`, with clean status before edits.
 
 Integrator thread: <t3-thread://v2/214ef463-8ab8-4ced-aae2-db0dbf63011f/mcp:launch:8f85c5dc9d076be2472ee45b52e47033bd857db23d19aaa33453c837b0eb5b3b>.
 
@@ -462,20 +462,20 @@ Inspected accepted diffs; no overlapping file paths or cherry-pick conflicts. Ap
 
 Integration fix `059d58d526c77f539d884606720d641124f7b623` sorts the composed app's imports to satisfy Ruff. No behavioral changes were needed for the initial route flow. The manager packaging fix is included; the backend README's earlier setuptools discovery warning is historical, resolved by the accepted manager commit.
 
-Checks use manager Python **3.11.2** at `/home/node/projects/owl-plate/.venv/bin/python`, from this worktree with `PYTHONPATH=.`; imported `services.api.application.__file__` resolves inside this worktree. No shared-environment packages were installed or changed.
+Checks use manager Python **3.11.2** at `.venv/bin/python`, from this worktree with `PYTHONPATH=.`; imported `services.api.application.__file__` resolves inside this worktree. No shared-environment packages were installed or changed.
 
 | Check | Actual result |
 |---|---|
-| `PYTHONPATH=. /home/node/projects/owl-plate/.venv/bin/python -m pytest -q services/api/tests` | 47 passed; one Starlette/httpx TestClient deprecation warning |
-| `/home/node/projects/owl-plate/.venv/bin/ruff check services scripts` | All checks passed |
-| `/home/node/projects/owl-plate/.venv/bin/ruff format --check services scripts` | 27 files already formatted |
+| `PYTHONPATH=. .venv/bin/python -m pytest -q services/api/tests` | 47 passed; one Starlette/httpx TestClient deprecation warning |
+| `.venv/bin/ruff check services scripts` | All checks passed |
+| `.venv/bin/ruff format --check services scripts` | 27 files already formatted |
 | `git diff --check` | Passed |
-| `PYTHONPATH=. /tmp/owl-plate-verified-tools/root/usr/bin/make smoke PYTHON=/home/node/projects/owl-plate/.venv/bin/python` | Passed through composed HTTP app and isolated temporary SQLite |
+| `PYTHONPATH=. <local-tool-path> smoke PYTHON=.venv/bin/python` | Passed through composed HTTP app and isolated temporary SQLite |
 | Composed route probes | `/health` 200, unauthenticated invites 401, push-token registration 503 `provider_unavailable` without echoing token, `/openapi.json` 200 with 15 paths |
 
 The smoke verified 30 synthetic students, valid raster upload, explicitly fixture vision, host review to **2 servings**, A/C wave 1, B/E excluded, A idempotent hold, C expiry, D wave 2 at ring 4, consistent counts, private synthetic projector output and clean reset. Host responses remain counts/food only; projector access is restricted to synthetic personas. No real tiers, contacts or tokens were logged.
 
-Container prerequisite: `make` is absent from system PATH. A Debian GNU Make 4.3 binary was downloaded/extracted only under `/tmp/owl-plate-verified-tools` to execute the real target; no system package or shared Python environment was modified. Install GNU Make on a rehearsal machine. The temporary tool path is environment-specific, not a project dependency.
+Container prerequisite: `make` is absent from system PATH. A Debian GNU Make 4.3 binary was downloaded/extracted only under `<local-tool-path>` to execute the real target; no system package or shared Python environment was modified. Install GNU Make on a rehearsal machine. The temporary tool path is environment-specific, not a project dependency.
 
 ### Continuation after accepted web/eval SHAs
 
@@ -497,13 +497,13 @@ Eval's original 114-test discovery command is correct: `python -m unittest disco
 
 Mocked composition checks cover encrypted own-token registration, unauthorized roles, log-mode 503, sanitized database errors, token cleanup on reset, missing allowlist, explicit auth gates and scheduler recovery after SQLAlchemyError. Provider HTTP tests use MockTransport; service-account setup is mocked in route checks. No real FCM or Gemini sends, no live credentials, no observed device receipts. The shared Python environment already supplied the FCM dependencies; no packages were changed there. Runbook and architecture now distinguish implemented demo FCM from unverified delivery/production readiness.
 
-Final continuation checks: `PYTHONPATH=. /tmp/owl-plate-verified-tools/root/usr/bin/make test smoke PYTHON=/home/node/projects/owl-plate/.venv/bin/python` passed: **62 API tests**, **116 eval tests**, and full composed HTTP demo smoke. One Starlette/httpx deprecation warning remains. Ruff check passed for services/scripts/data/eval; Ruff format reports 48 files already formatted. `git diff --check` passed. Full make lint still awaits accepted web. Fixture CLI text/JSON and missing-credentials guard passed separately; these prove harness behavior only.
+Final continuation checks: `PYTHONPATH=. <local-tool-path> test smoke PYTHON=.venv/bin/python` passed: **62 API tests**, **116 eval tests**, and full composed HTTP demo smoke. One Starlette/httpx deprecation warning remains. Ruff check passed for services/scripts/data/eval; Ruff format reports 48 files already formatted. `git diff --check` passed. Full make lint still awaits accepted web. Fixture CLI text/JSON and missing-credentials guard passed separately; these prove harness behavior only.
 
 Web acceptance remains pending. After the exact SHA arrives: API default with visible errors; explicit fixture opt-in/banner; >=60s photo timeout; raster sample bytes; projector polls active-drop across devices; truthful reset message (students seeded, no wave); remove visible CARE/priority-tier phrases while retaining serving-count privacy copy and simulated markers. Generate true schema aliases/OpenAPI including DemoActiveDropResponse, finish full lint/build/types and root README accuracy. Manager owns final integrated browser proof: shared preview failed missing system libraries, and manager is preparing temporary Playwright libraries. Integrator must not duplicate browser/server setup; provide the final candidate SHA for that verification.
 
 ## Final web candidate for manager browser verification (Nov 18)
 
-This section supersedes the earlier pending-web checkpoints. Inspected accepted web `f748c8325890a0aec58643c30138ef942b208121` (apps/web only) and cherry-picked it as `d4b3778539112c74d66ba89c342934508b93b2e7`. No conflicts; no unaccepted branch changes. Runtime and binding remain Codex gpt-6.1-sol, `/home/node/.t3/worktrees/owl-plate/integration-owl-plate-verified`, `integration/owl-plate-verified`.
+This section supersedes the earlier pending-web checkpoints. Inspected accepted web `f748c8325890a0aec58643c30138ef942b208121` (apps/web only) and cherry-picked it as `d4b3778539112c74d66ba89c342934508b93b2e7`. No conflicts; no unaccepted branch changes. Runtime and binding remain Codex gpt-6.1-sol, `<local-path>`, `integration/owl-plate-verified`.
 
 Acceptance fixes:
 
@@ -536,6 +536,6 @@ From this worktree with `PYTHONPATH=.` and manager's existing Python 3.11 enviro
 
 One Starlette/httpx TestClient deprecation warning remains; no failed checks from it. An initial final-lint attempt found JSON formatting drift after OpenAPI export; make types now formats JSON and generated TS, and the subsequent full lint/types/smoke passed. An earlier build on old ports was superseded by the explicit 8017 rebuild.
 
-Integrator started **no API/web/browser servers**, so has none to stop. Manager owns the final integrated browser run on this candidate with separate host/projector contexts: null after reset → host uploads/reviews 2 → A/C wave1 → A holds → C expiry → D ring4 → reset clears. Use API 8017/web 3017 and preserve DeckScout. Manager fallback path is `/tmp/owl-browser-run/node_modules/playwright-core`, Chromium `/home/node/.cache/ms-playwright/chromium_headless_shell-1254/chrome-headless-shell-linux64/chrome-headless-shell`, with manager-provided temporary LD_LIBRARY_PATH. No browser proof is claimed here.
+Integrator started **no API/web/browser servers**, so has none to stop. Manager owns the final integrated browser run on this candidate with separate host/projector contexts: null after reset → host uploads/reviews 2 → A/C wave1 → A holds → C expiry → D ring4 → reset clears. Use API 8017/web 3017 and preserve DeckScout. Manager fallback path is `<local-tool-path>`, Chromium `<local-path>`, with manager-provided temporary LD_LIBRARY_PATH. No browser proof is claimed here.
 
 No subagents, pushes, deployments, default-branch merges, real sends, live provider calls, real recipient data or token/contact logs. FCM/Entra/live credentials and physical Android/iPhone receipts remain absent/unverified; no measured model accuracy, survey results or policy approval are implied. The exact final candidate SHA is reported by the integrator after committing this record.

@@ -11,7 +11,7 @@ restart, live provider request, or real It tap is part of this evidence.
 
 - Integrator: Codex provider, `gpt-6.1-sol`, medium reasoning; verified using
   thread configuration before edits.
-- Worktree: `/home/node/.t3/worktrees/owl-plate/t3-7b02a92a` (not canonical).
+- Worktree: `<local-path>` (not canonical).
 - Required and observed starting HEAD:
   `6441314d428817b60b53c8a307a8f46381ae89d7`.
 - Initial branch was `t3/7b02a92a`; it was renamed externally before the first
@@ -25,9 +25,9 @@ Worker commits were inspected and cherry-picked in this order:
 
 | Worker   | Source SHA                                 | Local cherry-pick | Worker checkout / branch                                                             |
 | -------- | ------------------------------------------ | ----------------- | ------------------------------------------------------------------------------------ |
-| Backend  | `95eaf51213c49ec676766174ba4a74f6bb6c15fe` | `e5cc229`         | `/home/node/.t3/worktrees/owl-plate/t3-7dfda4fd`, `t3/campus-backend`                |
-| Frontend | `2458dc7399d5cac1b3fa662745acfa93f84f5b4a` | `dc816b7`         | `/home/node/.t3/worktrees/owl-plate/t3-a65e6155`, `t3/campus-building-selector`      |
-| Dataset  | `a37319cd85747474b3e17abec6ab4dda8d4a8a82` | `7d88bb5`         | `/home/node/.t3/worktrees/owl-plate/t3-1ac99516`, `t3/research-marietta-campus-data` |
+| Backend  | `95eaf51213c49ec676766174ba4a74f6bb6c15fe` | `e5cc229`         | `<local-path>`, `t3/campus-backend`                |
+| Frontend | `2458dc7399d5cac1b3fa662745acfa93f84f5b4a` | `dc816b7`         | `<local-path>`, `t3/campus-building-selector`      |
+| Dataset  | `a37319cd85747474b3e17abec6ab4dda8d4a8a82` | `7d88bb5`         | `<local-path>`, `t3/research-marietta-campus-data` |
 
 Worker checkouts/branches were checked with `git worktree list` and completed
 thread records. Provider/model metadata was confirmed from those thread/run
@@ -123,9 +123,9 @@ Local artifacts (gitignored, retained in this worktree):
 - Campus test link uses `https://companion.example.test` solely to verify
   `/p/owl-whats-left-<exact-drop-uuid>` construction. It is not a paired site
   and is not opened. Real It tap-to-update remains pending.
-- Full terminal evidence: `/tmp/owl-campus-final-checks.log`,
-  `/tmp/owl-campus-present-final.log`, `/tmp/owl-campus-seeded.log`,
-  `/tmp/owl-campus-visitors.log`, `/tmp/owl-campus-browser-final.log`.
+- Full terminal evidence: `<local-tool-path>`,
+  `<local-tool-path>`, `<local-tool-path>`,
+  `<local-tool-path>`, `<local-tool-path>`.
 
 Unknown and unverified building exclusion is also covered by route-level tests
 using a clearly synthetic temporary registry, including unverified entries
@@ -137,9 +137,9 @@ select. Dietary safety, privacy, capacity and atomic claims retain API tests.
 From this integration checkout, with 3027/8027 free:
 
 ```sh
-cd /home/node/.t3/worktrees/owl-plate/t3-7b02a92a
+cd <local-path>
 PYTHONDONTWRITEBYTECODE=1 NEXT_TELEMETRY_DISABLED=1 \
-  /home/node/projects/owl-plate/.venv/bin/python -m scripts.present \
+  .venv/bin/python -m scripts.present \
   --vision fixture --notifications simulated --port 3027 --api-port 8027
 ```
 
@@ -182,10 +182,10 @@ were installed and no canonical dependencies were changed.
 ```sh
 export OWL_WEB_URL=http://127.0.0.1:3027
 export OWL_API_URL=http://127.0.0.1:8027
-export OWL_PLAYWRIGHT_MODULE=/tmp/owl-browser-run/node_modules/playwright-core
-export OWL_BROWSER_EXECUTABLE=/home/node/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome
-export LD_LIBRARY_PATH=/tmp/owl-https-review/libs/usr/lib/x86_64-linux-gnu:/tmp/owl-https-review/libs/lib/x86_64-linux-gnu
-export FONTCONFIG_FILE=/tmp/owl-campus-tools/fonts.conf
+export OWL_PLAYWRIGHT_MODULE=<local-tool-path>
+export OWL_BROWSER_EXECUTABLE=<local-path>
+export LD_LIBRARY_PATH=<local-tool-path>
+export FONTCONFIG_FILE=<local-tool-path>
 export OWL_RECORD_VIDEO=false
 node scripts/rehearse_demo.cjs
 node scripts/verify_join_flow.cjs
@@ -193,15 +193,15 @@ node scripts/verify_campus_mobile.cjs
 ```
 
 `fonts.conf` is a temporary fontconfig document with font directory
-`/tmp/owl-https-review/libs/usr/share/fonts` and cache directory
-`/tmp/owl-campus-tools/font-cache`. Temporary tooling is not part of the repo.
+`<local-tool-path>` and cache directory
+`<local-tool-path>`. Temporary tooling is not part of the repo.
 GNU make was absent; an uninstalled Debian make binary was extracted under
-`/tmp/owl-campus-tools/extracted`. Exact combined check command:
+`<local-tool-path>`. Exact combined check command:
 
 ```sh
-/tmp/owl-campus-tools/extracted/usr/bin/make test lint campus types \
-  PYTHON=/home/node/projects/owl-plate/.venv/bin/python \
-  RUFF=/home/node/projects/owl-plate/.venv/bin/ruff
+<local-tool-path> test lint campus types \
+  PYTHON=.venv/bin/python \
+  RUFF=.venv/bin/ruff
 cd apps/web && npm run typecheck
 ```
 
@@ -221,7 +221,7 @@ cd apps/web && npm run typecheck
   registry computes the cell for the chosen coordinate only.
 - Existing canonical cloud edits, including dirty `docs/HANDOFF.md`, were not
   changed or copied. Canonical `git status --short` matched the manager's
-  `/tmp/owl-campus-preserved-status`; canonical presentation/API PIDs 1142904
+  `<local-tool-path>`; canonical presentation/API PIDs 1142904
   and 1142905 remained active, with no signals or test requests sent to them.
 - Only isolated 3027/8027 were used. Candidate launcher PID 1152919 and its
   API/web children were stopped after verification; the startup command above

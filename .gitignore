@@ -92,3 +92,8 @@ Thumbs.db
 
 # Local hackathon deliverables and review artifacts are submitted separately.
 /submission/
+
+# Obsolete presentation builders retained locally and in history.
+/scripts/build_deck.py
+/scripts/build_fallback_recording.py
+/scripts/verify_rehearsal.cjs

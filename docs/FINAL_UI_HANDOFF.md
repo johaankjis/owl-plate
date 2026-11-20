@@ -59,7 +59,7 @@ Run checks in a clean checkout using its own cwd/PYTHONPATH and the canonical `.
 To run the browser harness, first start **an isolated** fixture/log runtime at3027/8027:
 
 ```bash
-PYTHONPATH=. /home/node/projects/owl-plate/.venv/bin/python -m scripts.present \
+PYTHONPATH=. .venv/bin/python -m scripts.present \
   --port 3027 --api-port 8027 --vision fixture --notifications simulated --rebuild
 ```
 

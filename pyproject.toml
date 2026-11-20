@@ -6,7 +6,7 @@ dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.32,<1", "sqlmodel>=0.0.22,<1", 
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<10", "ruff>=0.9,<1"]
-submission = ["python-pptx>=1,<2", "qrcode>=8,<9"]
+qr = ["qrcode>=8,<9"]
 deployment = ["psycopg[binary]>=3.2,<4"]
 
 [build-system]
