@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "../../../../components/ui/AppShell";
 import { AllergenCard } from "../../../../components/ui/AllergenCard";
+import { AnimatedNumber } from "../../../../components/ui/AnimatedNumber";
 import {
   BottomNav,
   type StudentTabId,
@@ -30,6 +31,7 @@ import { EmptyState } from "../../../../components/ui/EmptyState";
 import { DetailSkeleton } from "../../../../components/ui/Skeleton";
 import { StatusBadge } from "../../../../components/ui/StatusBadge";
 import { ActiveHoldCard } from "../../../../components/student/ActiveHoldCard";
+import { entranceDelayMs, OWL_MOTION_CLASSES } from "../../../../lib/motion";
 import {
   PICKUP_CONFIRMATION_NOTICE,
   type Building,
@@ -553,13 +555,13 @@ export default function StudentDropDetailPage() {
 
   return (
     <AppShell variant="student" maxWidth="lg" bottomNav={bottomNav}>
-      <div className="space-y-6">
+      <div className={`space-y-6 ${OWL_MOTION_CLASSES.fade}`}>
         {/* Back link */}
         <div className="flex items-center justify-between gap-2">
           <Link
             href="/student"
             data-testid="detail-back-link"
-            className="inline-flex min-h-[44px] items-center gap-1.5 text-sm font-bold text-ink-muted transition-colors hover:text-ink"
+            className={`inline-flex min-h-[44px] items-center gap-1.5 text-sm font-bold text-ink-muted transition-colors hover:text-ink ${OWL_MOTION_CLASSES.press}`}
           >
             <ArrowLeft size={16} aria-hidden="true" />
             <span>Back to campus food</span>
@@ -567,7 +569,7 @@ export default function StudentDropDetailPage() {
           {drop.building && (
             <Link
               href={`/student?tab=map&drop=${encodeURIComponent(drop.id)}`}
-              className="inline-flex min-h-[44px] items-center gap-1.5 text-xs font-bold text-owl-goldText hover:underline"
+              className={`inline-flex min-h-[44px] items-center gap-1.5 text-xs font-bold text-owl-goldText hover:underline ${OWL_MOTION_CLASSES.press}`}
             >
               <MapPin size={14} aria-hidden="true" />
               <span>View on map</span>
@@ -578,7 +580,7 @@ export default function StudentDropDetailPage() {
         {errorMessage && (
           <div
             role="alert"
-            className="rounded-2xl border border-danger/30 bg-danger-tint px-4 py-3 text-sm font-medium text-danger"
+            className={`rounded-2xl border border-danger/30 bg-danger-tint px-4 py-3 text-sm font-medium text-danger ${OWL_MOTION_CLASSES.fade}`}
           >
             {errorMessage}
           </div>
@@ -600,7 +602,10 @@ export default function StudentDropDetailPage() {
         />
 
         {/* Title, Host Note & Timing Summary */}
-        <section className="space-y-3">
+        <section
+          style={{ animationDelay: `${entranceDelayMs(0)}ms` }}
+          className={`space-y-3 ${OWL_MOTION_CLASSES.entrance}`}
+        >
           <div className="space-y-1.5">
             <h1
               data-testid="detail-food-title"
@@ -623,7 +628,8 @@ export default function StudentDropDetailPage() {
                 aria-hidden="true"
               />
               <span className="tabular-nums">
-                {drop.counts.available} of {drop.counts.total} servings left
+                <AnimatedNumber value={drop.counts.available} /> of{" "}
+                <AnimatedNumber value={drop.counts.total} /> servings left
               </span>
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-ink">
@@ -666,7 +672,7 @@ export default function StudentDropDetailPage() {
             <div className="text-center">
               <Link
                 href="/student?tab=reservations"
-                className="inline-flex min-h-[44px] items-center gap-1.5 text-xs font-bold text-owl-goldText hover:underline"
+                className={`inline-flex min-h-[44px] items-center gap-1.5 text-xs font-bold text-owl-goldText hover:underline ${OWL_MOTION_CLASSES.press}`}
               >
                 <ShoppingBag size={14} aria-hidden="true" />
                 <span>Manage in Reservations</span>
@@ -676,7 +682,7 @@ export default function StudentDropDetailPage() {
         ) : claimForThisDrop?.status === "picked_up" ? (
           <section
             data-testid="detail-picked-up-banner"
-            className="consumer-card space-y-3 border-success/40 bg-success-tint"
+            className={`consumer-card space-y-3 border-success/40 bg-success-tint ${OWL_MOTION_CLASSES.pop}`}
           >
             <div className="flex items-start gap-3">
               <CheckCircle2
@@ -698,13 +704,16 @@ export default function StudentDropDetailPage() {
             </p>
             <Link
               href="/student?tab=reservations"
-              className="consumer-button-secondary w-full"
+              className={`consumer-button-secondary w-full ${OWL_MOTION_CLASSES.press}`}
             >
               View reservation history
             </Link>
           </section>
         ) : (
-          <section className="consumer-card space-y-3">
+          <section
+            style={{ animationDelay: `${entranceDelayMs(1)}ms` }}
+            className={`consumer-card space-y-3 ${OWL_MOTION_CLASSES.entrance}`}
+          >
             {canReserve ? (
               <>
                 <button
@@ -712,7 +721,7 @@ export default function StudentDropDetailPage() {
                   data-testid="detail-reserve-btn"
                   disabled={busyId !== null}
                   onClick={handleReserve}
-                  className="consumer-button w-full text-base"
+                  className={`consumer-button w-full text-base ${OWL_MOTION_CLASSES.press}`}
                 >
                   {busyId === `reserve:${drop.id}`
                     ? "Reserving your serving..."
@@ -735,7 +744,7 @@ export default function StudentDropDetailPage() {
                 {feedDrop?.unavailable_reason === "active_claim" && (
                   <Link
                     href="/student?tab=reservations"
-                    className="consumer-button w-full"
+                    className={`consumer-button w-full ${OWL_MOTION_CLASSES.press}`}
                   >
                     <ShoppingBag size={16} aria-hidden="true" />
                     <span>View your active reservation</span>
@@ -748,7 +757,10 @@ export default function StudentDropDetailPage() {
 
         {/* Itemized Food List */}
         {drop.vision?.items && drop.vision.items.length > 0 && (
-          <section className="consumer-card space-y-3">
+          <section
+            style={{ animationDelay: `${entranceDelayMs(2)}ms` }}
+            className={`consumer-card space-y-3 ${OWL_MOTION_CLASSES.entrance}`}
+          >
             <h2 className="text-sm font-extrabold uppercase tracking-wide text-ink-muted">
               What&apos;s available
             </h2>
@@ -772,7 +784,10 @@ export default function StudentDropDetailPage() {
         )}
 
         {/* Pickup Location Card */}
-        <section className="consumer-card space-y-3">
+        <section
+          style={{ animationDelay: `${entranceDelayMs(3)}ms` }}
+          className={`consumer-card space-y-3 ${OWL_MOTION_CLASSES.entrance}`}
+        >
           <h2 className="text-sm font-extrabold uppercase tracking-wide text-ink-muted">
             Pickup location
           </h2>
@@ -808,7 +823,7 @@ export default function StudentDropDetailPage() {
               href={directionsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="consumer-button-secondary w-full"
+              className={`consumer-button-secondary w-full ${OWL_MOTION_CLASSES.press}`}
             >
               <Navigation size={16} aria-hidden="true" />
               <span>Walking directions</span>
@@ -817,7 +832,10 @@ export default function StudentDropDetailPage() {
         </section>
 
         {/* Dietary Tags & Allergen Card */}
-        <section className="space-y-3">
+        <section
+          style={{ animationDelay: `${entranceDelayMs(4)}ms` }}
+          className={`space-y-3 ${OWL_MOTION_CLASSES.entrance}`}
+        >
           {drop.diet_tags_final.length > 0 && (
             <div className="consumer-card space-y-2.5">
               <h2 className="text-sm font-extrabold uppercase tracking-wide text-ink-muted">

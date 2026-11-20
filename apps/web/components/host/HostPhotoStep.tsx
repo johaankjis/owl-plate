@@ -2,7 +2,9 @@
 /* eslint-disable @next/next/no-img-element -- Local blob previews cannot use the image optimizer. */
 
 import React from "react";
-import { Camera, ImagePlus, Loader2, ShieldCheck } from "lucide-react";
+import { Camera, ImagePlus, Loader2 } from "lucide-react";
+import { HostEstimateSkeleton } from "../ui/Skeleton";
+import { OWL_MOTION_CLASSES } from "../../lib/motion";
 import { HOST_PHOTO_PRIVACY_NOTICE } from "../../app/host/host-helpers";
 import { useObjectUrl } from "./useObjectUrl";
 
@@ -27,7 +29,10 @@ export function HostPhotoStep({
   const previewUrl = useObjectUrl(selectedFile);
 
   return (
-    <section data-testid="host-photo-step" className="consumer-card space-y-5">
+    <section
+      data-testid="host-photo-step"
+      className={`consumer-card space-y-5 ${OWL_MOTION_CLASSES.entrance}`}
+    >
       <div className="space-y-1">
         <h2 className="text-xl font-extrabold tracking-tight">
           Add a photo of the food
@@ -44,57 +49,61 @@ export function HostPhotoStep({
         }}
         className="space-y-5"
       >
-        <label
-          htmlFor="food-photo-input"
-          className="group relative flex aspect-[4/3] w-full cursor-pointer flex-col items-center justify-center gap-3 overflow-hidden rounded-3xl border-2 border-dashed border-line bg-surface-subtle text-center transition hover:border-owl-gold focus-within:border-owl-gold"
-        >
-          {previewUrl ? (
-            <>
-              <img
-                src={previewUrl}
-                alt="Selected food photo preview"
-                data-testid="host-photo-preview"
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-              <span className="absolute bottom-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-surface/95 px-4 py-2 text-xs font-bold text-ink shadow-card">
-                <Camera size={14} aria-hidden="true" />
-                Change photo
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-owl-goldTint text-owl-goldText">
-                <ImagePlus size={28} aria-hidden="true" />
-              </span>
-              <span className="text-base font-bold">
-                Take or choose a photo
-              </span>
-              <span className="text-xs text-ink-muted">
-                JPEG or PNG, up to 10 MB
-              </span>
-            </>
-          )}
-          <input
-            id="food-photo-input"
-            data-testid="food-photo-input"
-            type="file"
-            accept="image/jpeg,image/png"
-            onChange={(e) => onFileChange(e.target.files?.[0] ?? null)}
-            className="sr-only"
-          />
-        </label>
+        <div className="space-y-2">
+          <label
+            htmlFor="food-photo-input"
+            className="group relative flex aspect-[4/3] w-full cursor-pointer flex-col items-center justify-center gap-3 overflow-hidden rounded-3xl border-2 border-dashed border-line bg-surface-subtle text-center transition duration-200 hover:border-owl-gold focus-within:border-owl-gold"
+          >
+            {previewUrl ? (
+              <>
+                <img
+                  key={previewUrl}
+                  src={previewUrl}
+                  alt="Selected food photo preview"
+                  data-testid="host-photo-preview"
+                  className={`absolute inset-0 h-full w-full object-cover ${OWL_MOTION_CLASSES.fade}`}
+                />
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/45 to-transparent"
+                />
+                <span
+                  className={`absolute bottom-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-surface/95 px-4 py-2 text-xs font-bold text-ink shadow-card backdrop-blur-sm ${OWL_MOTION_CLASSES.press}`}
+                >
+                  <Camera size={14} aria-hidden="true" />
+                  Change photo
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-owl-goldTint text-owl-goldText transition-transform duration-200 group-hover:scale-105">
+                  <ImagePlus size={28} aria-hidden="true" />
+                </span>
+                <span className="text-base font-bold">
+                  Take or choose a photo
+                </span>
+                <span className="text-xs text-ink-muted">
+                  JPEG or PNG, up to 10 MB
+                </span>
+              </>
+            )}
+            <input
+              id="food-photo-input"
+              data-testid="food-photo-input"
+              type="file"
+              accept="image/jpeg,image/png"
+              onChange={(e) => onFileChange(e.target.files?.[0] ?? null)}
+              className="sr-only"
+            />
+          </label>
 
-        <p
-          data-testid="host-photo-privacy-notice"
-          className="flex items-start gap-2.5 rounded-2xl bg-surface-subtle px-4 py-3 text-sm text-ink-muted"
-        >
-          <ShieldCheck
-            size={18}
-            aria-hidden="true"
-            className="mt-0.5 shrink-0 text-success"
-          />
-          <span>{HOST_PHOTO_PRIVACY_NOTICE}</span>
-        </p>
+          <p
+            data-testid="host-photo-privacy-notice"
+            className="px-1 text-xs text-ink-muted"
+          >
+            {HOST_PHOTO_PRIVACY_NOTICE}
+          </p>
+        </div>
 
         <div className="space-y-1.5">
           <label htmlFor="host-note-input" className="text-sm font-bold">
@@ -117,7 +126,7 @@ export function HostPhotoStep({
           type="submit"
           data-testid="analyze-photo-button"
           disabled={busy || !selectedFile}
-          className="consumer-button w-full"
+          className={`consumer-button w-full ${OWL_MOTION_CLASSES.press}`}
         >
           {busy ? (
             <>
@@ -128,6 +137,8 @@ export function HostPhotoStep({
             "Analyze photo"
           )}
         </button>
+
+        {busy && <HostEstimateSkeleton />}
       </form>
     </section>
   );

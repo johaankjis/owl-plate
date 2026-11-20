@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "../../components/ui/AppShell";
 import { AllergenCard } from "../../components/ui/AllergenCard";
+import { AnimatedNumber } from "../../components/ui/AnimatedNumber";
 import { BottomNav, type StudentTabId } from "../../components/ui/BottomNav";
 import { DropPhoto } from "../../components/ui/DropPhoto";
 import { EmptyState } from "../../components/ui/EmptyState";
@@ -42,6 +43,7 @@ import { StatusBadge } from "../../components/ui/StatusBadge";
 import { PushOptIn } from "../../components/PushOptIn";
 import { StudentCampusMap } from "../../components/StudentCampusMap";
 import { ActiveHoldCard } from "../../components/student/ActiveHoldCard";
+import { entranceDelayMs, OWL_MOTION_CLASSES } from "../../lib/motion";
 import {
   ALLERGENS,
   ALLERGEN_WARNING_TEXT,
@@ -752,6 +754,22 @@ function StudentContent() {
     return null;
   }, [feedView.activeHold, partitionedReservations.active]);
 
+  const campusMetrics = useMemo(() => {
+    let availableServings = 0;
+    let liveListings = 0;
+    let compatibleListings = 0;
+    for (const item of feedDrops) {
+      if (item.drop.counts.available > 0) {
+        availableServings += item.drop.counts.available;
+        liveListings += 1;
+        if (item.can_reserve || item.claim?.status === "held") {
+          compatibleListings += 1;
+        }
+      }
+    }
+    return { availableServings, liveListings, compatibleListings };
+  }, [feedDrops]);
+
   // Seeded rehearsal state (?persona=A..E)
   const cardState = useMemo(() => resolveStudentCardState(invites), [invites]);
 
@@ -795,7 +813,7 @@ function StudentContent() {
 
     return (
       <AppShell variant="student" maxWidth="md">
-        <div className="space-y-5">
+        <div className={`space-y-5 ${OWL_MOTION_CLASSES.fade}`}>
           <section className="consumer-card flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
@@ -813,7 +831,7 @@ function StudentContent() {
             </div>
             <Link
               href="/join"
-              className="consumer-button-secondary min-h-[44px] px-4 py-2 text-xs"
+              className={`consumer-button-secondary min-h-[44px] px-4 py-2 text-xs ${OWL_MOTION_CLASSES.press}`}
             >
               Join screen
             </Link>
@@ -838,7 +856,7 @@ function StudentContent() {
             <div
               role="alert"
               data-testid="student-error-message"
-              className="rounded-2xl border border-danger/30 bg-danger-tint px-4 py-3 text-sm text-danger"
+              className={`rounded-2xl border border-danger/30 bg-danger-tint px-4 py-3 text-sm text-danger ${OWL_MOTION_CLASSES.fade}`}
             >
               {errorMessage}
             </div>
@@ -855,7 +873,7 @@ function StudentContent() {
           {cardState.kind === "invite" && (
             <article
               data-testid={`invite-card-${cardState.activeInvite.id}`}
-              className="consumer-card space-y-5 border-owl-gold/60"
+              className={`consumer-card space-y-5 border-owl-gold/60 ${OWL_MOTION_CLASSES.entrance}`}
             >
               <DropPhoto
                 dropId={cardState.activeInvite.drop.id}
@@ -905,8 +923,14 @@ function StudentContent() {
                   </p>
                 )}
                 <p className="text-xs text-ink-muted">
-                  {cardState.activeInvite.drop.counts.available} of{" "}
-                  {cardState.activeInvite.drop.counts.total} servings left
+                  <AnimatedNumber
+                    value={cardState.activeInvite.drop.counts.available}
+                  />{" "}
+                  of{" "}
+                  <AnimatedNumber
+                    value={cardState.activeInvite.drop.counts.total}
+                  />{" "}
+                  servings left
                 </p>
               </div>
 
@@ -916,7 +940,7 @@ function StudentContent() {
                   href={activeSeededDirectionsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="consumer-button-secondary w-full"
+                  className={`consumer-button-secondary w-full ${OWL_MOTION_CLASSES.press}`}
                 >
                   <Navigation size={15} aria-hidden="true" />
                   <span>Walking directions</span>
@@ -938,7 +962,7 @@ function StudentContent() {
                   onClick={() =>
                     void handleClaimInvite(cardState.activeInvite.id)
                   }
-                  className="consumer-button w-full"
+                  className={`consumer-button w-full ${OWL_MOTION_CLASSES.press}`}
                 >
                   {busyId === cardState.activeInvite.id
                     ? "Reserving..."
@@ -951,7 +975,7 @@ function StudentContent() {
                   onClick={() =>
                     void handleDeclineInvite(cardState.activeInvite.id)
                   }
-                  className="consumer-button-secondary w-full"
+                  className={`consumer-button-secondary w-full ${OWL_MOTION_CLASSES.press}`}
                 >
                   Decline
                 </button>
@@ -962,7 +986,7 @@ function StudentContent() {
           {cardState.kind === "pickup" && (
             <article
               data-testid="active-claim-banner"
-              className="consumer-card space-y-5 border-success/40"
+              className={`consumer-card space-y-5 border-success/40 ${OWL_MOTION_CLASSES.entrance}`}
             >
               <div className="space-y-1.5">
                 <StatusBadge tone="success">Active hold</StatusBadge>
@@ -1013,7 +1037,7 @@ function StudentContent() {
                   href={activeSeededDirectionsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="consumer-button-secondary w-full"
+                  className={`consumer-button-secondary w-full ${OWL_MOTION_CLASSES.press}`}
                 >
                   <Navigation size={15} aria-hidden="true" />
                   <span>Walking directions</span>
@@ -1035,7 +1059,7 @@ function StudentContent() {
                   onClick={() =>
                     void handlePickupClaim(cardState.activeClaim.id)
                   }
-                  className="consumer-button w-full"
+                  className={`consumer-button w-full ${OWL_MOTION_CLASSES.press}`}
                 >
                   {busyId === cardState.activeClaim.id
                     ? "Confirming..."
@@ -1048,7 +1072,7 @@ function StudentContent() {
                   onClick={() =>
                     void handleReleaseClaim(cardState.activeClaim.id)
                   }
-                  className="consumer-button-secondary w-full"
+                  className={`consumer-button-secondary w-full ${OWL_MOTION_CLASSES.press}`}
                 >
                   Release reservation
                 </button>
@@ -1059,7 +1083,7 @@ function StudentContent() {
           {cardState.kind === "picked_up" && (
             <section
               data-testid="picked-up-card"
-              className="consumer-card space-y-4 border-success/40 text-center"
+              className={`consumer-card space-y-4 border-success/40 text-center ${OWL_MOTION_CLASSES.pop}`}
             >
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success-tint text-success">
                 <CheckCircle2 size={28} aria-hidden="true" />
@@ -1122,7 +1146,7 @@ function StudentContent() {
           <div
             role="alert"
             data-testid="student-error-message"
-            className="flex items-start justify-between gap-3 rounded-2xl border border-danger/30 bg-danger-tint px-4 py-3 text-sm text-danger"
+            className={`flex items-start justify-between gap-3 rounded-2xl border border-danger/30 bg-danger-tint px-4 py-3 text-sm text-danger ${OWL_MOTION_CLASSES.fade}`}
           >
             <span>{errorMessage}</span>
             <button
@@ -1138,7 +1162,10 @@ function StudentContent() {
 
         {/* ==================== TAB 1: HOME ==================== */}
         {activeTab === "home" && (
-          <div className="space-y-6">
+          <div
+            key="tab-home"
+            className={`space-y-6 ${OWL_MOTION_CLASSES.tabPanel}`}
+          >
             {/* Greeting + Active Dietary Summary Pill */}
             <header className="flex flex-wrap items-end justify-between gap-3">
               <div className="min-w-0 space-y-1">
@@ -1156,7 +1183,7 @@ function StudentContent() {
                 type="button"
                 data-testid="home-dietary-summary-pill"
                 onClick={() => handleSelectTab("profile")}
-                className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-xs font-semibold text-ink transition hover:border-owl-gold"
+                className={`inline-flex min-h-[44px] items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-xs font-semibold text-ink transition hover:border-owl-gold ${OWL_MOTION_CLASSES.press}`}
               >
                 <SlidersHorizontal
                   size={14}
@@ -1167,12 +1194,55 @@ function StudentContent() {
               </button>
             </header>
 
+            {/* Real-data animated campus availability summary */}
+            {feedLoaded && feedDrops.length > 0 && (
+              <section
+                data-testid="student-campus-metrics"
+                aria-label="Live campus food counts"
+                className={`grid grid-cols-3 gap-2.5 sm:gap-3 ${OWL_MOTION_CLASSES.fade}`}
+              >
+                <div className="rounded-2xl border border-line bg-surface px-3.5 py-3 shadow-card">
+                  <div className="text-[11px] font-semibold text-ink-muted">
+                    Servings open
+                  </div>
+                  <div
+                    data-testid="student-metric-servings"
+                    className="mt-0.5 text-xl font-extrabold tracking-tight text-success sm:text-2xl"
+                  >
+                    <AnimatedNumber value={campusMetrics.availableServings} />
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-line bg-surface px-3.5 py-3 shadow-card">
+                  <div className="text-[11px] font-semibold text-ink-muted">
+                    Active listings
+                  </div>
+                  <div
+                    data-testid="student-metric-listings"
+                    className="mt-0.5 text-xl font-extrabold tracking-tight text-ink sm:text-2xl"
+                  >
+                    <AnimatedNumber value={campusMetrics.liveListings} />
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-line bg-surface px-3.5 py-3 shadow-card">
+                  <div className="text-[11px] font-semibold text-ink-muted">
+                    Match your filters
+                  </div>
+                  <div
+                    data-testid="student-metric-compatible"
+                    className="mt-0.5 text-xl font-extrabold tracking-tight text-owl-goldText sm:text-2xl"
+                  >
+                    <AnimatedNumber value={campusMetrics.compatibleListings} />
+                  </div>
+                </div>
+              </section>
+            )}
+
             {/* Floating / Prominent Active Hold Banner */}
             {activeHoldEntry && (
               <section
                 data-testid="home-active-hold-banner"
                 aria-label="Active reservation"
-                className="flex flex-col justify-between gap-4 rounded-3xl border-2 border-success/50 bg-success-tint p-5 sm:flex-row sm:items-center"
+                className={`flex flex-col justify-between gap-4 rounded-3xl border-2 border-success/50 bg-success-tint p-5 sm:flex-row sm:items-center ${OWL_MOTION_CLASSES.pop}`}
               >
                 <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -1208,7 +1278,7 @@ function StudentContent() {
                       href={getDropWalkingDirectionsUrl(activeHoldEntry.drop)!}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="consumer-button-secondary px-4 text-xs"
+                      className={`consumer-button-secondary px-4 text-xs ${OWL_MOTION_CLASSES.press}`}
                     >
                       <Navigation size={14} aria-hidden="true" />
                       <span>Directions</span>
@@ -1218,7 +1288,7 @@ function StudentContent() {
                     type="button"
                     data-testid="home-manage-hold-button"
                     onClick={() => handleSelectTab("reservations")}
-                    className="consumer-button px-5 text-xs"
+                    className={`consumer-button px-5 text-xs ${OWL_MOTION_CLASSES.press}`}
                   >
                     <span>Manage pickup</span>
                   </button>
@@ -1270,7 +1340,7 @@ function StudentContent() {
                       data-testid={`category-chip-${chip.id}`}
                       aria-pressed={selected}
                       onClick={() => setActiveCategory(chip.id)}
-                      className={`inline-flex min-h-[44px] shrink-0 items-center rounded-full border px-4 text-xs font-bold transition ${
+                      className={`inline-flex min-h-[44px] shrink-0 items-center rounded-full border px-4 text-xs font-bold transition ${OWL_MOTION_CLASSES.press} ${
                         selected
                           ? "border-owl-gold bg-owl-gold text-owl-goldInk"
                           : "border-line bg-surface text-ink-muted hover:border-ink-muted/40 hover:text-ink"
@@ -1315,7 +1385,7 @@ function StudentContent() {
                         setSearchQuery("");
                         setActiveCategory("all");
                       }}
-                      className="consumer-button-secondary"
+                      className={`consumer-button-secondary ${OWL_MOTION_CLASSES.press}`}
                     >
                       Clear filters
                     </button>
@@ -1328,7 +1398,7 @@ function StudentContent() {
                 aria-label="Available campus food"
                 className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
               >
-                {filteredHomeDrops.map((item) => {
+                {filteredHomeDrops.map((item, idx) => {
                   const { drop, can_reserve, unavailable_reason, claim } = item;
                   const isOwnHeld = claim?.status === "held";
                   const isOwnPickedUp = claim?.status === "picked_up";
@@ -1349,6 +1419,7 @@ function StudentContent() {
                   return (
                     <FoodCard
                       key={drop.id}
+                      index={idx}
                       drop={drop}
                       authToken={authToken}
                       href={`/student/drops/${drop.id}`}
@@ -1363,7 +1434,7 @@ function StudentContent() {
                           <Link
                             href={`/student/drops/${drop.id}`}
                             data-testid={`view-details-button-${drop.id}`}
-                            className="consumer-button-secondary px-3 text-xs"
+                            className={`consumer-button-secondary px-3 text-xs ${OWL_MOTION_CLASSES.press}`}
                           >
                             View details
                           </Link>
@@ -1371,7 +1442,7 @@ function StudentContent() {
                             <button
                               type="button"
                               onClick={() => handleSelectTab("reservations")}
-                              className="consumer-button px-3 text-xs"
+                              className={`consumer-button px-3 text-xs ${OWL_MOTION_CLASSES.press}`}
                             >
                               View hold
                             </button>
@@ -1389,7 +1460,7 @@ function StudentContent() {
                               data-testid={`reserve-drop-button-${drop.id}`}
                               disabled={!can_reserve || busyId !== null}
                               onClick={() => void handleReserveDrop(drop.id)}
-                              className="consumer-button px-3 text-xs"
+                              className={`consumer-button px-3 text-xs ${OWL_MOTION_CLASSES.press}`}
                             >
                               {busyId === drop.id
                                 ? "Reserving..."
@@ -1410,7 +1481,10 @@ function StudentContent() {
 
         {/* ==================== TAB 2: MAP ==================== */}
         {activeTab === "map" && (
-          <div className="space-y-4">
+          <div
+            key="tab-map"
+            className={`space-y-4 ${OWL_MOTION_CLASSES.tabPanel}`}
+          >
             <header className="space-y-1">
               <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
                 Campus Map
@@ -1438,7 +1512,10 @@ function StudentContent() {
 
         {/* ==================== TAB 3: RESERVATIONS ==================== */}
         {activeTab === "reservations" && (
-          <div className="mx-auto max-w-2xl space-y-6">
+          <div
+            key="tab-reservations"
+            className={`mx-auto max-w-2xl space-y-6 ${OWL_MOTION_CLASSES.tabPanel}`}
+          >
             <header className="space-y-1">
               <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
                 Reservations
@@ -1464,7 +1541,7 @@ function StudentContent() {
                   <button
                     type="button"
                     onClick={() => handleSelectTab("home")}
-                    className="consumer-button"
+                    className={`consumer-button ${OWL_MOTION_CLASSES.press}`}
                   >
                     Browse campus food
                   </button>
@@ -1512,10 +1589,13 @@ function StudentContent() {
                   >
                     <h2 className="text-sm font-bold uppercase tracking-wider text-ink-muted">
                       Past reservations (
-                      {partitionedReservations.history.length})
+                      <AnimatedNumber
+                        value={partitionedReservations.history.length}
+                      />
+                      )
                     </h2>
                     <div className="space-y-3">
-                      {partitionedReservations.history.map((item) => {
+                      {partitionedReservations.history.map((item, idx) => {
                         const statusMeta = formatReservationStatusMeta(
                           item.claim.status,
                         );
@@ -1528,7 +1608,10 @@ function StudentContent() {
                             key={item.claim.id}
                             data-testid={`reservation-history-item-${item.claim.id}`}
                             data-status={item.claim.status}
-                            className="flex items-center gap-4 rounded-3xl border border-line bg-surface p-3.5 shadow-card"
+                            style={{
+                              animationDelay: `${entranceDelayMs(idx)}ms`,
+                            }}
+                            className={`flex items-center gap-4 rounded-3xl border border-line bg-surface p-3.5 shadow-card ${OWL_MOTION_CLASSES.entrance}`}
                           >
                             <DropPhoto
                               dropId={item.drop.id}
@@ -1573,7 +1656,10 @@ function StudentContent() {
 
         {/* ==================== TAB 4: PROFILE ==================== */}
         {activeTab === "profile" && (
-          <div className="mx-auto max-w-2xl space-y-6">
+          <div
+            key="tab-profile"
+            className={`mx-auto max-w-2xl space-y-6 ${OWL_MOTION_CLASSES.tabPanel}`}
+          >
             {/* Student Identity Card */}
             <section className="consumer-card flex items-center gap-4">
               <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-owl-goldTint text-owl-goldText">
@@ -1625,7 +1711,7 @@ function StudentContent() {
                         data-testid={`pref-allergen-${alg}`}
                         aria-pressed={active}
                         onClick={() => togglePrefAllergen(alg)}
-                        className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-3.5 text-xs font-semibold capitalize transition ${
+                        className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-3.5 text-xs font-semibold capitalize transition ${OWL_MOTION_CLASSES.press} ${
                           active
                             ? "border-warning bg-warning-tint text-warning"
                             : "border-line bg-surface-subtle text-ink hover:border-ink-muted/40"
@@ -1653,7 +1739,7 @@ function StudentContent() {
                         data-testid={`pref-diet-${diet}`}
                         aria-pressed={active}
                         onClick={() => togglePrefDiet(diet)}
-                        className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-3.5 text-xs font-semibold capitalize transition ${
+                        className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-3.5 text-xs font-semibold capitalize transition ${OWL_MOTION_CLASSES.press} ${
                           active
                             ? "border-success bg-success-tint text-success"
                             : "border-line bg-surface-subtle text-ink hover:border-ink-muted/40"
@@ -1670,7 +1756,7 @@ function StudentContent() {
               {prefsStatus && (
                 <p
                   data-testid="student-preferences-status"
-                  className="text-xs font-semibold text-success"
+                  className={`text-xs font-semibold text-success ${OWL_MOTION_CLASSES.pop}`}
                 >
                   {prefsStatus}
                 </p>
@@ -1687,7 +1773,7 @@ function StudentContent() {
                     alertsPaused,
                   )
                 }
-                className="consumer-button w-full"
+                className={`consumer-button w-full ${OWL_MOTION_CLASSES.press}`}
               >
                 {busyId === "preferences" ? "Saving..." : "Save preferences"}
               </button>
@@ -1776,7 +1862,7 @@ function StudentContent() {
                       data-testid={`profile-theme-${id}`}
                       aria-pressed={selected}
                       onClick={() => setThemePreference(id)}
-                      className={`inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl border px-3 text-xs font-bold transition ${
+                      className={`inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl border px-3 text-xs font-bold transition ${OWL_MOTION_CLASSES.press} ${
                         selected
                           ? "border-owl-gold bg-owl-goldTint text-owl-goldText"
                           : "border-line bg-surface-subtle text-ink-muted hover:text-ink"
@@ -1801,7 +1887,7 @@ function StudentContent() {
                 data-testid="leave-demo-button"
                 disabled={busyId !== null}
                 onClick={() => void handleSignOut()}
-                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-danger/40 bg-danger-tint px-5 py-3 text-sm font-bold text-danger transition hover:opacity-90 disabled:opacity-50"
+                className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-danger/40 bg-danger-tint px-5 py-3 text-sm font-bold text-danger transition hover:opacity-90 disabled:opacity-50 ${OWL_MOTION_CLASSES.press}`}
               >
                 <LogOut size={16} aria-hidden="true" />
                 <span>

@@ -4,6 +4,7 @@ import React, { useMemo, useState } from "react";
 import { Check, MapPin, Search } from "lucide-react";
 import type { Building } from "../lib/types/api";
 import { groupVerifiedBuildings } from "../lib/buildings";
+import { OWL_MOTION_CLASSES } from "../lib/motion";
 
 export interface RehearsalOption {
   id: string;
@@ -106,7 +107,7 @@ export function BuildingSelector({
         <div
           role="status"
           data-testid={`${testIdPrefix}-buildings-loading`}
-          className="h-24 animate-pulse rounded-2xl bg-surface-subtle"
+          className={`h-24 rounded-2xl bg-surface-subtle ${OWL_MOTION_CLASSES.shimmer}`}
         >
           <span className="sr-only">Loading campus buildings</span>
         </div>
@@ -124,7 +125,7 @@ export function BuildingSelector({
               type="button"
               data-testid={`${testIdPrefix}-buildings-retry`}
               onClick={onRetry}
-              className="consumer-button-secondary min-h-11 px-4 text-xs"
+              className={`consumer-button-secondary min-h-11 px-4 text-xs ${OWL_MOTION_CLASSES.press}`}
             >
               Try again
             </button>
@@ -164,7 +165,7 @@ export function BuildingSelector({
                         data-testid={`${testIdPrefix}-building-option-${b.id}`}
                         aria-pressed={selected}
                         onClick={() => onChange(b.id)}
-                        className={`flex min-h-12 w-full items-center justify-between gap-2 rounded-xl border px-3.5 py-2.5 text-left text-sm font-semibold transition ${
+                        className={`flex min-h-12 w-full items-center justify-between gap-2 rounded-xl border px-3.5 py-2.5 text-left text-sm font-semibold transition ${OWL_MOTION_CLASSES.press} ${
                           selected
                             ? "border-owl-gold bg-owl-goldTint text-ink"
                             : "border-line bg-surface text-ink hover:border-owl-gold/60"

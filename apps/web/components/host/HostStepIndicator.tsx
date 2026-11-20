@@ -17,9 +17,9 @@ export function HostStepIndicator({ current }: { current: 1 | 2 | 3 }) {
           <li
             key={step}
             aria-current={active ? "step" : undefined}
-            className={`flex min-h-11 items-center justify-center gap-2 rounded-full px-3 text-sm font-bold ${
+            className={`flex min-h-11 items-center justify-center gap-2 rounded-full px-3 text-sm font-bold transition-colors duration-200 ${
               active
-                ? "bg-owl-gold text-owl-goldInk"
+                ? "bg-owl-gold text-owl-goldInk shadow-sm"
                 : done
                   ? "bg-success-tint text-success"
                   : "bg-surface-subtle text-ink-muted"

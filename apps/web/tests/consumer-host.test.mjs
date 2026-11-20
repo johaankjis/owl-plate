@@ -306,11 +306,16 @@ test("host review queue labels avoid provider names and pickup photos are never 
   );
 });
 
-test("photo step previews locally, revokes object URLs, and shows the privacy cue at capture", () => {
+test("photo step previews locally, revokes object URLs, and shows a single food-only privacy hint", () => {
   const { host } = loadModules();
   assert.equal(
     host.HOST_PHOTO_PRIVACY_NOTICE,
-    "Snap food trays only — avoid capturing faces or people. Photos are automatically deleted when the drop expires (max 24 hours).",
+    "Photograph food trays only — no people or faces.",
+  );
+  // Single concise sentence only — no verbose multi-sentence upload reminder.
+  assert.equal(
+    host.HOST_PHOTO_PRIVACY_NOTICE.split(".").filter(Boolean).length,
+    1,
   );
   const hook = read("../components/host/useObjectUrl.ts");
   assert.match(hook, /URL\.createObjectURL\(file\)/);
@@ -320,6 +325,23 @@ test("photo step previews locally, revokes object URLs, and shows the privacy cu
   assert.match(step, /accept="image\/jpeg,image\/png"/);
   assert.match(step, /useObjectUrl\(selectedFile\)/);
   assert.match(step, /HOST_PHOTO_PRIVACY_NOTICE/);
+  assert.match(step, /HostEstimateSkeleton/);
+  assert.match(step, /OWL_MOTION_CLASSES\.fade/);
+  assert.match(step, /OWL_MOTION_CLASSES\.press/);
+});
+
+test("host flows use shared motion transitions and animated inventory counters", () => {
+  const hostPage = read("../app/host/page.tsx");
+  assert.match(hostPage, /OWL_MOTION_CLASSES\.tabPanel/);
+  assert.match(hostPage, /OWL_MOTION_CLASSES\.fade/);
+  assert.match(hostPage, /OWL_MOTION_CLASSES\.pop/);
+  const listingsView = read("../components/host/HostListingsView.tsx");
+  assert.match(listingsView, /AnimatedNumber/);
+  assert.match(listingsView, /entranceDelayMs/);
+  assert.match(listingsView, /host-listings-summary/);
+  const reviewStep = read("../components/host/HostReviewStep.tsx");
+  assert.match(reviewStep, /OWL_MOTION_CLASSES\.entrance/);
+  assert.match(reviewStep, /OWL_MOTION_CLASSES\.press/);
 });
 
 test("published listing dashboard keeps student and pantry counts apart and uses the authenticated listing photo", () => {
@@ -342,6 +364,7 @@ test("published listing dashboard keeps student and pantry counts apart and uses
   assert.match(dashboard, /<DropPhoto/);
   assert.match(dashboard, /<PushOptIn/);
   assert.match(dashboard, /<HostPantryCard/);
+  assert.match(dashboard, /<AnimatedNumber/);
   assert.match(dashboard, /Pantry \(simulated\)/);
   assert.equal(/nickname|student_id|claim_id/.test(dashboard), false);
 });
@@ -380,31 +403,38 @@ test("host and pantry screens carry no developer jargon, raw IDs, coordinates or
   assert.equal(page.includes("getActiveDrop"), false);
 });
 
-test("pantry coordinator keeps every policy disclosure and unchecked acknowledgment at the point of action", () => {
+test("pantry coordinator keeps every policy disclosure and unchecked acknowledgment inside confirmation dialogs", () => {
   const page = read("../app/pantry/page.tsx");
   assert.match(page, /<AppShell variant="pantry"/);
+  assert.match(page, /pantry-simulation-badge/);
+  assert.match(page, /Simulation only/);
   assert.match(page, /resolvePantryNotice\(referral\.notice\)/);
   assert.equal(page.includes("pantry-demo-banner"), false);
+  assert.match(page, /<ConfirmDialog/);
+  assert.match(page, /pantry-decision-dialog-/);
   assert.match(page, /pantry-policy-ack-/);
   assert.match(page, /useState<boolean>\(false\)/);
   assert.match(page, /demo simulation only/);
-  assert.match(page, /does not waive KSU catering policy/);
+  assert.match(page, /does\s+not waive KSU catering policy/);
   assert.match(page, /referral\.destination\.care_source_url/);
   assert.equal(
     page.match(/referral\.destination\.catering_policy_url/g)?.length,
     1,
-    "exactly one catering policy link per card",
+    "exactly one catering policy link definition per card",
   );
   assert.match(page, /authToken=\{PANTRY_COORDINATOR_CREDENTIAL\}/);
   assert.match(page, /buildWalkingDirectionsUrl\(referral\.drop\.building\)/);
   assert.match(page, /Accepted servings|buildPantryInventoryTiles/);
 
   const card = read("../components/HostPantryCard.tsx");
+  assert.match(card, /<ConfirmDialog/);
+  assert.match(card, /host-pantry-request-dialog/);
+  assert.match(card, /host-pantry-handoff-dialog/);
   assert.match(card, /host-pantry-policy-checkbox/);
   assert.match(card, /host-pantry-handoff-checkbox/);
   assert.match(card, /useState<boolean>\(false\)/);
   assert.match(card, /simulation only/);
-  assert.match(card, /not an independently verified physical transfer/);
+  assert.match(card, /not an independently verified physical\s+transfer/);
   assert.match(card, /officialLinks\.careSourceUrl/);
   assert.equal(card.match(/officialLinks\.cateringPolicyUrl/g)?.length, 1);
   assert.match(card, /Open demo pantry coordinator/);

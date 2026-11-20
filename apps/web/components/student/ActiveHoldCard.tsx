@@ -16,6 +16,7 @@ import {
 import { AllergenCard } from "../ui/AllergenCard";
 import { DropPhoto } from "../ui/DropPhoto";
 import { StatusBadge } from "../ui/StatusBadge";
+import { OWL_MOTION_CLASSES } from "../../lib/motion";
 import { formatEasternTime, formatRemainingTime } from "../../lib/time";
 import type {
   ClaimResponse,
@@ -138,7 +139,7 @@ export function ActiveHoldCard({
   return (
     <article
       data-testid="active-claim-banner"
-      className="consumer-card space-y-5 border-success/40"
+      className={`consumer-card space-y-5 border-success/40 ${OWL_MOTION_CLASSES.entrance}`}
     >
       {showPhoto && (
         <DropPhoto
@@ -235,7 +236,7 @@ export function ActiveHoldCard({
             href={directionsUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="consumer-button-secondary w-full"
+            className={`consumer-button-secondary w-full ${OWL_MOTION_CLASSES.press}`}
           >
             <Navigation size={16} aria-hidden="true" />
             <span>Walking directions</span>
@@ -298,7 +299,7 @@ export function ActiveHoldCard({
         {pickupPreviewUrl && (
           <div
             data-testid="pickup-photo-temp-preview"
-            className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3 text-xs"
+            className={`flex items-center gap-3 rounded-2xl border border-line bg-surface p-3 text-xs ${OWL_MOTION_CLASSES.fade}`}
           >
             <img
               src={pickupPreviewUrl}
@@ -319,7 +320,7 @@ export function ActiveHoldCard({
           <div
             role="alert"
             data-testid="pickup-verification-error"
-            className="space-y-2.5 rounded-2xl border border-danger/30 bg-danger-tint px-3.5 py-3 text-xs text-danger"
+            className={`space-y-2.5 rounded-2xl border border-danger/30 bg-danger-tint px-3.5 py-3 text-xs text-danger ${OWL_MOTION_CLASSES.fade}`}
           >
             <p className="font-medium">{pickupError}</p>
             {hasRetryablePhoto && (
@@ -328,7 +329,7 @@ export function ActiveHoldCard({
                 data-testid="pickup-retry-same-photo-button"
                 disabled={busyId !== null || !holdIsActive}
                 onClick={() => void onRetrySamePickupPhoto(claim.id)}
-                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-danger/40 bg-surface px-3.5 py-2 text-xs font-bold text-danger transition hover:bg-danger-tint disabled:opacity-50"
+                className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-danger/40 bg-surface px-3.5 py-2 text-xs font-bold text-danger transition hover:bg-danger-tint disabled:opacity-50 ${OWL_MOTION_CLASSES.press}`}
               >
                 <RefreshCw size={14} aria-hidden="true" />
                 <span>Try uploading again</span>
@@ -346,7 +347,7 @@ export function ActiveHoldCard({
             data-review-status={
               pickupVerification.review_status ?? "not_requested"
             }
-            className="space-y-2 rounded-2xl border border-line bg-surface p-3.5 text-xs"
+            className={`space-y-2 rounded-2xl border border-line bg-surface p-3.5 text-xs ${OWL_MOTION_CLASSES.fade}`}
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <StatusBadge tone={statusBadgeTone}>
@@ -401,11 +402,11 @@ export function ActiveHoldCard({
                 actions.phase === "processing"
               }
               onClick={handleOpenCamera}
-              className={
+              className={`${
                 actions.canCompletePickup
                   ? "consumer-button-secondary w-full"
                   : "consumer-button w-full"
-              }
+              } ${OWL_MOTION_CLASSES.press}`}
             >
               <Camera size={17} aria-hidden="true" />
               <span>
@@ -428,7 +429,7 @@ export function ActiveHoldCard({
               onClick={() =>
                 void onRequestHostReview(claim.id, actions.verificationId!)
               }
-              className="consumer-button-secondary w-full border-warning/40 text-warning hover:bg-warning-tint"
+              className={`consumer-button-secondary w-full border-warning/40 text-warning hover:bg-warning-tint ${OWL_MOTION_CLASSES.press}`}
             >
               <HelpCircle size={17} aria-hidden="true" />
               <span>
@@ -451,7 +452,7 @@ export function ActiveHoldCard({
             onClick={() =>
               void onConfirmPickup(claim.id, actions.verificationId!)
             }
-            className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+            className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${OWL_MOTION_CLASSES.press} ${
               actions.canCompletePickup
                 ? "bg-success text-white hover:opacity-95"
                 : "border border-line bg-surface text-ink-muted"
@@ -472,7 +473,7 @@ export function ActiveHoldCard({
             data-testid="pickup-release-button"
             disabled={busyId !== null}
             onClick={() => void onReleaseReservation(claim.id)}
-            className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold text-ink-muted transition hover:bg-surface hover:text-danger disabled:opacity-50"
+            className={`inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold text-ink-muted transition hover:bg-surface hover:text-danger disabled:opacity-50 ${OWL_MOTION_CLASSES.press}`}
           >
             <XCircle size={15} aria-hidden="true" />
             <span>Release reservation</span>

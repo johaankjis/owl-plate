@@ -1,5 +1,7 @@
 import { UtensilsCrossed } from "lucide-react";
 import type { ReactNode } from "react";
+import { OWL_MOTION_CLASSES } from "../../lib/motion";
+
 export function EmptyState({
   title,
   description,
@@ -16,7 +18,7 @@ export function EmptyState({
   return (
     <div
       data-testid={testId}
-      className="rounded-3xl border border-line bg-surface px-6 py-12 text-center"
+      className={`rounded-3xl border border-line bg-surface px-6 py-12 text-center shadow-card ${OWL_MOTION_CLASSES.fade}`}
     >
       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-owl-goldTint text-owl-goldText">
         {icon ?? <UtensilsCrossed size={28} />}

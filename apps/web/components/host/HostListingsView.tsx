@@ -1,11 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { ChevronRight, MapPin, Plus, RefreshCw } from "lucide-react";
+import { AnimatedNumber } from "../ui/AnimatedNumber";
 import { DropPhoto } from "../ui/DropPhoto";
 import { EmptyState } from "../ui/EmptyState";
 import { ListRowSkeleton } from "../ui/Skeleton";
 import { StatusBadge } from "../ui/StatusBadge";
+import { entranceDelayMs, OWL_MOTION_CLASSES } from "../../lib/motion";
 import type { Building, DropResponse } from "../../lib/types/api";
 import {
   formatHostDropLocation,
@@ -39,11 +41,13 @@ function formatWhen(drop: DropResponse): string {
 
 function ListingRow({
   drop,
+  index,
   authToken,
   buildings,
   onOpen,
 }: {
   drop: DropResponse;
+  index: number;
   authToken: string;
   buildings: ReadonlyArray<Building>;
   onOpen: (drop: DropResponse) => void;
@@ -83,20 +87,28 @@ function ListingRow({
           >
             <div className="flex gap-1">
               <dt className="text-ink-muted">Servings</dt>
-              <dd className="font-bold">{drop.counts.total}</dd>
+              <dd className="font-bold">
+                <AnimatedNumber value={drop.counts.total} />
+              </dd>
             </div>
             <div className="flex gap-1">
               <dt className="text-ink-muted">Reservations</dt>
-              <dd className="font-bold">{drop.counts.held}</dd>
+              <dd className="font-bold">
+                <AnimatedNumber value={drop.counts.held} />
+              </dd>
             </div>
             <div className="flex gap-1">
               <dt className="text-ink-muted">Pickups</dt>
-              <dd className="font-bold">{drop.counts.picked_up}</dd>
+              <dd className="font-bold">
+                <AnimatedNumber value={drop.counts.picked_up} />
+              </dd>
             </div>
             {pantryTotal > 0 && (
               <div className="flex gap-1">
                 <dt className="text-ink-muted">Pantry donations</dt>
-                <dd className="font-bold">{pantryTotal}</dd>
+                <dd className="font-bold">
+                  <AnimatedNumber value={pantryTotal} />
+                </dd>
               </div>
             )}
           </dl>
@@ -114,14 +126,15 @@ function ListingRow({
     <li
       data-testid={`host-listing-${drop.id}`}
       data-status={drop.status}
-      className="rounded-3xl border border-line bg-surface p-3 shadow-card"
+      style={{ animationDelay: `${entranceDelayMs(index)}ms` }}
+      className={`rounded-3xl border border-line bg-surface p-3 shadow-card transition hover:border-owl-gold/50 ${OWL_MOTION_CLASSES.entrance}`}
     >
       {action ? (
         <button
           type="button"
           data-testid={`host-listing-open-${drop.id}`}
           onClick={() => onOpen(drop)}
-          className="block w-full rounded-2xl text-left"
+          className={`block w-full rounded-2xl text-left ${OWL_MOTION_CLASSES.press}`}
         >
           {body}
         </button>
@@ -145,6 +158,28 @@ export function HostListingsView({
 }: HostListingsViewProps) {
   const { active, past } = partitionHostDrops(drops ?? []);
 
+  const inventorySummary = useMemo(() => {
+    const list = drops ?? [];
+    let available = 0;
+    let studentPickups = 0;
+    let pantryTransfers = 0;
+    for (const d of list) {
+      if (d.status !== "draft" && d.status !== "expired") {
+        available += d.counts.available;
+      }
+      if (d.status !== "draft") {
+        studentPickups += d.counts.picked_up;
+        pantryTransfers += d.counts.pantry_transferred ?? 0;
+      }
+    }
+    return {
+      activeCount: active.length,
+      available,
+      studentPickups,
+      pantryTransfers,
+    };
+  }, [active.length, drops]);
+
   return (
     <section data-testid="host-listings-view" className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -155,7 +190,7 @@ export function HostListingsView({
             data-testid="host-listings-refresh"
             onClick={onRefresh}
             aria-label="Refresh listings"
-            className="consumer-button-secondary h-12 w-12 px-0"
+            className={`consumer-button-secondary h-12 w-12 px-0 ${OWL_MOTION_CLASSES.press}`}
           >
             <RefreshCw size={18} aria-hidden="true" />
           </button>
@@ -163,7 +198,7 @@ export function HostListingsView({
             type="button"
             data-testid="host-new-drop-button"
             onClick={onNew}
-            className="consumer-button"
+            className={`consumer-button ${OWL_MOTION_CLASSES.press}`}
           >
             <Plus size={18} aria-hidden="true" />
             New food drop
@@ -175,10 +210,68 @@ export function HostListingsView({
         <p
           role="alert"
           data-testid="host-listings-error"
-          className="rounded-2xl bg-danger-tint px-4 py-3 text-sm text-danger"
+          className={`rounded-2xl bg-danger-tint px-4 py-3 text-sm text-danger ${OWL_MOTION_CLASSES.fade}`}
         >
           {error}
         </p>
+      )}
+
+      {drops && drops.length > 0 && (
+        <div
+          data-testid="host-listings-summary"
+          className={`grid gap-2.5 ${
+            inventorySummary.pantryTransfers > 0
+              ? "grid-cols-2 sm:grid-cols-4"
+              : "grid-cols-3"
+          } ${OWL_MOTION_CLASSES.fade}`}
+        >
+          <div className="rounded-2xl border border-line bg-surface px-3.5 py-3 shadow-card">
+            <div className="text-[11px] font-semibold text-ink-muted">
+              Active listings
+            </div>
+            <div
+              data-testid="host-summary-active"
+              className="mt-0.5 text-2xl font-extrabold tracking-tight text-ink"
+            >
+              <AnimatedNumber value={inventorySummary.activeCount} />
+            </div>
+          </div>
+          <div className="rounded-2xl border border-line bg-surface px-3.5 py-3 shadow-card">
+            <div className="text-[11px] font-semibold text-ink-muted">
+              Servings open
+            </div>
+            <div
+              data-testid="host-summary-available"
+              className="mt-0.5 text-2xl font-extrabold tracking-tight text-success"
+            >
+              <AnimatedNumber value={inventorySummary.available} />
+            </div>
+          </div>
+          <div className="rounded-2xl border border-line bg-surface px-3.5 py-3 shadow-card">
+            <div className="text-[11px] font-semibold text-ink-muted">
+              Student pickups
+            </div>
+            <div
+              data-testid="host-summary-pickups"
+              className="mt-0.5 text-2xl font-extrabold tracking-tight text-owl-goldText"
+            >
+              <AnimatedNumber value={inventorySummary.studentPickups} />
+            </div>
+          </div>
+          {inventorySummary.pantryTransfers > 0 && (
+            <div className="rounded-2xl border border-line bg-surface px-3.5 py-3 shadow-card">
+              <div className="text-[11px] font-semibold text-ink-muted">
+                Pantry transfers
+              </div>
+              <div
+                data-testid="host-summary-pantry"
+                className="mt-0.5 text-2xl font-extrabold tracking-tight text-ink"
+              >
+                <AnimatedNumber value={inventorySummary.pantryTransfers} />
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {loading && !drops ? (
@@ -192,7 +285,11 @@ export function HostListingsView({
           title="No listings yet"
           description="Share leftover food from your event and it will show up here."
           action={
-            <button type="button" onClick={onNew} className="consumer-button">
+            <button
+              type="button"
+              onClick={onNew}
+              className={`consumer-button ${OWL_MOTION_CLASSES.press}`}
+            >
               Share food
             </button>
           }
@@ -205,10 +302,11 @@ export function HostListingsView({
                 Active
               </h3>
               <ul className="space-y-3">
-                {active.map((drop) => (
+                {active.map((drop, idx) => (
                   <ListingRow
                     key={drop.id}
                     drop={drop}
+                    index={idx}
                     authToken={authToken}
                     buildings={buildings}
                     onOpen={onOpen}
@@ -223,10 +321,11 @@ export function HostListingsView({
                 Past
               </h3>
               <ul className="space-y-3">
-                {past.map((drop) => (
+                {past.map((drop, idx) => (
                   <ListingRow
                     key={drop.id}
                     drop={drop}
+                    index={idx}
                     authToken={authToken}
                     buildings={buildings}
                     onOpen={onOpen}

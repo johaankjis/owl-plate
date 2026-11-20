@@ -96,3 +96,51 @@ test("closing a listing cancels its pending image request", async () => {
   await assert.rejects(request, /aborted/);
   assert.equal(received.aborted, true);
 });
+
+test("shared UI primitives adopt the motion contract and respect prefers-reduced-motion", () => {
+  const animatedNumber = readFileSync(
+    new URL("../components/ui/AnimatedNumber.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(animatedNumber, /OWL_MOTION\.durations\.counter/);
+  assert.match(animatedNumber, /prefersReducedMotion\(\)/);
+  assert.match(animatedNumber, /tabular-nums/);
+
+  const confirmDialog = readFileSync(
+    new URL("../components/ui/ConfirmDialog.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(confirmDialog, /role="dialog"/);
+  assert.match(confirmDialog, /aria-modal="true"/);
+  assert.match(confirmDialog, /OWL_MOTION_CLASSES\.fade/);
+  assert.match(confirmDialog, /OWL_MOTION_CLASSES\.entrance/);
+
+  const skeleton = readFileSync(
+    new URL("../components/ui/Skeleton.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(skeleton, /OWL_MOTION_CLASSES\.shimmer/);
+  assert.match(skeleton, /HostEstimateSkeleton/);
+
+  const dropPhoto = readFileSync(
+    new URL("../components/ui/DropPhoto.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(dropPhoto, /OWL_MOTION_CLASSES\.shimmer/);
+  assert.match(dropPhoto, /OWL_MOTION_CLASSES\.fade/);
+
+  const foodCard = readFileSync(
+    new URL("../components/ui/FoodCard.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(foodCard, /OWL_MOTION_CLASSES\.entrance/);
+  assert.match(foodCard, /OWL_MOTION_CLASSES\.press/);
+  assert.match(foodCard, /entranceDelayMs/);
+
+  const bottomNav = readFileSync(
+    new URL("../components/ui/BottomNav.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(bottomNav, /OWL_MOTION_CLASSES\.press/);
+  assert.match(bottomNav, /OWL_MOTION_CLASSES\.pop/);
+});

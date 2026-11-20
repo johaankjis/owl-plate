@@ -13,9 +13,11 @@ import {
   Utensils,
 } from "lucide-react";
 import { AppShell } from "../components/ui/AppShell";
+import { AnimatedNumber } from "../components/ui/AnimatedNumber";
 import { FoodCard } from "../components/ui/FoodCard";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { getMyFeed } from "../lib/api-client";
+import { entranceDelayMs, OWL_MOTION_CLASSES } from "../lib/motion";
 import {
   clearSessionToken,
   getSessionToken,
@@ -49,6 +51,7 @@ const HOW_IT_WORKS = [
 export default function HomePage() {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [previewDrops, setPreviewDrops] = useState<FeedDrop[]>([]);
+  const [liveAvailableServings, setLiveAvailableServings] = useState<number>(0);
 
   useEffect(() => {
     const token = getSessionToken();
@@ -59,13 +62,16 @@ export default function HomePage() {
     getMyFeed(token)
       .then((res) => {
         if (!active) return;
-        const available = res.data.drops
-          .filter(
-            (item) =>
-              item.drop.status === "live" && item.drop.counts.available > 0,
-          )
-          .slice(0, 2);
-        setPreviewDrops(available);
+        const openDrops = res.data.drops.filter(
+          (item) =>
+            item.drop.status === "live" && item.drop.counts.available > 0,
+        );
+        const totalServings = openDrops.reduce(
+          (sum, item) => sum + Math.max(0, item.drop.counts.available),
+          0,
+        );
+        setLiveAvailableServings(totalServings);
+        setPreviewDrops(openDrops.slice(0, 2));
       })
       .catch((err) => {
         if (!active) return;
@@ -74,6 +80,7 @@ export default function HomePage() {
           clearSessionToken();
           setAuthToken(null);
           setPreviewDrops([]);
+          setLiveAvailableServings(0);
         }
       });
 
@@ -89,14 +96,16 @@ export default function HomePage() {
     <AppShell variant="public">
       <div className="space-y-10 pb-4">
         {/* Hero */}
-        <section className="space-y-6 pt-2 sm:pt-6">
+        <section
+          className={`space-y-6 pt-2 sm:pt-6 ${OWL_MOTION_CLASSES.fade}`}
+        >
           <div className="space-y-4">
             <div className="inline-flex items-center gap-2 rounded-full bg-owl-goldTint px-3.5 py-1.5 text-xs font-bold text-owl-goldText">
               <MapPin size={14} aria-hidden="true" />
               <span>KSU Marietta Campus</span>
             </div>
 
-            <h1 className="max-w-3xl text-3xl font-extrabold tracking-tight text-ink sm:text-5xl sm:leading-[1.1]">
+            <h1 className="max-w-3xl text-3xl font-extrabold tracking-tight text-ink sm:text-5xl sm:leading-[1.08]">
               Free campus food, shared before it goes to waste
             </h1>
 
@@ -115,11 +124,12 @@ export default function HomePage() {
             <Link
               href={findFoodHref}
               data-testid="home-find-food"
-              className="group flex flex-col justify-between rounded-3xl border-2 border-owl-gold/70 bg-surface p-6 shadow-card transition duration-200 hover:-translate-y-0.5 hover:border-owl-gold hover:shadow-lg"
+              style={{ animationDelay: `${entranceDelayMs(0)}ms` }}
+              className={`group flex flex-col justify-between rounded-3xl border-2 border-owl-gold/70 bg-surface p-6 shadow-card transition duration-200 hover:-translate-y-0.5 hover:border-owl-gold hover:shadow-lg ${OWL_MOTION_CLASSES.entrance} ${OWL_MOTION_CLASSES.press}`}
             >
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-owl-gold text-owl-goldInk">
+                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-owl-gold text-owl-goldInk shadow-sm">
                     <Utensils size={22} aria-hidden="true" />
                   </span>
                   <StatusBadge tone="gold">Students</StatusBadge>
@@ -140,7 +150,7 @@ export default function HomePage() {
                 <ArrowRight
                   size={18}
                   aria-hidden="true"
-                  className="transition group-hover:translate-x-0.5"
+                  className="transition-transform duration-200 group-hover:translate-x-0.5"
                 />
               </span>
             </Link>
@@ -148,7 +158,8 @@ export default function HomePage() {
             <Link
               href="/host"
               data-testid="home-share-food"
-              className="group flex flex-col justify-between rounded-3xl border border-line bg-surface p-6 shadow-card transition duration-200 hover:-translate-y-0.5 hover:border-owl-gold/60 hover:shadow-lg"
+              style={{ animationDelay: `${entranceDelayMs(1)}ms` }}
+              className={`group flex flex-col justify-between rounded-3xl border border-line bg-surface p-6 shadow-card transition duration-200 hover:-translate-y-0.5 hover:border-owl-gold/60 hover:shadow-lg ${OWL_MOTION_CLASSES.entrance} ${OWL_MOTION_CLASSES.press}`}
             >
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
@@ -170,7 +181,7 @@ export default function HomePage() {
                 <ArrowRight
                   size={18}
                   aria-hidden="true"
-                  className="transition group-hover:translate-x-0.5"
+                  className="transition-transform duration-200 group-hover:translate-x-0.5"
                 />
               </span>
             </Link>
@@ -183,10 +194,11 @@ export default function HomePage() {
             How it works
           </h2>
           <div className="grid gap-3 sm:grid-cols-3">
-            {HOW_IT_WORKS.map(({ step, title, description, Icon }) => (
+            {HOW_IT_WORKS.map(({ step, title, description, Icon }, idx) => (
               <div
                 key={step}
-                className="flex items-start gap-3.5 rounded-3xl border border-line bg-surface p-5 shadow-card"
+                style={{ animationDelay: `${entranceDelayMs(idx)}ms` }}
+                className={`flex items-start gap-3.5 rounded-3xl border border-line bg-surface p-5 shadow-card ${OWL_MOTION_CLASSES.entrance}`}
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-owl-goldTint text-owl-goldText">
                   <Icon size={19} aria-hidden="true" />
@@ -214,16 +226,22 @@ export default function HomePage() {
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="space-y-0.5">
-                <h2 className="text-lg font-bold tracking-tight text-ink">
-                  Available on campus right now
-                </h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-lg font-bold tracking-tight text-ink">
+                    Available on campus right now
+                  </h2>
+                  <StatusBadge tone="success">
+                    <AnimatedNumber value={liveAvailableServings} />{" "}
+                    {liveAvailableServings === 1 ? "serving" : "servings"} open
+                  </StatusBadge>
+                </div>
                 <p className="text-xs text-ink-muted">
                   Live listings open for pickup on Marietta Campus.
                 </p>
               </div>
               <Link
                 href="/student"
-                className="inline-flex min-h-[44px] items-center gap-1.5 text-sm font-bold text-owl-goldText hover:underline"
+                className={`inline-flex min-h-[44px] items-center gap-1.5 text-sm font-bold text-owl-goldText hover:underline ${OWL_MOTION_CLASSES.press}`}
               >
                 <span>See all food</span>
                 <ArrowRight size={15} aria-hidden="true" />
@@ -231,12 +249,13 @@ export default function HomePage() {
             </div>
 
             <div className="grid gap-5 sm:grid-cols-2">
-              {previewDrops.map((item) => (
+              {previewDrops.map((item, idx) => (
                 <FoodCard
                   key={item.drop.id}
                   drop={item.drop}
                   authToken={authToken}
                   href={`/student/drops/${item.drop.id}`}
+                  index={idx}
                 />
               ))}
             </div>
