@@ -1,15 +1,20 @@
 import type {
+  Allergen,
   Building,
   ClaimResponse,
+  ClaimStatus,
   DemoAreaId,
+  Diet,
   DropResponse,
   FeedDrop,
   FeedUnavailableReason,
   InviteResponse,
   PickupMatchStatus,
+  PickupReviewStatus,
   PickupVerification,
   PickupVerificationSource,
   SeededPersonaLabel,
+  StudentReservationItem,
 } from "../../lib/types/api";
 import {
   PICKUP_CONFIRMATION_NOTICE,
@@ -448,33 +453,34 @@ export function revokePreviewObjectUrl(
 }
 
 /**
- * Formats the verification provider source into an honest UI label.
+ * Formats the verification source into a jargon-free consumer label.
+ * Contract: show "Photo assessment" for live verification and "Sample assessment" for simulated results.
  */
 export function formatPickupVerificationSourceLabel(
-  source: PickupVerificationSource,
+  source: PickupVerificationSource | string,
 ): string {
-  if (source === "openrouter") {
-    return "Live Gemini via OpenRouter";
+  if (source === "fixture") {
+    return "Sample assessment";
   }
-  return "Simulated demo assessment";
+  return "Photo assessment";
 }
 
 /**
- * Formats a match_status into a user-facing badge title.
+ * Formats a match_status into a user-facing consumer badge title.
  */
 export function formatPickupMatchStatusLabel(
   matchStatus: PickupMatchStatus | null,
 ): string {
   if (matchStatus === "consistent") {
-    return "Consistent with listing";
+    return "Consistent";
   }
   if (matchStatus === "uncertain") {
-    return "Uncertain match";
+    return "Needs a closer look";
   }
   if (matchStatus === "inconsistent") {
-    return "Inconsistent with listing";
+    return "Doesn't look like a match";
   }
-  return "Assessment pending";
+  return "Checking photo";
 }
 
 /**
@@ -644,4 +650,310 @@ export function resolvePickupVerificationActions(
     verificationId: verification.id,
     notice,
   };
+}
+
+export type ConsumerStudentTabId = "home" | "map" | "reservations" | "profile";
+
+/** Parses `?tab=` query param into one of the four student tabs (defaults to `home`). */
+export function parseStudentTabParam(
+  param: string | null | undefined,
+): ConsumerStudentTabId {
+  const clean = param?.trim().toLowerCase();
+  if (
+    clean === "home" ||
+    clean === "map" ||
+    clean === "reservations" ||
+    clean === "profile"
+  ) {
+    return clean;
+  }
+  return "home";
+}
+
+export type StudentFilterChipId =
+  | "all"
+  | "available_now"
+  | "safe_for_me"
+  | "vegetarian"
+  | "vegan"
+  | "halal"
+  | "kosher"
+  | "pizza"
+  | "sandwiches_wraps"
+  | "salads_bowls"
+  | "snacks_sides";
+
+export const STUDENT_FILTER_CHIPS: ReadonlyArray<{
+  id: StudentFilterChipId;
+  label: string;
+}> = [
+  { id: "all", label: "All" },
+  { id: "available_now", label: "Available now" },
+  { id: "safe_for_me", label: "Safe for me" },
+  { id: "vegetarian", label: "Vegetarian" },
+  { id: "vegan", label: "Vegan" },
+  { id: "halal", label: "Halal" },
+  { id: "kosher", label: "Kosher" },
+  { id: "pizza", label: "Pizza" },
+  { id: "sandwiches_wraps", label: "Sandwiches & Wraps" },
+  { id: "salads_bowls", label: "Salads & Bowls" },
+  { id: "snacks_sides", label: "Snacks & Sides" },
+];
+
+const CATEGORY_PATTERNS: Record<
+  "pizza" | "sandwiches_wraps" | "salads_bowls" | "snacks_sides",
+  RegExp
+> = {
+  pizza: /\b(pizza|flatbread|calzone|stromboli|slices?)\b/i,
+  sandwiches_wraps:
+    /\b(sandwich(?:es)?|wraps?|subs?|paninis?|burgers?|sliders?|hoagies?|quesadillas?|tacos?|burritos?|pitas?)\b/i,
+  salads_bowls:
+    /\b(salads?|bowls?|greens|grains?|poke|pasta|rice|soups?|chili)\b/i,
+  snacks_sides:
+    /\b(snacks?|chips?|cookies?|brownies?|muffins?|pastr(?:y|ies)|fruit|veggie\s*tray|pretzels?|popcorn|donuts?|cupcakes?|bagels?|breadsticks?|wings?|sides?|dips?|hummus|desserts?|cakes?|bars?)\b/i,
+};
+
+/**
+ * Formats a drop's notes for consumer screens, hiding generic internal placeholder strings.
+ */
+export function formatConsumerHostNote(
+  notes: string | null | undefined,
+): string | null {
+  const trimmed = notes?.trim();
+  if (!trimmed) return null;
+  if (/^(fixture|demo|cached|sample|synthetic|test)$/i.test(trimmed)) {
+    return null;
+  }
+  return trimmed;
+}
+
+/**
+ * Formats a consumer-friendly pickup location using verified building display names.
+ */
+export function formatConsumerDropLocation(
+  drop: Pick<DropResponse, "building_code" | "room" | "building">,
+  buildings: ReadonlyArray<Building> = [],
+): string {
+  const resolvedBuilding =
+    drop.building ?? buildings.find((b) => b.id === drop.building_code) ?? null;
+  const buildingName =
+    resolvedBuilding?.name?.trim() ||
+    (drop.building_code && drop.building_code !== "DEMO-ORIGIN"
+      ? drop.building_code.trim()
+      : "Marietta Campus pickup");
+  const cleanRoom = drop.room?.trim();
+  return cleanRoom ? `${buildingName} · Room ${cleanRoom}` : buildingName;
+}
+
+/**
+ * Instant client-side search across food names, host notes, pickup instructions,
+ * verified building names, and diet tags.
+ */
+export function matchesDropSearch(feedDrop: FeedDrop, query: string): boolean {
+  const clean = query.trim().toLowerCase();
+  if (!clean) return true;
+  const { drop } = feedDrop;
+  const itemNames = (drop.vision?.items ?? []).map((i) => i.name).join(" ");
+  const hostNote = formatConsumerHostNote(drop.vision?.notes) ?? "";
+  const haystack = [
+    itemNames,
+    hostNote,
+    drop.pickup_instructions ?? "",
+    drop.building?.name ?? "",
+    drop.room ?? "",
+    drop.diet_tags_final.map((d) => d.replaceAll("_", " ")).join(" "),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  const tokens = clean.split(/\s+/).filter(Boolean);
+  return tokens.every((token) => haystack.includes(token));
+}
+
+/**
+ * Deterministically matches a campus feed drop against a category or dietary chip.
+ */
+export function matchesDropCategory(
+  feedDrop: FeedDrop,
+  chipId: StudentFilterChipId,
+): boolean {
+  if (chipId === "all") return true;
+  const { drop } = feedDrop;
+
+  if (chipId === "available_now") {
+    return drop.status === "live" && drop.counts.available > 0;
+  }
+
+  if (chipId === "safe_for_me") {
+    return (
+      feedDrop.unavailable_reason !== "allergen_conflict" &&
+      feedDrop.unavailable_reason !== "diet_mismatch"
+    );
+  }
+
+  if (
+    chipId === "vegetarian" ||
+    chipId === "vegan" ||
+    chipId === "halal" ||
+    chipId === "kosher"
+  ) {
+    return drop.diet_tags_final.includes(chipId);
+  }
+
+  const pattern = CATEGORY_PATTERNS[chipId];
+  const text = [
+    ...(drop.vision?.items ?? []).map((item) => item.name),
+    formatConsumerHostNote(drop.vision?.notes) ?? "",
+  ].join(" ");
+  return pattern.test(text);
+}
+
+/**
+ * Filters a list of campus feed drops by search query and active category chip.
+ */
+export function filterStudentFeedDrops(
+  drops: ReadonlyArray<FeedDrop>,
+  options: {
+    query?: string;
+    category?: StudentFilterChipId;
+  } = {},
+): FeedDrop[] {
+  const query = options.query ?? "";
+  const category = options.category ?? "all";
+  return drops.filter(
+    (fd) => matchesDropSearch(fd, query) && matchesDropCategory(fd, category),
+  );
+}
+
+/**
+ * Formats a warm time-of-day greeting in Marietta campus local time (America/New_York).
+ */
+export function formatGreeting(nickname: string, date = new Date()): string {
+  const cleanName = nickname.trim() || "Student";
+  try {
+    const hourStr = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      hour: "numeric",
+      hour12: false,
+    }).format(date);
+    const hour = Number.parseInt(hourStr, 10);
+    if (Number.isFinite(hour)) {
+      if (hour < 12) return `Good morning, ${cleanName}`;
+      if (hour < 17) return `Good afternoon, ${cleanName}`;
+      return `Good evening, ${cleanName}`;
+    }
+  } catch {
+    // Fallback below
+  }
+  return `Hi, ${cleanName}`;
+}
+
+/**
+ * Summarizes the student's active allergen and diet filters into a short pill label.
+ */
+export function formatDietarySummary(
+  allergens: ReadonlyArray<Allergen>,
+  diets: ReadonlyArray<Diet>,
+): string {
+  const parts: string[] = [];
+  if (allergens.length > 0) {
+    const formatted = allergens
+      .slice(0, 2)
+      .map((a) => a.replaceAll("_", " "))
+      .join(", ");
+    const extra = allergens.length > 2 ? ` +${allergens.length - 2}` : "";
+    parts.push(`Avoiding ${formatted}${extra}`);
+  }
+  if (diets.length > 0) {
+    const formatted = diets
+      .slice(0, 2)
+      .map((d) => d.replaceAll("_", " "))
+      .join(", ");
+    const extra = diets.length > 2 ? ` +${diets.length - 2}` : "";
+    parts.push(formatted.charAt(0).toUpperCase() + formatted.slice(1) + extra);
+  }
+  return parts.length > 0 ? parts.join(" · ") : "All campus food";
+}
+
+/**
+ * Maps a reservation claim status to a clean label and StatusBadge tone.
+ */
+export function formatReservationStatusMeta(status: ClaimStatus): {
+  label: string;
+  tone: "success" | "neutral" | "warning" | "danger" | "gold";
+} {
+  switch (status) {
+    case "held":
+      return { label: "Active hold", tone: "success" };
+    case "picked_up":
+      return { label: "Picked up", tone: "success" };
+    case "released":
+      return { label: "Released", tone: "neutral" };
+    case "expired":
+      return { label: "Expired", tone: "warning" };
+    default:
+      return { label: "Past", tone: "neutral" };
+  }
+}
+
+/**
+ * Maps pickup review status to plain consumer copy.
+ */
+export function formatReviewStatusLabel(
+  reviewStatus: PickupReviewStatus,
+): string | null {
+  switch (reviewStatus) {
+    case "pending":
+      return "Pending host review";
+    case "approved":
+      return "Approved by host";
+    case "rejected":
+      return "Retake requested";
+    case "expired":
+      return "Review expired";
+    case "superseded":
+      return "Updated with new photo";
+    default:
+      return null;
+  }
+}
+
+/**
+ * Formats a UTC timestamp into concise Eastern date + time for reservation history.
+ */
+export function formatEasternDateTime(
+  isoString: string | null | undefined,
+): string {
+  if (!isoString) return "—";
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return isoString;
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(date);
+}
+
+/**
+ * Splits a student's reservations into the current active hold (if any) and past history.
+ */
+export function partitionReservations(
+  reservations: ReadonlyArray<StudentReservationItem>,
+): {
+  active: StudentReservationItem | null;
+  history: StudentReservationItem[];
+} {
+  let active: StudentReservationItem | null = null;
+  const history: StudentReservationItem[] = [];
+  for (const item of reservations) {
+    if (!active && item.claim.status === "held") {
+      active = item;
+    } else {
+      history.push(item);
+    }
+  }
+  return { active, history };
 }

@@ -1,9 +1,26 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AllergenListDisplay } from "./AllergenBadge";
+import Link from "next/link";
+import {
+  Clock,
+  List,
+  Map as MapIcon,
+  MapPin,
+  Navigation,
+  Search,
+  X,
+} from "lucide-react";
+import { AllergenCard } from "./ui/AllergenCard";
+import { DropPhoto } from "./ui/DropPhoto";
+import { EmptyState } from "./ui/EmptyState";
+import { ListRowSkeleton } from "./ui/Skeleton";
+import { StatusBadge } from "./ui/StatusBadge";
 import { CampusMapCanvas } from "./CampusMapCanvas";
-import { formatBuildingMetaBadge, isVerifiedBuilding } from "../lib/buildings";
+import {
+  buildWalkingDirectionsUrl,
+  isVerifiedBuilding,
+} from "../lib/buildings";
 import {
   buildStudentCampusMapModel,
   resolveDeepLinkMapSelection,
@@ -11,12 +28,13 @@ import {
   type GeoPoint,
 } from "../lib/campus-map";
 import { formatEasternTime, formatRemainingTime } from "../lib/time";
-import type { Building, FeedDrop } from "../lib/types/api";
+import type { Building, DropResponse, FeedDrop } from "../lib/types/api";
 import {
-  formatDropResponseLocation,
+  formatConsumerDropLocation,
   formatUnavailableReason,
   getDropPickupInstructions,
   getDropWalkingDirectionsUrl,
+  matchesDropSearch,
   summarizeDropItems,
 } from "../app/student/student-helpers";
 
@@ -28,6 +46,7 @@ interface StudentCampusMapProps {
   nowIso: string;
   referenceNowMs: number;
   busyId: string | null;
+  authToken?: string | null;
   onReserveDrop: (dropId: string) => void | Promise<void>;
   onSwitchToFeed: () => void;
 }
@@ -40,6 +59,7 @@ export function StudentCampusMap({
   nowIso,
   referenceNowMs,
   busyId,
+  authToken = null,
   onReserveDrop,
   onSwitchToFeed,
 }: StudentCampusMapProps) {
@@ -49,11 +69,18 @@ export function StudentCampusMap({
   const [lastSelectedBuildingName, setLastSelectedBuildingName] = useState<
     string | null
   >(null);
+  const [mapQuery, setMapQuery] = useState("");
+  const [displayMode, setDisplayMode] = useState<"map" | "list">("map");
   const appliedDeepLinkRef = useRef<string | null>(null);
 
+  const filteredFeedDrops = useMemo(() => {
+    if (!mapQuery.trim()) return feedDrops;
+    return feedDrops.filter((fd) => matchesDropSearch(fd, mapQuery));
+  }, [feedDrops, mapQuery]);
+
   const mapModel = useMemo(
-    () => buildStudentCampusMapModel(feedDrops, referenceNowMs),
-    [feedDrops, referenceNowMs],
+    () => buildStudentCampusMapModel(filteredFeedDrops, referenceNowMs),
+    [filteredFeedDrops, referenceNowMs],
   );
 
   const deepLinkResolution = useMemo(
@@ -146,14 +173,10 @@ export function StudentCampusMap({
       <section
         data-testid="campus-map-loading"
         aria-live="polite"
-        className="space-y-3 rounded-2xl border border-zinc-800 bg-owl-slate p-6 text-center shadow-lg"
+        className="space-y-4"
       >
-        <h2 className="text-base font-extrabold text-white">
-          Loading Marietta campus food map...
-        </h2>
-        <p className="text-xs text-zinc-400">
-          Checking active campus drops from your live feed.
-        </p>
+        <div className="h-[360px] animate-pulse rounded-3xl border border-line bg-surface-subtle" />
+        <ListRowSkeleton />
       </section>
     );
   }
@@ -164,444 +187,536 @@ export function StudentCampusMap({
       aria-label="Marietta campus food availability map"
       className="space-y-4"
     >
-      {/* Deep-link notice if ?drop= is exhausted or unplottable on the map */}
+      {/* Search + Map / List Toggle */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search
+            size={17}
+            aria-hidden="true"
+            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-muted"
+          />
+          <input
+            type="search"
+            data-testid="campus-map-search-input"
+            value={mapQuery}
+            onChange={(e) => setMapQuery(e.target.value)}
+            placeholder="Search buildings or foods on campus..."
+            aria-label="Search buildings or foods on campus"
+            className="consumer-input pl-11 pr-10"
+          />
+          {mapQuery && (
+            <button
+              type="button"
+              aria-label="Clear map search"
+              onClick={() => setMapQuery("")}
+              className="absolute right-2 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-ink-muted hover:bg-surface-subtle hover:text-ink"
+            >
+              <X size={16} aria-hidden="true" />
+            </button>
+          )}
+        </div>
+
+        <div
+          role="group"
+          aria-label="Map or list display"
+          className="inline-grid shrink-0 grid-cols-2 rounded-full border border-line bg-surface p-1 shadow-sm"
+        >
+          <button
+            type="button"
+            data-testid="campus-map-mode-map"
+            aria-pressed={displayMode === "map"}
+            onClick={() => setDisplayMode("map")}
+            className={`inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-full px-4 text-xs font-bold transition ${
+              displayMode === "map"
+                ? "bg-owl-gold text-owl-goldInk"
+                : "text-ink-muted hover:text-ink"
+            }`}
+          >
+            <MapIcon size={15} aria-hidden="true" />
+            <span>Map</span>
+          </button>
+          <button
+            type="button"
+            data-testid="campus-map-mode-list"
+            aria-pressed={displayMode === "list"}
+            onClick={() => setDisplayMode("list")}
+            className={`inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-full px-4 text-xs font-bold transition ${
+              displayMode === "list"
+                ? "bg-owl-gold text-owl-goldInk"
+                : "text-ink-muted hover:text-ink"
+            }`}
+          >
+            <List size={15} aria-hidden="true" />
+            <span>List ({mapModel.markers.length})</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Deep-link notice if ?drop= is exhausted or has no pin */}
       {deepLinkResolution.notice && (
         <div
           data-testid="campus-map-deeplink-notice"
-          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-500/40 bg-amber-950/25 px-3.5 py-2.5 text-xs text-amber-200"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-warning/30 bg-warning-tint px-4 py-3 text-xs text-warning"
         >
-          <span>{deepLinkResolution.notice}</span>
+          <span className="font-medium">{deepLinkResolution.notice}</span>
           <button
             type="button"
             onClick={onSwitchToFeed}
-            className="min-h-[36px] shrink-0 rounded-lg border border-amber-400/50 bg-amber-500/20 px-3 py-1 font-bold text-amber-100 hover:bg-amber-500/30"
+            className="inline-flex min-h-[44px] shrink-0 items-center rounded-full border border-warning/40 bg-surface px-3.5 text-xs font-bold text-warning hover:bg-warning-tint"
           >
-            View in Feed
+            Browse Home
           </button>
         </div>
       )}
 
-      {/* Interactive Campus Map Canvas */}
-      <CampusMapCanvas
-        testIdPrefix="campus-map"
-        viewportTestId="campus-map-viewport"
-        heightClassName="h-[360px] sm:h-[420px]"
-        fitPoints={fitPoints}
-        fitKey={fitKey}
-        referenceBuildings={referenceBuildings}
-        excludedReferenceIds={activeMarkerIds}
-        enableOsmTiles={true}
-        topLeftOverlay={
-          <div className="rounded-lg border border-zinc-700 bg-owl-black/90 px-2.5 py-1 text-[11px] font-semibold text-zinc-200 shadow">
-            {mapModel.markers.length > 0 ? (
-              <>
-                <span className="text-emerald-300">
-                  {mapModel.totalAvailableServings}{" "}
-                  {mapModel.totalAvailableServings === 1
-                    ? "serving"
-                    : "servings"}
-                </span>{" "}
-                at {mapModel.markers.length}{" "}
-                {mapModel.markers.length === 1 ? "building" : "buildings"}
-              </>
-            ) : (
-              <span className="text-zinc-300">
-                KSU Marietta Campus · 0 available pins
-              </span>
-            )}
-          </div>
+      {/* Map + Desktop Side Preview Sheet Layout */}
+      <div
+        className={
+          displayMode === "map" && selectedState.status !== "none"
+            ? "grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,1fr)] lg:items-start"
+            : "space-y-4"
         }
-        bottomOverlay={
-          <div className="inline-block rounded-md border border-zinc-800 bg-owl-black/85 px-2 py-1 text-[10px] text-zinc-300">
-            Exact verified pickup buildings · no student GPS
-          </div>
-        }
-        emptyOverlay={
-          mapModel.markers.length === 0 ? (
-            <div
-              data-testid="campus-map-empty"
-              className="space-y-2.5 rounded-2xl border border-zinc-700 bg-owl-black/95 p-4 text-center shadow-xl"
-            >
-              <h2 className="text-sm font-extrabold text-white">
-                No available campus food markers right now
-              </h2>
-              <p className="text-xs leading-relaxed text-zinc-300">
-                {mapModel.unplottableAvailableDrops.length > 0
-                  ? "Active listings right now do not have verified campus map coordinates. Open Feed to browse or reserve them."
-                  : mapModel.exhaustedDrops.length > 0
-                    ? "All active campus drops currently have 0 servings available. Released holds or new drops appear automatically."
-                    : "When a host shares leftover food at a verified Marietta building, its marker appears here automatically."}
-              </p>
-              {(mapModel.unplottableAvailableDrops.length > 0 ||
-                mapModel.exhaustedDrops.length > 0) && (
-                <button
-                  type="button"
-                  data-testid="campus-map-empty-switch-to-feed"
-                  onClick={onSwitchToFeed}
-                  className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-owl-gold px-4 py-2 text-xs font-extrabold text-owl-black hover:bg-owl-goldDark"
-                >
-                  Open Feed view
-                </button>
-              )}
-            </div>
-          ) : undefined
-        }
-        renderProjectedOverlay={({ project, width, height }) => (
-          <>
-            {mapModel.markers.map((marker) => {
-              const { x, y } = project(marker.latitude, marker.longitude);
-              // Keep slightly off-edge markers out of view without clipping active markers
-              if (x < -48 || x > width + 48 || y < -48 || y > height + 48) {
-                return null;
-              }
-              const isSelected = selectedBuildingId === marker.building.id;
-              const dropCount = marker.drops.length;
-              const dropIds = marker.drops.map((d) => d.drop.id).join(",");
-              const ariaLabel = `${marker.building.name}: ${marker.availableServings} available ${
-                marker.availableServings === 1 ? "serving" : "servings"
-              } across ${dropCount} ${dropCount === 1 ? "drop" : "drops"}${
-                marker.hasReservableDrop
-                  ? ""
-                  : " (view details for dietary or hold status)"
-              }`;
-
-              return (
-                <button
-                  key={marker.building.id}
-                  type="button"
-                  data-testid={`campus-map-marker-${marker.building.id}`}
-                  data-building-id={marker.building.id}
-                  data-building-name={marker.building.name}
-                  data-latitude={String(marker.latitude)}
-                  data-longitude={String(marker.longitude)}
-                  data-h3-cell={marker.h3Cell ?? ""}
-                  data-available-servings={String(marker.availableServings)}
-                  data-drop-count={String(dropCount)}
-                  data-drop-ids={dropIds}
-                  data-selected={isSelected ? "true" : "false"}
-                  aria-pressed={isSelected}
-                  aria-label={ariaLabel}
-                  onClick={() =>
-                    handleSelectBuilding(
-                      marker.building.id,
-                      marker.building.name,
-                    )
-                  }
-                  style={{
-                    left: `${x.toFixed(1)}px`,
-                    top: `${y.toFixed(1)}px`,
-                    transform: "translate(-50%, -50%)",
-                  }}
-                  className={`pointer-events-auto absolute flex min-h-[44px] min-w-[44px] flex-col items-center justify-center rounded-full border-2 px-2.5 py-1 shadow-lg transition focus:outline-none focus:ring-2 focus:ring-owl-gold ${
-                    isSelected
-                      ? "z-30 scale-110 border-white bg-owl-gold text-owl-black ring-4 ring-owl-gold/40"
-                      : marker.hasReservableDrop
-                        ? "z-20 border-white/90 bg-emerald-500 text-owl-black hover:scale-105 hover:bg-emerald-400"
-                        : "z-20 border-amber-300 bg-zinc-900/95 text-amber-200 hover:scale-105"
-                  }`}
-                >
-                  <span
-                    data-testid={`campus-map-marker-badge-${marker.building.id}`}
-                    className="text-sm font-black leading-none"
-                  >
-                    {marker.availableServings}
+      >
+        {displayMode === "map" && (
+          <CampusMapCanvas
+            testIdPrefix="campus-map"
+            viewportTestId="campus-map-viewport"
+            heightClassName="h-[380px] sm:h-[440px]"
+            fitPoints={fitPoints}
+            fitKey={fitKey}
+            referenceBuildings={referenceBuildings}
+            excludedReferenceIds={activeMarkerIds}
+            enableOsmTiles={true}
+            topLeftOverlay={
+              <div className="rounded-full border border-line bg-surface/95 px-3.5 py-1.5 text-xs font-bold text-ink shadow-sm backdrop-blur">
+                {mapModel.markers.length > 0 ? (
+                  <>
+                    <span className="tabular-nums text-success">
+                      {mapModel.totalAvailableServings}{" "}
+                      {mapModel.totalAvailableServings === 1
+                        ? "serving"
+                        : "servings"}
+                    </span>{" "}
+                    at {mapModel.markers.length}{" "}
+                    {mapModel.markers.length === 1 ? "building" : "buildings"}
+                  </>
+                ) : (
+                  <span className="text-ink-muted">
+                    Marietta Campus · 0 active pins
                   </span>
-                  {dropCount > 1 && (
-                    <span className="mt-0.5 text-[9px] font-extrabold uppercase leading-none opacity-90">
-                      {dropCount} drops
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </>
-        )}
-      />
-
-      {/* Selected Building Detail Sheet OR Stale-Selection Notice */}
-      {selectedState.status !== "none" && (
-        <section
-          data-testid="campus-map-detail-panel"
-          data-building-id={
-            selectedState.status === "active"
-              ? selectedState.marker.building.id
-              : selectedState.buildingId
-          }
-          data-status={selectedState.status}
-          aria-live="polite"
-          className="space-y-4 rounded-2xl border border-owl-gold/50 bg-owl-slate p-4 shadow-xl"
-        >
-          {selectedState.status !== "active" ? (
-            <div
-              data-testid="campus-map-stale-notice"
-              className="space-y-3 text-sm"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="text-xs font-bold uppercase tracking-wide text-amber-300">
-                    Listing updated
-                  </div>
-                  <h3 className="truncate text-base font-extrabold text-white">
-                    {selectedState.buildingName}
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  data-testid="campus-map-detail-close"
-                  aria-label="Close building details"
-                  onClick={() => setSelectedBuildingId(null)}
-                  className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-xl border border-zinc-700 bg-owl-black px-3 text-xs font-bold text-zinc-200 hover:border-zinc-500"
-                >
-                  Close
-                </button>
+                )}
               </div>
-              <p className="text-xs leading-relaxed text-zinc-200">
-                {selectedState.message}
-              </p>
-              <button
-                type="button"
-                onClick={onSwitchToFeed}
-                className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border border-zinc-700 bg-owl-black px-4 py-2 text-xs font-bold text-zinc-100 hover:border-owl-gold"
-              >
-                Switch to Feed view
-              </button>
-            </div>
-          ) : (
-            (() => {
-              const { marker } = selectedState;
-              const metaBadge = formatBuildingMetaBadge(marker.building);
-
-              return (
-                <>
-                  <div className="flex items-start justify-between gap-3 border-b border-zinc-800 pb-3">
-                    <div className="min-w-0 space-y-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[11px] font-extrabold text-emerald-300">
-                          {marker.availableServings}{" "}
-                          {marker.availableServings === 1
-                            ? "serving"
-                            : "servings"}{" "}
-                          available
-                        </span>
-                        <span className="rounded-full border border-zinc-700 bg-owl-black px-2.5 py-0.5 text-[11px] font-semibold text-zinc-300">
-                          {marker.drops.length}{" "}
-                          {marker.drops.length === 1 ? "listing" : "listings"}
-                        </span>
-                        {metaBadge && (
-                          <span className="rounded-full border border-zinc-700 bg-owl-black px-2 py-0.5 text-[11px] font-semibold text-zinc-400">
-                            {metaBadge}
-                          </span>
-                        )}
-                      </div>
-                      <h3
-                        data-testid="campus-map-detail-building-name"
-                        data-latitude={String(marker.latitude)}
-                        data-longitude={String(marker.longitude)}
-                        className="text-lg font-extrabold text-white"
-                      >
-                        {marker.building.name}
-                      </h3>
-                    </div>
-
+            }
+            bottomOverlay={
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface/90 px-3 py-1 text-[11px] font-medium text-ink-muted backdrop-blur">
+                <MapPin size={12} aria-hidden="true" />
+                <span>Verified Marietta Campus buildings</span>
+              </div>
+            }
+            emptyOverlay={
+              mapModel.markers.length === 0 ? (
+                <div
+                  data-testid="campus-map-empty"
+                  className="space-y-3 rounded-3xl border border-line bg-surface/95 p-5 text-center shadow-lg backdrop-blur"
+                >
+                  <h2 className="text-sm font-extrabold text-ink">
+                    {mapQuery.trim()
+                      ? "No buildings match your search"
+                      : "No food pins on the map right now"}
+                  </h2>
+                  <p className="text-xs leading-relaxed text-ink-muted">
+                    {mapQuery.trim()
+                      ? "Try clearing your search to view all active pickup spots."
+                      : mapModel.unplottableAvailableDrops.length > 0
+                        ? "Active food listings right now don't have a map pin. Open Home to browse them."
+                        : mapModel.exhaustedDrops.length > 0
+                          ? "All servings are currently claimed. New or released spots show up automatically."
+                          : "When an event host shares food on Marietta Campus, a pin will appear right here."}
+                  </p>
+                  {mapQuery.trim() ? (
                     <button
                       type="button"
-                      data-testid="campus-map-detail-close"
-                      aria-label="Close building details"
-                      onClick={() => setSelectedBuildingId(null)}
-                      className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-xl border border-zinc-700 bg-owl-black px-3 text-xs font-bold text-zinc-200 hover:border-zinc-500"
+                      onClick={() => setMapQuery("")}
+                      className="consumer-button-secondary w-full"
                     >
-                      Close
+                      Clear search
                     </button>
+                  ) : (
+                    (mapModel.unplottableAvailableDrops.length > 0 ||
+                      mapModel.exhaustedDrops.length > 0) && (
+                      <button
+                        type="button"
+                        data-testid="campus-map-empty-switch-to-feed"
+                        onClick={onSwitchToFeed}
+                        className="consumer-button w-full"
+                      >
+                        Browse Home
+                      </button>
+                    )
+                  )}
+                </div>
+              ) : undefined
+            }
+            renderProjectedOverlay={({ project, width, height }) => (
+              <>
+                {mapModel.markers.map((marker) => {
+                  const { x, y } = project(marker.latitude, marker.longitude);
+                  if (x < -48 || x > width + 48 || y < -48 || y > height + 48) {
+                    return null;
+                  }
+                  const isSelected = selectedBuildingId === marker.building.id;
+                  const dropCount = marker.drops.length;
+                  const dropIds = marker.drops.map((d) => d.drop.id).join(",");
+                  const ariaLabel = `${marker.building.name}: ${marker.availableServings} available ${
+                    marker.availableServings === 1 ? "serving" : "servings"
+                  } across ${dropCount} ${dropCount === 1 ? "listing" : "listings"}`;
+
+                  return (
+                    <button
+                      key={marker.building.id}
+                      type="button"
+                      data-testid={`campus-map-marker-${marker.building.id}`}
+                      data-building-id={marker.building.id}
+                      data-building-name={marker.building.name}
+                      data-latitude={String(marker.latitude)}
+                      data-longitude={String(marker.longitude)}
+                      data-h3-cell={marker.h3Cell ?? ""}
+                      data-available-servings={String(marker.availableServings)}
+                      data-drop-count={String(dropCount)}
+                      data-drop-ids={dropIds}
+                      data-selected={isSelected ? "true" : "false"}
+                      aria-pressed={isSelected}
+                      aria-label={ariaLabel}
+                      onClick={() =>
+                        handleSelectBuilding(
+                          marker.building.id,
+                          marker.building.name,
+                        )
+                      }
+                      style={{
+                        left: `${x.toFixed(1)}px`,
+                        top: `${y.toFixed(1)}px`,
+                        transform: "translate(-50%, -50%)",
+                      }}
+                      className={`pointer-events-auto absolute flex min-h-[44px] min-w-[44px] flex-col items-center justify-center rounded-full border-2 px-3 py-1 shadow-lg transition ${
+                        isSelected
+                          ? "z-30 scale-110 border-owl-goldInk bg-owl-gold text-owl-goldInk ring-4 ring-owl-gold/35"
+                          : marker.hasReservableDrop
+                            ? "z-20 border-white bg-success text-white hover:scale-105"
+                            : "z-20 border-warning bg-surface text-warning hover:scale-105"
+                      }`}
+                    >
+                      <span
+                        data-testid={`campus-map-marker-badge-${marker.building.id}`}
+                        className="text-sm font-black tabular-nums leading-none"
+                      >
+                        {marker.availableServings}
+                      </span>
+                      {dropCount > 1 && (
+                        <span className="mt-0.5 text-[9px] font-bold uppercase leading-none opacity-90">
+                          {dropCount} spots
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </>
+            )}
+          />
+        )}
+
+        {/* Uber Eats-style Building Preview Sheet */}
+        {selectedState.status !== "none" && (
+          <section
+            data-testid="campus-map-detail-panel"
+            data-building-id={
+              selectedState.status === "active"
+                ? selectedState.marker.building.id
+                : selectedState.buildingId
+            }
+            data-status={selectedState.status}
+            aria-live="polite"
+            className="consumer-card space-y-4 border-owl-gold/60"
+          >
+            {selectedState.status !== "active" ? (
+              <div
+                data-testid="campus-map-stale-notice"
+                className="space-y-3 text-sm"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <StatusBadge tone="warning">Updated</StatusBadge>
+                    <h3 className="mt-1.5 truncate text-base font-extrabold text-ink">
+                      {selectedState.buildingName}
+                    </h3>
                   </div>
+                  <button
+                    type="button"
+                    data-testid="campus-map-detail-close"
+                    aria-label="Close building details"
+                    onClick={() => setSelectedBuildingId(null)}
+                    className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full border border-line bg-surface-subtle text-ink hover:bg-surface"
+                  >
+                    <X size={18} aria-hidden="true" />
+                  </button>
+                </div>
+                <p className="text-xs leading-relaxed text-ink-muted">
+                  {selectedState.message}
+                </p>
+                <button
+                  type="button"
+                  onClick={onSwitchToFeed}
+                  className="consumer-button-secondary w-full"
+                >
+                  Browse Home
+                </button>
+              </div>
+            ) : (
+              (() => {
+                const { marker } = selectedState;
+                const buildingDirectionsUrl = buildWalkingDirectionsUrl(
+                  marker.building,
+                );
 
-                  <div className="space-y-4">
-                    {marker.drops.map((item) => {
-                      const { drop, can_reserve, unavailable_reason, claim } =
-                        item;
-                      const isFocused =
-                        Boolean(linkedDropId) &&
-                        drop.id === linkedDropId?.trim();
-                      const isOwnHeld = claim?.status === "held";
-                      const locationText = formatDropResponseLocation(drop);
-                      const pickupNote = getDropPickupInstructions(drop);
-                      const directionsUrl = getDropWalkingDirectionsUrl(drop);
-                      const unavailableExplanation = formatUnavailableReason(
-                        unavailable_reason,
-                        claim,
-                      );
-
-                      return (
-                        <article
-                          key={drop.id}
-                          data-testid={`map-drop-card-${drop.id}`}
-                          data-drop-id={drop.id}
-                          data-building-id={marker.building.id}
+                return (
+                  <>
+                    <div className="flex items-start justify-between gap-3 border-b border-line pb-3.5">
+                      <div className="min-w-0 space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <StatusBadge tone="success">
+                            <span className="tabular-nums">
+                              {marker.availableServings}{" "}
+                              {marker.availableServings === 1
+                                ? "serving"
+                                : "servings"}{" "}
+                              left
+                            </span>
+                          </StatusBadge>
+                          <StatusBadge tone="neutral">
+                            {marker.drops.length}{" "}
+                            {marker.drops.length === 1 ? "listing" : "listings"}
+                          </StatusBadge>
+                        </div>
+                        <h3
+                          data-testid="campus-map-detail-building-name"
                           data-latitude={String(marker.latitude)}
                           data-longitude={String(marker.longitude)}
-                          data-focused={isFocused ? "true" : "false"}
-                          className={`space-y-3 rounded-xl border bg-owl-black/75 p-4 ${
-                            isFocused
-                              ? "border-owl-gold ring-2 ring-owl-gold/50"
-                              : can_reserve
-                                ? "border-emerald-500/40"
-                                : "border-zinc-800"
-                          }`}
+                          className="text-lg font-extrabold tracking-tight text-ink"
                         >
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span className="rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-300">
-                              {drop.counts.available} of {drop.counts.total}{" "}
-                              available
-                            </span>
-                            <span
-                              data-testid={`map-drop-deadline-${drop.id}`}
-                              className="rounded-full bg-owl-slate px-2.5 py-1 text-[11px] font-bold text-owl-gold"
-                            >
-                              Ends {formatEasternTime(drop.expires_at)} (
-                              {formatRemainingTime(drop.expires_at, nowIso)})
-                            </span>
-                          </div>
+                          {marker.building.name}
+                        </h3>
+                      </div>
 
-                          <div className="space-y-1">
-                            <h4
-                              data-testid={`map-drop-title-${drop.id}`}
-                              className="text-base font-extrabold text-white"
-                            >
-                              {summarizeDropItems(drop)}
-                            </h4>
-                            <p
-                              data-testid={`map-drop-location-${drop.id}`}
-                              className="text-xs font-bold text-zinc-200"
-                            >
-                              {locationText}
-                            </p>
-                            {pickupNote && (
-                              <p
-                                data-testid={`map-drop-instructions-${drop.id}`}
-                                className="rounded-lg border border-zinc-800 bg-owl-slate/70 px-3 py-2 text-xs text-zinc-200"
+                      <button
+                        type="button"
+                        data-testid="campus-map-detail-close"
+                        aria-label="Close building details"
+                        onClick={() => setSelectedBuildingId(null)}
+                        className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full border border-line bg-surface-subtle text-ink hover:bg-surface"
+                      >
+                        <X size={18} aria-hidden="true" />
+                      </button>
+                    </div>
+
+                    {buildingDirectionsUrl && (
+                      <a
+                        data-testid="campus-map-building-directions"
+                        href={buildingDirectionsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="consumer-button-secondary w-full"
+                      >
+                        <Navigation size={16} aria-hidden="true" />
+                        <span>Walking directions</span>
+                      </a>
+                    )}
+
+                    <div className="space-y-4">
+                      {marker.drops.map((item) => {
+                        const { drop, can_reserve, unavailable_reason, claim } =
+                          item;
+                        const isFocused =
+                          Boolean(linkedDropId) &&
+                          drop.id === linkedDropId?.trim();
+                        const isOwnHeld = claim?.status === "held";
+                        const title = summarizeDropItems(drop);
+                        const locationText = formatConsumerDropLocation(drop);
+                        const pickupNote = getDropPickupInstructions(drop);
+                        const directionsUrl = getDropWalkingDirectionsUrl(drop);
+                        const unavailableExplanation = formatUnavailableReason(
+                          unavailable_reason,
+                          claim,
+                        );
+
+                        return (
+                          <article
+                            key={drop.id}
+                            data-testid={`map-drop-card-${drop.id}`}
+                            data-drop-id={drop.id}
+                            data-building-id={marker.building.id}
+                            data-latitude={String(marker.latitude)}
+                            data-longitude={String(marker.longitude)}
+                            data-focused={isFocused ? "true" : "false"}
+                            className={`space-y-3 rounded-2xl border bg-surface-subtle p-3.5 ${
+                              isFocused
+                                ? "border-owl-gold ring-2 ring-owl-gold/40"
+                                : "border-line"
+                            }`}
+                          >
+                            <DropPhoto
+                              dropId={drop.id}
+                              hasPhoto={(drop as DropResponse).has_photo}
+                              photoUrl={(drop as DropResponse).photo_url}
+                              authToken={authToken}
+                              alt={title}
+                              aspect="16/10"
+                              overlayTopLeft={
+                                <StatusBadge tone="gold">FREE</StatusBadge>
+                              }
+                              overlayTopRight={
+                                <StatusBadge tone="success">
+                                  <span className="tabular-nums">
+                                    {drop.counts.available} left
+                                  </span>
+                                </StatusBadge>
+                              }
+                            />
+
+                            <div className="space-y-1">
+                              <h4
+                                data-testid={`map-drop-title-${drop.id}`}
+                                className="text-base font-extrabold text-ink"
                               >
-                                <strong className="text-owl-gold">
-                                  Pickup note:
-                                </strong>{" "}
-                                {pickupNote}
+                                {title}
+                              </h4>
+                              <p
+                                data-testid={`map-drop-location-${drop.id}`}
+                                className="flex items-center gap-1.5 text-xs font-medium text-ink-muted"
+                              >
+                                <MapPin size={13} aria-hidden="true" />
+                                <span>{locationText}</span>
                               </p>
-                            )}
-                            <p
-                              data-testid={`map-drop-available-${drop.id}`}
-                              className="text-xs text-zinc-400"
-                            >
-                              {drop.counts.available} available •{" "}
-                              {drop.counts.held} held • {drop.counts.picked_up}{" "}
-                              picked up
-                            </p>
-                          </div>
-
-                          {/* Food items + diet tags */}
-                          <div className="space-y-1.5 rounded-lg bg-owl-slate/70 p-3">
-                            <ul className="space-y-1 text-xs text-zinc-100">
-                              {drop.vision.items.map((foodItem, idx) => (
-                                <li
-                                  key={`${foodItem.name}-${idx}`}
-                                  className="flex items-center justify-between gap-2"
+                              <p
+                                data-testid={`map-drop-deadline-${drop.id}`}
+                                className="flex items-center gap-1.5 text-xs text-ink-muted"
+                              >
+                                <Clock size={13} aria-hidden="true" />
+                                <span>
+                                  Collect by{" "}
+                                  {formatEasternTime(drop.expires_at)} (
+                                  {formatRemainingTime(drop.expires_at, nowIso)}
+                                  )
+                                </span>
+                              </p>
+                              {pickupNote && (
+                                <p
+                                  data-testid={`map-drop-instructions-${drop.id}`}
+                                  className="rounded-xl bg-surface px-3 py-2 text-xs text-ink"
                                 >
-                                  <span className="font-medium">
-                                    {foodItem.name}
-                                  </span>
-                                  <span className="shrink-0 text-zinc-400">
-                                    ~{foodItem.count_estimate}{" "}
-                                    {foodItem.portion_unit}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
+                                  <strong className="font-semibold">
+                                    Pickup note:
+                                  </strong>{" "}
+                                  {pickupNote}
+                                </p>
+                              )}
+                            </div>
+
                             {drop.diet_tags_final.length > 0 && (
-                              <div className="flex flex-wrap gap-1.5 pt-1">
+                              <div className="flex flex-wrap gap-1.5">
                                 {drop.diet_tags_final.map((d) => (
-                                  <span
-                                    key={d}
-                                    className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-[11px] font-semibold text-emerald-300"
-                                  >
-                                    {d.replace("_", " ")}
-                                  </span>
+                                  <StatusBadge key={d}>
+                                    {d.replaceAll("_", " ")}
+                                  </StatusBadge>
                                 ))}
                               </div>
                             )}
-                          </div>
 
-                          {/* Mandatory allergen notice */}
-                          <AllergenListDisplay
-                            allergens={drop.allergens_final}
-                            notice={drop.allergen_notice}
-                            title="Allergens"
-                            compact={true}
-                          />
+                            <AllergenCard
+                              allergens={drop.allergens_final}
+                              notice={drop.allergen_notice}
+                              title="Allergens"
+                              compact
+                            />
 
-                          {directionsUrl && (
-                            <a
-                              data-testid={`map-directions-link-${drop.id}`}
-                              href={directionsUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-4 py-2 text-xs font-extrabold text-emerald-200 transition hover:bg-emerald-500/25"
-                            >
-                              Get walking directions
-                            </a>
-                          )}
-
-                          {isOwnHeld ? (
-                            <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-3 py-2 text-xs font-semibold text-emerald-200">
-                              Your 10-minute hold is active above. Use the hold
-                              card to confirm pickup or release.
-                            </div>
-                          ) : (
-                            <div className="space-y-2">
-                              {!can_reserve && unavailableExplanation && (
-                                <p
-                                  data-testid={`map-drop-unavailable-${drop.id}`}
-                                  data-reason={unavailable_reason ?? ""}
-                                  className="rounded-xl border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-xs font-semibold text-amber-200"
-                                >
-                                  {unavailableExplanation}
-                                </p>
-                              )}
-                              <button
-                                type="button"
-                                data-testid={`map-reserve-drop-button-${drop.id}`}
-                                disabled={!can_reserve || busyId !== null}
-                                onClick={() => void onReserveDrop(drop.id)}
-                                className="min-h-[48px] w-full rounded-xl bg-owl-gold px-4 py-3 text-sm font-extrabold text-owl-black shadow-md transition hover:bg-owl-goldDark disabled:cursor-not-allowed disabled:opacity-40"
+                            {directionsUrl && (
+                              <a
+                                data-testid={`map-directions-link-${drop.id}`}
+                                href={directionsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-full border border-line bg-surface px-4 text-xs font-bold text-ink transition hover:bg-surface-subtle"
                               >
-                                {busyId === drop.id
-                                  ? "Reserving..."
-                                  : can_reserve
-                                    ? "Reserve \u2013 hold 10 min"
-                                    : "Unavailable to reserve"}
-                              </button>
-                            </div>
-                          )}
-                        </article>
-                      );
-                    })}
-                  </div>
-                </>
-              );
-            })()
-          )}
-        </section>
-      )}
+                                <Navigation size={14} aria-hidden="true" />
+                                <span>Walking directions</span>
+                              </a>
+                            )}
 
-      {/* Accessible DOM Building List Alternative (keyboard / screen-reader / no-WebGL) */}
-      {mapModel.markers.length > 0 && (
+                            {!can_reserve && unavailableExplanation && (
+                              <p
+                                data-testid={`map-drop-unavailable-${drop.id}`}
+                                data-reason={unavailable_reason ?? ""}
+                                className="rounded-xl bg-warning-tint px-3 py-2 text-xs font-semibold text-warning"
+                              >
+                                {unavailableExplanation}
+                              </p>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-2 pt-1">
+                              <Link
+                                href={`/student/drops/${drop.id}`}
+                                data-testid={`map-view-details-${drop.id}`}
+                                className="consumer-button-secondary px-3 text-xs"
+                              >
+                                View details
+                              </Link>
+                              {isOwnHeld ? (
+                                <Link
+                                  href="/student?tab=reservations"
+                                  className="consumer-button px-3 text-xs"
+                                >
+                                  View hold
+                                </Link>
+                              ) : (
+                                <button
+                                  type="button"
+                                  data-testid={`map-reserve-drop-button-${drop.id}`}
+                                  disabled={!can_reserve || busyId !== null}
+                                  onClick={() => void onReserveDrop(drop.id)}
+                                  className="consumer-button px-3 text-xs"
+                                >
+                                  {busyId === drop.id
+                                    ? "Reserving..."
+                                    : can_reserve
+                                      ? "Reserve"
+                                      : "Unavailable"}
+                                </button>
+                              )}
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()
+            )}
+          </section>
+        )}
+      </div>
+
+      {/* Accessible Building List (always shown in List mode, and below Map when pins exist) */}
+      {mapModel.markers.length > 0 ? (
         <section
           data-testid="campus-map-accessible-list"
           aria-label="Available pickup buildings list"
-          className="space-y-2 rounded-2xl border border-zinc-800 bg-owl-slate p-4"
+          className="consumer-card space-y-3"
         >
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-300">
-              Available pickup buildings ({mapModel.markers.length})
+            <h2 className="text-sm font-bold text-ink">
+              Campus pickup spots ({mapModel.markers.length})
             </h2>
-            <span className="text-[11px] text-zinc-400">
-              Tap a pin or building below
+            <span className="text-xs text-ink-muted">
+              Select a building to preview food
             </span>
           </div>
           <ul className="space-y-2">
@@ -629,63 +744,85 @@ export function StudentCampusMap({
                         marker.building.name,
                       )
                     }
-                    className={`flex min-h-[48px] w-full items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-left transition ${
+                    className={`flex min-h-[52px] w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition ${
                       isSelected
-                        ? "border-owl-gold bg-owl-gold/15 text-white"
-                        : "border-zinc-800 bg-owl-black/60 text-zinc-100 hover:border-zinc-600"
+                        ? "border-owl-gold bg-owl-goldTint text-ink"
+                        : "border-line bg-surface-subtle text-ink hover:border-ink-muted/40"
                     }`}
                   >
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-bold">
+                      <div className="truncate text-sm font-bold text-ink">
                         {marker.building.name}
                       </div>
-                      <div className="text-[11px] text-zinc-400">
-                        {dropCount} {dropCount === 1 ? "drop" : "drops"}
+                      <div className="text-xs text-ink-muted">
+                        {dropCount} {dropCount === 1 ? "listing" : "listings"}
                         {marker.hasReservableDrop
-                          ? " · Tap to view & reserve"
-                          : " · Tap for dietary/hold details"}
+                          ? " · Tap to preview & reserve"
+                          : " · Tap for dietary details"}
                       </div>
                     </div>
-                    <span
-                      className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-extrabold ${
-                        marker.hasReservableDrop
-                          ? "bg-emerald-500/20 text-emerald-300"
-                          : "bg-amber-500/20 text-amber-200"
-                      }`}
+                    <StatusBadge
+                      tone={marker.hasReservableDrop ? "success" : "warning"}
                     >
-                      {marker.availableServings} left
-                    </span>
+                      <span className="tabular-nums">
+                        {marker.availableServings} left
+                      </span>
+                    </StatusBadge>
                   </button>
                 </li>
               );
             })}
           </ul>
         </section>
+      ) : (
+        displayMode === "list" && (
+          <EmptyState
+            title="No pickup spots available right now"
+            description="Check back soon or clear your search to see active food listings across campus."
+            action={
+              mapQuery.trim() ? (
+                <button
+                  type="button"
+                  onClick={() => setMapQuery("")}
+                  className="consumer-button-secondary"
+                >
+                  Clear search
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onSwitchToFeed}
+                  className="consumer-button"
+                >
+                  Browse Home
+                </button>
+              )
+            }
+          />
+        )
       )}
 
-      {/* Separate honest notice for unplottable / rehearsal listings */}
+      {/* Calm notice for listings without a map pin */}
       {mapModel.unplottableAvailableDrops.length > 0 && (
         <section
           data-testid="campus-map-unplottable-notice"
-          className="space-y-2.5 rounded-2xl border border-amber-500/40 bg-amber-950/20 p-4"
+          className="consumer-card space-y-3 border-warning/30 bg-warning-tint/40"
         >
-          <h3 className="text-xs font-extrabold uppercase tracking-wide text-amber-300">
-            Rehearsal / unverified listings not plotted (
+          <h3 className="text-xs font-bold uppercase tracking-wide text-warning">
+            Additional campus listings (
             {mapModel.unplottableAvailableDrops.length})
           </h3>
-          <p className="text-xs leading-relaxed text-zinc-300">
-            Owl Plate never places synthetic or unverified rehearsal locations
-            on the real Marietta campus map. Use Feed view to inspect or reserve
-            these listings.
+          <p className="text-xs leading-relaxed text-ink-muted">
+            Some active food listings don&apos;t have a verified map pin yet.
+            Switch to Home to view and reserve them.
           </p>
           <button
             type="button"
             data-testid="campus-map-switch-to-feed"
             onClick={onSwitchToFeed}
-            className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border border-amber-400/50 bg-amber-500/20 px-4 py-2 text-xs font-extrabold text-amber-100 transition hover:bg-amber-500/30"
+            className="consumer-button-secondary w-full"
           >
-            Switch to Feed ({mapModel.unplottableAvailableDrops.length}{" "}
-            unplottable)
+            Open Home ({mapModel.unplottableAvailableDrops.length})
           </button>
         </section>
       )}

@@ -186,6 +186,7 @@ interface InternalClaim {
   visitorToken: string | null;
   status: "held" | "picked_up" | "released" | "expired";
   heldUntil: string;
+  createdAt?: string;
 }
 
 interface InternalPickupVerification {
@@ -1187,9 +1188,22 @@ export function fixtureGetDrop(
     if (owner !== credential) {
       throw new FixtureContractError(404, "not_found", "Drop not found");
     }
+  } else if (
+    credential &&
+    credential !== "demo-projector" &&
+    credential !== "demo-pantry-coordinator"
+  ) {
+    resolveStudentIdentity(store, credential);
+    if (drop.status === "draft") {
+      throw new FixtureContractError(404, "not_found", "Drop not found");
+    }
   }
   recomputeCounts(store, drop.id);
-  return drop;
+  return {
+    ...drop,
+    has_photo: drop.has_photo ?? false,
+    photo_url: drop.photo_url ?? null,
+  };
 }
 
 function getStudentDietaryPrefs(
@@ -1406,7 +1420,7 @@ export function fixtureReserveDrop(
     resolved.kind === "persona"
       ? resolved.persona.label
       : resolved.visitor.token.slice(-8);
-  const syntheticInviteId = `feed-inv-${drop.id.slice(0, 8)}-${suffix}`;
+  const syntheticInviteId = `feed-inv-${drop.id}-${suffix}`;
   const claimId = `claim-${syntheticInviteId}`;
 
   const claim: InternalClaim = {
@@ -1418,6 +1432,7 @@ export function fixtureReserveDrop(
     visitorToken: resolved.kind === "visitor" ? resolved.visitor.token : null,
     status: "held",
     heldUntil,
+    createdAt: store.serverTimeIso,
   };
   store.claims[claimId] = claim;
   recomputeCounts(store, drop.id);
@@ -1524,6 +1539,7 @@ export function fixtureClaimInvite(
     visitorToken: inv.visitorToken,
     status: "held",
     heldUntil,
+    createdAt: store.serverTimeIso,
   };
   store.claims[claimId] = claim;
   inv.status = "claimed";
@@ -3158,10 +3174,29 @@ export function fixtureGetMyReservations(
 ): StudentReservationsResponse {
   const store = loadStore();
   expireDeadlines(store);
+  if (
+    credential.startsWith("demo-host") ||
+    credential === "demo-projector" ||
+    credential === "demo-pantry-coordinator"
+  ) {
+    throw new FixtureContractError(
+      403,
+      "forbidden",
+      "Student access required.",
+    );
+  }
   const student = resolveStudentIdentity(store, credential);
   const reservations = Object.values(store.claims)
-    .filter((claim) => claim.recipientKey === student.recipientKey)
-    .reverse()
+    .filter(
+      (claim) =>
+        claim.recipientKey === student.recipientKey &&
+        Boolean(store.drops[claim.dropId]),
+    )
+    .sort((a, b) => {
+      const timeCmp = (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
+      if (timeCmp !== 0) return timeCmp;
+      return b.id.localeCompare(a.id);
+    })
     .map((claim) => {
       const drop = store.drops[claim.dropId]!;
       recomputeCounts(store, drop.id);
@@ -3174,7 +3209,11 @@ export function fixtureGetMyReservations(
           status: claim.status,
           held_until: claim.heldUntil,
         },
-        drop,
+        drop: {
+          ...drop,
+          has_photo: drop.has_photo ?? false,
+          photo_url: drop.photo_url ?? null,
+        },
         pickup_verification: latest
           ? serializePickupVerification(store, latest)
           : null,

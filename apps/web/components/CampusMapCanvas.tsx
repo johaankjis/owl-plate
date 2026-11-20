@@ -8,6 +8,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { Compass, Maximize2, Minus, Plus } from "lucide-react";
 import DeckGL from "@deck.gl/react";
 import { H3HexagonLayer, TileLayer } from "@deck.gl/geo-layers";
 import { BitmapLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
@@ -25,6 +26,7 @@ import {
   type GeoPoint,
   type ProjectedPoint,
 } from "../lib/campus-map";
+import { useTheme } from "../lib/theme";
 import type { Building } from "../lib/types/api";
 
 export interface CampusMapH3Cell {
@@ -129,6 +131,10 @@ export function CampusMapCanvas({
   emptyOverlay,
   renderProjectedOverlay,
 }: CampusMapCanvasProps) {
+  const { resolved } = useTheme();
+  const isConsumerMap = testIdPrefix === "campus-map";
+  const isDark = !isConsumerMap || resolved === "dark";
+
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<{ width: number; height: number }>({
     width: 640,
@@ -274,7 +280,6 @@ export function CampusMapCanvas({
   const handleFallbackPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (rendererMode !== "fallback-2d") return;
-      // Do not hijack clicks on interactive buttons/links inside overlays
       if (
         e.target instanceof Element &&
         e.target.closest("button, a, input, select, textarea")
@@ -411,7 +416,7 @@ export function CampusMapCanvas({
               data: undefined,
               image: tileImage,
               bounds: [bbox.west, bbox.south, bbox.east, bbox.north],
-              opacity: 0.38,
+              opacity: isDark ? 0.36 : 0.78,
             });
           },
         }),
@@ -447,8 +452,8 @@ export function CampusMapCanvas({
           radiusMaxPixels: 5,
           lineWidthMinPixels: 1,
           getPosition: (b) => [b.longitude, b.latitude],
-          getFillColor: [148, 163, 184, 140],
-          getLineColor: [226, 232, 240, 110],
+          getFillColor: isDark ? [148, 163, 184, 140] : [82, 85, 96, 150],
+          getLineColor: isDark ? [226, 232, 240, 110] : [255, 255, 255, 210],
         }),
       );
     }
@@ -461,15 +466,17 @@ export function CampusMapCanvas({
           pickable: false,
           getPosition: (d) => [d.building.longitude, d.building.latitude],
           getText: (d) =>
-            d.building.building_code
-              ? `${d.building.name} (${d.building.building_code})`
-              : d.building.name,
+            isConsumerMap
+              ? d.building.name
+              : d.building.building_code
+                ? `${d.building.name} (${d.building.building_code})`
+                : d.building.name,
           getSize: 11,
-          getColor: [203, 213, 225, 200],
+          getColor: isDark ? [203, 213, 225, 210] : [24, 25, 30, 220],
           getPixelOffset: [0, 12],
           background: true,
-          getBackgroundColor: [15, 23, 42, 180],
-          backgroundPadding: [4, 2],
+          getBackgroundColor: isDark ? [15, 23, 42, 185] : [255, 255, 255, 215],
+          backgroundPadding: [5, 2],
         }),
       );
     }
@@ -483,6 +490,8 @@ export function CampusMapCanvas({
     h3Cells,
     verifiedReferenceBuildings,
     visibleReferenceLabels,
+    isDark,
+    isConsumerMap,
   ]);
 
   // Projected H3 polygons for the 2D WebGL-free fallback SVG
@@ -514,6 +523,14 @@ export function CampusMapCanvas({
     }));
   }, [rendererMode, verifiedReferenceBuildings, project]);
 
+  const controlSurfaceClass = isConsumerMap
+    ? "border-line bg-surface/95 text-ink hover:border-owl-gold hover:text-owl-goldText"
+    : "border-zinc-700 bg-owl-black/90 text-zinc-100 hover:border-owl-gold hover:text-owl-gold";
+
+  const pillSurfaceClass = isConsumerMap
+    ? "border-line bg-surface/90 text-ink-muted"
+    : "border-zinc-700 bg-owl-black/90 text-zinc-300";
+
   return (
     <div
       ref={containerRef}
@@ -527,13 +544,15 @@ export function CampusMapCanvas({
       onPointerUp={handleFallbackPointerEnd}
       onPointerCancel={handleFallbackPointerEnd}
       onWheel={handleFallbackWheel}
-      className={`relative w-full select-none overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950 ${
-        rendererMode === "fallback-2d" ? "touch-none cursor-grab" : ""
-      } ${heightClassName}`}
+      className={`relative w-full select-none overflow-hidden rounded-3xl border ${
+        isConsumerMap
+          ? "border-line bg-surface-subtle shadow-card"
+          : "border-zinc-800 bg-zinc-950"
+      } ${rendererMode === "fallback-2d" ? "touch-none cursor-grab" : ""} ${heightClassName}`}
     >
-      {/* Top overlays (banner + legend) */}
+      {/* Top overlays */}
       {(topLeftOverlay || topRightOverlay) && (
-        <div className="pointer-events-none absolute left-2.5 right-2.5 top-2.5 z-20 flex flex-wrap items-start justify-between gap-2">
+        <div className="pointer-events-none absolute left-3 right-3 top-3 z-20 flex flex-wrap items-start justify-between gap-2">
           <div className="pointer-events-auto max-w-full">{topLeftOverlay}</div>
           <div className="pointer-events-auto max-w-full">
             {topRightOverlay}
@@ -582,7 +601,11 @@ export function CampusMapCanvas({
       ) : (
         <div
           aria-hidden="true"
-          className="relative h-full w-full overflow-hidden bg-gradient-to-b from-slate-950 via-zinc-950 to-slate-950"
+          className={`relative h-full w-full overflow-hidden ${
+            isDark
+              ? "bg-gradient-to-b from-slate-950 via-zinc-950 to-slate-950"
+              : "bg-gradient-to-b from-[#f3f4f8] via-[#eceef4] to-[#e7eaf2]"
+          }`}
         >
           <svg
             width={size.width}
@@ -590,7 +613,7 @@ export function CampusMapCanvas({
             viewBox={`0 0 ${size.width} ${size.height}`}
             className="block h-full w-full"
           >
-            {/* Subtle geographic coordinate reference grid (not fabricated roads) */}
+            {/* Subtle geographic coordinate reference grid */}
             <defs>
               <pattern
                 id={`${testIdPrefix}-geo-grid`}
@@ -601,7 +624,9 @@ export function CampusMapCanvas({
                 <path
                   d="M 64 0 L 0 0 0 64"
                   fill="none"
-                  stroke="rgba(148,163,184,0.10)"
+                  stroke={
+                    isDark ? "rgba(148,163,184,0.10)" : "rgba(100,116,139,0.14)"
+                  }
                   strokeWidth="1"
                 />
               </pattern>
@@ -639,8 +664,12 @@ export function CampusMapCanvas({
                   cx={x}
                   cy={y}
                   r={3.5}
-                  fill="rgba(148,163,184,0.55)"
-                  stroke="rgba(226,232,240,0.45)"
+                  fill={
+                    isDark ? "rgba(148,163,184,0.55)" : "rgba(82,85,96,0.45)"
+                  }
+                  stroke={
+                    isDark ? "rgba(226,232,240,0.45)" : "rgba(255,255,255,0.85)"
+                  }
                   strokeWidth={1}
                 />
               );
@@ -653,13 +682,18 @@ export function CampusMapCanvas({
                   x={x}
                   y={y + 15}
                   textAnchor="middle"
-                  fill="rgba(203,213,225,0.78)"
+                  fill={
+                    isDark ? "rgba(203,213,225,0.80)" : "rgba(30,32,40,0.78)"
+                  }
                   fontSize="10"
+                  fontWeight="600"
                   fontFamily="ui-sans-serif, system-ui, sans-serif"
                 >
-                  {building.building_code
-                    ? `${building.name} (${building.building_code})`
-                    : building.name}
+                  {isConsumerMap
+                    ? building.name
+                    : building.building_code
+                      ? `${building.name} (${building.building_code})`
+                      : building.name}
                 </text>
               </g>
             ))}
@@ -687,16 +721,14 @@ export function CampusMapCanvas({
       )}
 
       {/* North indicator + Zoom / Fit controls (44px touch targets) */}
-      <div className="pointer-events-auto absolute bottom-14 right-2.5 z-20 flex flex-col items-end gap-1.5">
+      <div className="pointer-events-auto absolute bottom-14 right-3 z-20 flex flex-col items-end gap-1.5">
         <div
           data-testid={`${testIdPrefix}-north-indicator`}
           aria-label="Map oriented north up, KSU Marietta Campus"
-          className="flex items-center gap-1 rounded-lg border border-zinc-700 bg-owl-black/90 px-2.5 py-1 text-[11px] font-bold text-zinc-200 shadow"
+          className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold shadow-sm backdrop-blur ${pillSurfaceClass}`}
         >
-          <span aria-hidden="true" className="text-owl-gold">
-            ↑ N
-          </span>
-          <span className="text-zinc-400">Marietta</span>
+          <Compass size={13} aria-hidden="true" className="text-owl-goldText" />
+          <span>N · Marietta</span>
         </div>
 
         <div className="flex flex-col gap-1">
@@ -705,33 +737,33 @@ export function CampusMapCanvas({
             data-testid={`${testIdPrefix}-zoom-in`}
             aria-label="Zoom in campus map"
             onClick={handleZoomIn}
-            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-zinc-700 bg-owl-black/90 text-base font-extrabold text-zinc-100 shadow transition hover:border-owl-gold hover:text-owl-gold"
+            className={`inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-2xl border shadow-sm backdrop-blur transition ${controlSurfaceClass}`}
           >
-            +
+            <Plus size={18} aria-hidden="true" />
           </button>
           <button
             type="button"
             data-testid={`${testIdPrefix}-zoom-out`}
             aria-label="Zoom out campus map"
             onClick={handleZoomOut}
-            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-zinc-700 bg-owl-black/90 text-base font-extrabold text-zinc-100 shadow transition hover:border-owl-gold hover:text-owl-gold"
+            className={`inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-2xl border shadow-sm backdrop-blur transition ${controlSurfaceClass}`}
           >
-            −
+            <Minus size={18} aria-hidden="true" />
           </button>
           <button
             type="button"
             data-testid={`${testIdPrefix}-fit-button`}
             aria-label="Fit campus map to active points"
             onClick={handleFitReset}
-            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-zinc-700 bg-owl-black/90 px-2 text-[11px] font-extrabold text-zinc-200 shadow transition hover:border-owl-gold hover:text-owl-gold"
+            className={`inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-2xl border shadow-sm backdrop-blur transition ${controlSurfaceClass}`}
           >
-            Fit
+            <Maximize2 size={16} aria-hidden="true" />
           </button>
         </div>
       </div>
 
       {/* Bottom status / attribution bar */}
-      <div className="pointer-events-none absolute bottom-2 left-2.5 right-2.5 z-20 flex flex-wrap items-end justify-between gap-2">
+      <div className="pointer-events-none absolute bottom-2.5 left-3 right-3 z-20 flex flex-wrap items-end justify-between gap-2">
         <div className="pointer-events-auto max-w-full flex-1">
           {bottomOverlay}
         </div>
@@ -739,10 +771,11 @@ export function CampusMapCanvas({
           {rendererMode === "fallback-2d" && (
             <span
               data-testid={`${testIdPrefix}-2d-fallback`}
-              className="rounded-md border border-amber-500/40 bg-owl-black/90 px-2 py-1 text-[10px] font-semibold text-amber-200"
+              className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold backdrop-blur ${pillSurfaceClass}`}
             >
-              2D map fallback
-              {webglReason ? ` (${webglReason})` : ""}
+              {isConsumerMap
+                ? "2D campus map"
+                : `2D map fallback${webglReason ? ` (${webglReason})` : ""}`}
             </span>
           )}
           {rendererMode === "webgl" &&
@@ -753,7 +786,7 @@ export function CampusMapCanvas({
                 href="https://www.openstreetmap.org/copyright"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-md border border-zinc-700 bg-owl-black/90 px-2 py-1 text-[10px] font-medium text-zinc-300 underline decoration-zinc-500 hover:text-white"
+                className={`rounded-full border px-2.5 py-1 text-[10px] font-medium underline underline-offset-2 backdrop-blur ${pillSurfaceClass}`}
               >
                 © OpenStreetMap contributors
               </a>
@@ -763,9 +796,11 @@ export function CampusMapCanvas({
             osmStatus === "fallback" && (
               <span
                 data-testid={`${testIdPrefix}-tile-fallback`}
-                className="rounded-md border border-zinc-700 bg-owl-black/90 px-2 py-1 text-[10px] font-medium text-zinc-300"
+                className={`rounded-full border px-2.5 py-1 text-[10px] font-medium backdrop-blur ${pillSurfaceClass}`}
               >
-                Campus plot (OSM tiles offline)
+                {isConsumerMap
+                  ? "Campus map"
+                  : "Campus plot (OSM tiles offline)"}
               </span>
             )}
         </div>

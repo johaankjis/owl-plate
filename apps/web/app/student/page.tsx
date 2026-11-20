@@ -4,25 +4,57 @@ import React, {
   Suspense,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { DemoHeader } from "../../components/DemoHeader";
-import { AllergenListDisplay } from "../../components/AllergenBadge";
+import {
+  Bell,
+  BellOff,
+  Check,
+  CheckCircle2,
+  Clock,
+  LogOut,
+  MapPin,
+  Monitor,
+  Moon,
+  Navigation,
+  Search,
+  ShoppingBag,
+  SlidersHorizontal,
+  Sun,
+  User,
+  X,
+} from "lucide-react";
+import { AppShell } from "../../components/ui/AppShell";
+import { AllergenCard } from "../../components/ui/AllergenCard";
+import { BottomNav, type StudentTabId } from "../../components/ui/BottomNav";
+import { DropPhoto } from "../../components/ui/DropPhoto";
+import { EmptyState } from "../../components/ui/EmptyState";
+import { FoodCard } from "../../components/ui/FoodCard";
+import {
+  FoodCardSkeleton,
+  ListRowSkeleton,
+} from "../../components/ui/Skeleton";
+import { StatusBadge } from "../../components/ui/StatusBadge";
+import { PushOptIn } from "../../components/PushOptIn";
 import { StudentCampusMap } from "../../components/StudentCampusMap";
+import { ActiveHoldCard } from "../../components/student/ActiveHoldCard";
 import {
   ALLERGENS,
   ALLERGEN_WARNING_TEXT,
   DIETS,
-  PICKUP_CONFIRMATION_NOTICE,
   type Allergen,
   type Building,
   type Diet,
+  type DropResponse,
   type FeedDrop,
   type InviteResponse,
   type PickupVerification,
   type SessionStudent,
+  type StudentReservationItem,
 } from "../../lib/types/api";
 import {
   claimInvite,
@@ -30,9 +62,9 @@ import {
   getBuildings,
   getMyFeed,
   getMyInvites,
+  getMyReservations,
   getMySession,
   getPickupVerification,
-  INITIAL_DATA_SOURCE,
   leaveDemoSession,
   pickupClaim,
   releaseClaim,
@@ -40,7 +72,6 @@ import {
   reserveDrop,
   submitPickupPhoto,
   updateMyPreferences,
-  type DataSourceMode,
 } from "../../lib/api-client";
 import {
   clearSessionToken,
@@ -48,64 +79,87 @@ import {
   handleUnauthorizedError,
   parseSeededPersonaParam,
 } from "../../lib/session";
-import { buildStudentCampusMapModel } from "../../lib/campus-map";
-import { formatEasternTime, formatRemainingTime } from "../../lib/time";
 import { usePushOptIn } from "../../lib/push";
-import { PushOptIn } from "../../components/PushOptIn";
+import { useTheme, type ThemePreference } from "../../lib/theme";
+import { formatEasternTime, formatRemainingTime } from "../../lib/time";
 import {
-  formatDropResponseLocation,
-  formatPickupConfidencePercent,
-  formatPickupMatchStatusLabel,
-  formatPickupVerificationSourceLabel,
+  filterStudentFeedDrops,
+  formatConsumerDropLocation,
+  formatDietarySummary,
+  formatEasternDateTime,
+  formatGreeting,
+  formatReservationStatusMeta,
   formatUnavailableReason,
   generatePickupRequestId,
   getDropPickupInstructions,
   getDropWalkingDirectionsUrl,
-  resolvePickupVerificationActions,
+  parseStudentTabParam,
+  partitionReservations,
   resolveStudentCardState,
   resolveStudentFeedView,
   revokePreviewObjectUrl,
-  SEEDED_PERSONA_AREA_LABELS,
+  STUDENT_FILTER_CHIPS,
   summarizeDropFood,
   summarizeDropItems,
   validatePickupPhotoFile,
+  type StudentFilterChipId,
 } from "./student-helpers";
+
+const THEME_OPTIONS: ReadonlyArray<{
+  id: ThemePreference;
+  label: string;
+  Icon: typeof Sun;
+}> = [
+  { id: "light", label: "Light", Icon: Sun },
+  { id: "dark", label: "Dark", Icon: Moon },
+  { id: "system", label: "System", Icon: Monitor },
+];
 
 function StudentContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const personaParam = searchParams.get("persona");
+  const tabParam = searchParams.get("tab");
   const linkedDropId = searchParams.get("drop");
   const linkedInviteId = searchParams.get("invite");
   const seededPersona = parseSeededPersonaParam(personaParam);
+  const activeTab: StudentTabId = parseStudentTabParam(tabParam);
+
+  const { preference: themePreference, setPreference: setThemePreference } =
+    useTheme();
 
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [sessionStudent, setSessionStudent] = useState<SessionStudent | null>(
     null,
   );
-  const [sourceMode, setSourceMode] =
-    useState<DataSourceMode>(INITIAL_DATA_SOURCE);
 
-  // Campus feed & map view state (normal joined students; Feed stays default)
-  const [viewMode, setViewMode] = useState<"feed" | "map">("feed");
+  // Feed, map reference buildings, and reservations state
   const [feedDrops, setFeedDrops] = useState<FeedDrop[]>([]);
-  const [feedLoaded, setFeedLoaded] = useState<boolean>(false);
+  const [feedLoaded, setFeedLoaded] = useState(false);
   const [feedServerTime, setFeedServerTime] = useState<string | null>(null);
   const [feedReceivedAt, setFeedReceivedAt] = useState<number | null>(null);
   const [referenceBuildings, setReferenceBuildings] = useState<Building[]>([]);
+  const [reservations, setReservations] = useState<StudentReservationItem[]>(
+    [],
+  );
+  const [reservationsLoaded, setReservationsLoaded] = useState(false);
 
-  // Milestone 2: Photo-assisted pickup verification state for active held campus-feed claim
+  // Home search & category chips
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategory, setActiveCategory] =
+    useState<StudentFilterChipId>("all");
+
+  // Photo-assisted pickup state for active held reservation
   const [pickupVerification, setPickupVerification] =
     useState<PickupVerification | null>(null);
   const [pickupPhotoFile, setPickupPhotoFile] = useState<File | null>(null);
   const [pickupRequestId, setPickupRequestId] = useState<string | null>(null);
   const [pickupPreviewUrl, setPickupPreviewUrl] = useState<string | null>(null);
   const [pickupError, setPickupError] = useState<string | null>(null);
-  const pickupFileInputRef = useRef<HTMLInputElement | null>(null);
   const pickupPreviewUrlRef = useRef<string | null>(null);
 
-  // Editable preferences & alert pause for joined visitor
+  // Editable preferences & alert pause (Profile tab)
   const [prefAllergens, setPrefAllergens] = useState<Allergen[]>([]);
   const [prefDiets, setPrefDiets] = useState<Diet[]>([]);
   const [alertsPaused, setAlertsPaused] = useState<boolean>(false);
@@ -117,9 +171,30 @@ function StudentContent() {
 
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [nowTick, setNowTick] = useState<number>(() => Date.now());
   const push = usePushOptIn(authToken, seededPersona !== null);
+
+  const handleSelectTab = useCallback(
+    (nextTab: StudentTabId) => {
+      setErrorMessage(null);
+      const params = new URLSearchParams();
+      params.set("tab", nextTab);
+      if (nextTab === "map" && linkedDropId) {
+        params.set("drop", linkedDropId);
+      }
+      router.replace(`/student?${params.toString()}`, { scroll: false });
+    },
+    [linkedDropId, router],
+  );
+
+  // Deep-link compatibility: /student?drop=<id> (without tab=map) navigates to /student/drops/<id>
+  useEffect(() => {
+    if (seededPersona) return;
+    const cleanDrop = linkedDropId?.trim();
+    if (cleanDrop && activeTab !== "map") {
+      router.replace(`/student/drops/${encodeURIComponent(cleanDrop)}`);
+    }
+  }, [activeTab, linkedDropId, router, seededPersona]);
 
   const clearSelectedPickupPhoto = useCallback(() => {
     if (pickupPreviewUrlRef.current) {
@@ -129,12 +204,8 @@ function StudentContent() {
     setPickupPreviewUrl(null);
     setPickupPhotoFile(null);
     setPickupRequestId(null);
-    if (pickupFileInputRef.current) {
-      pickupFileInputRef.current.value = "";
-    }
   }, []);
 
-  // Revoke any local preview object URL on unmount so photos are never retained
   useEffect(() => {
     return () => {
       if (pickupPreviewUrlRef.current) {
@@ -177,7 +248,7 @@ function StudentContent() {
     setAuthChecked(true);
   }, [router, seededPersona]);
 
-  // Fetch visitor profile
+  // Fetch visitor profile & verified building directory
   useEffect(() => {
     if (!authChecked || !authToken || seededPersona) return;
     let active = true;
@@ -188,21 +259,19 @@ function StudentContent() {
         setSessionStudent(res.data);
         setPrefAllergens([...res.data.allergens]);
         setPrefDiets([...res.data.diets]);
-        setSourceMode(res.source);
       })
       .catch((err) => {
         if (!active) return;
-        onApiError(err, "Could not load your session");
+        onApiError(err, "Could not load your profile.");
       });
 
-    // Read-only verified Marietta campus building coordinates for map reference context only.
     getBuildings()
       .then((res) => {
         if (!active) return;
         setReferenceBuildings(res.data.buildings);
       })
       .catch(() => {
-        // Campus map gracefully falls back to active drop coordinates if unavailable.
+        // Campus map gracefully falls back to active listing coordinates.
       });
 
     return () => {
@@ -219,12 +288,27 @@ function StudentContent() {
       setFeedServerTime(res.data.server_time ?? null);
       setFeedReceivedAt(received);
       setFeedLoaded(true);
-      setSourceMode(res.source);
       setNowTick(received);
     } catch (err) {
-      onApiError(err, "Could not refresh campus food feed");
+      onApiError(err, "Could not refresh available food.");
     }
   }, [authToken, onApiError, seededPersona]);
+
+  const loadReservations = useCallback(async () => {
+    if (!authToken || seededPersona) return;
+    try {
+      const res = await getMyReservations(authToken);
+      setReservations(res.data.reservations);
+      setReservationsLoaded(true);
+    } catch (err) {
+      const authResult = handleUnauthorizedError(err);
+      if (authResult.isUnauthorized) {
+        router.replace(authResult.redirectTo);
+        return;
+      }
+      setReservationsLoaded(true);
+    }
+  }, [authToken, router, seededPersona]);
 
   const loadInvites = useCallback(async () => {
     if (!authToken || !seededPersona) return;
@@ -232,14 +316,13 @@ function StudentContent() {
       const res = await getMyInvites(authToken);
       setInvites(res.data.invites);
       setInvitesLoaded(true);
-      setSourceMode(res.source);
       setNowTick(Date.now());
     } catch (err) {
-      onApiError(err, "Could not refresh rehearsal invites");
+      onApiError(err, "Could not refresh invites.");
     }
   }, [authToken, onApiError, seededPersona]);
 
-  // Poll feed (for normal joined students) or invites (for seeded rehearsal) every 2s
+  // Poll feed / invites every 2s
   useEffect(() => {
     if (!authChecked || !authToken) return;
     if (seededPersona) {
@@ -248,18 +331,44 @@ function StudentContent() {
         void loadInvites();
       }, 2000);
       return () => clearInterval(intervalId);
-    } else {
-      void loadFeed();
-      const intervalId = setInterval(() => {
-        void loadFeed();
-      }, 2000);
-      return () => clearInterval(intervalId);
     }
-  }, [authChecked, authToken, loadFeed, loadInvites, seededPersona]);
+    void loadFeed();
+    void loadReservations();
+    const intervalId = setInterval(() => {
+      void loadFeed();
+    }, 2000);
+    return () => clearInterval(intervalId);
+  }, [
+    authChecked,
+    authToken,
+    loadFeed,
+    loadInvites,
+    loadReservations,
+    seededPersona,
+  ]);
 
-  // Identify active held claim on campus feed and poll GET /claims/{id}/pickup-verification
+  // Refresh reservation history when opening Reservations tab and every 4s while viewing it
+  useEffect(() => {
+    if (
+      !authChecked ||
+      !authToken ||
+      seededPersona ||
+      activeTab !== "reservations"
+    ) {
+      return;
+    }
+    void loadReservations();
+    const intervalId = setInterval(() => {
+      void loadReservations();
+    }, 4000);
+    return () => clearInterval(intervalId);
+  }, [activeTab, authChecked, authToken, loadReservations, seededPersona]);
+
+  // Identify active held claim and poll pickup verification status
   const activeFeedHoldClaimId = !seededPersona
-    ? (feedDrops.find((fd) => fd.claim?.status === "held")?.claim?.id ?? null)
+    ? (feedDrops.find((fd) => fd.claim?.status === "held")?.claim?.id ??
+      reservations.find((r) => r.claim.status === "held")?.claim.id ??
+      null)
     : null;
 
   const loadPickupVerification = useCallback(
@@ -268,7 +377,6 @@ function StudentContent() {
       try {
         const res = await getPickupVerification(claimId, authToken);
         setPickupVerification(res.data.verification);
-        setSourceMode(res.source);
       } catch (err) {
         const status =
           typeof err === "object" && err !== null && "status" in err
@@ -278,7 +386,7 @@ function StudentContent() {
           setPickupVerification(null);
           return;
         }
-        onApiError(err, "Could not load pickup verification status");
+        onApiError(err, "Could not load pickup check status.");
       }
     },
     [authToken, onApiError, seededPersona],
@@ -306,7 +414,7 @@ function StudentContent() {
     seededPersona,
   ]);
 
-  // 1s tick to keep hold and expiry countdowns responsive
+  // 1s tick for live countdowns
   useEffect(() => {
     const timer = setInterval(() => {
       setNowTick(Date.now());
@@ -320,42 +428,40 @@ function StudentContent() {
     setErrorMessage(null);
     setPickupError(null);
     try {
-      const res = await reserveDrop(dropId, authToken);
-      setSourceMode(res.source);
-      await loadFeed();
+      await reserveDrop(dropId, authToken);
+      await Promise.all([loadFeed(), loadReservations()]);
+      handleSelectTab("reservations");
     } catch (err) {
-      onApiError(err, "Could not reserve this spot");
-      await loadFeed();
+      onApiError(err, "Could not reserve this serving.");
+      await Promise.all([loadFeed(), loadReservations()]);
     } finally {
       setBusyId(null);
     }
   };
 
-  const handleClaim = async (inviteId: string) => {
+  const handleClaimInvite = async (inviteId: string) => {
     if (!authToken) return;
     setBusyId(inviteId);
     setErrorMessage(null);
     try {
-      const res = await claimInvite(inviteId, authToken);
-      setSourceMode(res.source);
+      await claimInvite(inviteId, authToken);
       await loadInvites();
     } catch (err) {
-      onApiError(err, "Could not reserve this spot");
+      onApiError(err, "Could not reserve this serving.");
     } finally {
       setBusyId(null);
     }
   };
 
-  const handleDecline = async (inviteId: string) => {
+  const handleDeclineInvite = async (inviteId: string) => {
     if (!authToken) return;
     setBusyId(inviteId);
     setErrorMessage(null);
     try {
-      const res = await declineInvite(inviteId, authToken);
-      setSourceMode(res.source);
+      await declineInvite(inviteId, authToken);
       await loadInvites();
     } catch (err) {
-      onApiError(err, "Could not decline this invite");
+      onApiError(err, "Could not decline this invite.");
     } finally {
       setBusyId(null);
     }
@@ -367,17 +473,16 @@ function StudentContent() {
     setErrorMessage(null);
     setPickupError(null);
     try {
-      const res = await releaseClaim(claimId, authToken);
-      setSourceMode(res.source);
+      await releaseClaim(claimId, authToken);
       clearSelectedPickupPhoto();
       setPickupVerification(null);
       if (seededPersona) {
         await loadInvites();
       } else {
-        await loadFeed();
+        await Promise.all([loadFeed(), loadReservations()]);
       }
     } catch (err) {
-      onApiError(err, "Could not release your spot");
+      onApiError(err, "Could not release your reservation.");
     } finally {
       setBusyId(null);
     }
@@ -394,16 +499,14 @@ function StudentContent() {
     setPickupError(null);
     try {
       const res = await submitPickupPhoto(claimId, file, requestId, authToken);
-      setSourceMode(res.source);
       setPickupVerification(res.data);
-      // Immediately revoke temporary preview object URL and discard local file after upload
       clearSelectedPickupPhoto();
-      await loadFeed();
+      await Promise.all([loadFeed(), loadReservations()]);
     } catch (err) {
       const msg =
         err instanceof Error
           ? err.message
-          : "Could not verify pickup photo. Please try again.";
+          : "Could not check your pickup photo. Please try again.";
       setPickupError(msg);
       if (!seededPersona) {
         const authResult = handleUnauthorizedError(err);
@@ -412,8 +515,11 @@ function StudentContent() {
           return;
         }
       }
-      await loadFeed();
-      await loadPickupVerification(claimId);
+      await Promise.all([
+        loadFeed(),
+        loadReservations(),
+        loadPickupVerification(claimId),
+      ]);
     } finally {
       setBusyId(null);
     }
@@ -434,13 +540,11 @@ function StudentContent() {
       return;
     }
 
-    // Revoke any previous preview URL before creating a new one
     if (pickupPreviewUrlRef.current) {
       revokePreviewObjectUrl(pickupPreviewUrlRef.current);
       pickupPreviewUrlRef.current = null;
     }
 
-    // New request_id UUID per selected photo, stable on network retry of the same selection
     const freshRequestId = generatePickupRequestId();
     setPickupPhotoFile(file);
     setPickupRequestId(freshRequestId);
@@ -462,18 +566,8 @@ function StudentContent() {
   };
 
   const handleRetrySamePickupPhoto = async (claimId: string) => {
-    if (!pickupPhotoFile || !pickupRequestId) {
-      pickupFileInputRef.current?.click();
-      return;
-    }
+    if (!pickupPhotoFile || !pickupRequestId) return;
     await uploadSelectedPickupPhoto(claimId, pickupPhotoFile, pickupRequestId);
-  };
-
-  const handleOpenPickupCamera = () => {
-    setErrorMessage(null);
-    setPickupError(null);
-    clearSelectedPickupPhoto();
-    pickupFileInputRef.current?.click();
   };
 
   const handleRequestHostReview = async (
@@ -486,16 +580,18 @@ function StudentContent() {
     setPickupError(null);
     try {
       const res = await requestPickupReview(claimId, verificationId, authToken);
-      setSourceMode(res.source);
       setPickupVerification(res.data);
-      await loadFeed();
+      await Promise.all([loadFeed(), loadReservations()]);
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "Could not request host review.";
       setPickupError(msg);
-      onApiError(err, "Could not request host review");
-      await loadFeed();
-      await loadPickupVerification(claimId);
+      onApiError(err, "Could not request host review.");
+      await Promise.all([
+        loadFeed(),
+        loadReservations(),
+        loadPickupVerification(claimId),
+      ]);
     } finally {
       setBusyId(null);
     }
@@ -507,35 +603,36 @@ function StudentContent() {
   ) => {
     if (!authToken) return;
     if (!seededPersona && !verificationId) {
-      setPickupError(
-        "Photo-assisted verification is required before completing pickup.",
-      );
+      setPickupError("Take a pickup food photo first to confirm pickup.");
       return;
     }
     setBusyId(claimId);
     setErrorMessage(null);
     setPickupError(null);
     try {
-      const res = await pickupClaim(
+      await pickupClaim(
         claimId,
         authToken,
         verificationId ? { verification_id: verificationId } : undefined,
       );
-      setSourceMode(res.source);
       clearSelectedPickupPhoto();
+      setPickupVerification(null);
       if (seededPersona) {
         await loadInvites();
       } else {
-        await loadFeed();
+        await Promise.all([loadFeed(), loadReservations()]);
       }
     } catch (err) {
       const msg =
-        err instanceof Error ? err.message : "Could not confirm pickup";
+        err instanceof Error ? err.message : "Could not confirm pickup.";
       setPickupError(msg);
-      onApiError(err, "Could not confirm pickup");
+      onApiError(err, "Could not confirm pickup.");
       if (!seededPersona) {
-        await loadFeed();
-        await loadPickupVerification(claimId);
+        await Promise.all([
+          loadFeed(),
+          loadReservations(),
+          loadPickupVerification(claimId),
+        ]);
       }
     } finally {
       setBusyId(null);
@@ -560,7 +657,6 @@ function StudentContent() {
         },
         authToken,
       );
-      setSourceMode(res.source);
       setPrefAllergens([...res.data.allergens]);
       setPrefDiets([...res.data.diets]);
       setAlertsPaused(res.data.alerts_paused);
@@ -573,10 +669,10 @@ function StudentContent() {
             }
           : prev,
       );
-      setPrefsStatus("Preferences saved. Feed updated.");
+      setPrefsStatus("Preferences saved.");
       await loadFeed();
     } catch (err) {
-      onApiError(err, "Could not update preferences");
+      onApiError(err, "Could not save preferences.");
     } finally {
       setBusyId(null);
     }
@@ -596,7 +692,7 @@ function StudentContent() {
     setPrefsStatus(null);
   };
 
-  const handleLeaveDemo = async () => {
+  const handleSignOut = async () => {
     setBusyId("leave");
     setErrorMessage(null);
     try {
@@ -604,29 +700,13 @@ function StudentContent() {
         await leaveDemoSession(authToken);
       }
     } catch {
-      // Clear local session even if already removed server-side
+      // Clear local session even if already expired server-side
     } finally {
       clearSessionToken();
       setBusyId(null);
       router.replace("/join");
     }
   };
-
-  if (!authChecked || !authToken) {
-    return (
-      <div className="min-h-screen bg-owl-black p-6 text-sm text-zinc-400">
-        Loading...
-      </div>
-    );
-  }
-
-  const displayNickname = seededPersona
-    ? `Persona ${seededPersona.label}`
-    : (sessionStudent?.nickname ?? "Student");
-
-  const displaySubtitle = seededPersona
-    ? SEEDED_PERSONA_AREA_LABELS[seededPersona.label]
-    : "Marietta Campus Feed";
 
   const serverClockMs =
     !seededPersona && feedServerTime && feedReceivedAt !== null
@@ -637,1401 +717,1102 @@ function StudentContent() {
     : nowTick;
   const nowIso = new Date(effectiveNowMs).toISOString();
 
-  // Seeded rehearsal view state (?persona=A..E)
-  const cardState = resolveStudentCardState(invites);
-  const activeSeededDrop =
-    cardState.kind === "invite" ||
-    cardState.kind === "pickup" ||
-    cardState.kind === "picked_up"
-      ? cardState.activeInvite.drop
+  const feedView = useMemo(
+    () => resolveStudentFeedView(feedDrops, linkedDropId),
+    [feedDrops, linkedDropId],
+  );
+
+  const filteredHomeDrops = useMemo(
+    () =>
+      filterStudentFeedDrops(feedView.orderedDrops, {
+        query: searchQuery,
+        category: activeCategory,
+      }),
+    [feedView.orderedDrops, searchQuery, activeCategory],
+  );
+
+  const partitionedReservations = useMemo(
+    () => partitionReservations(reservations),
+    [reservations],
+  );
+
+  const activeHoldEntry = useMemo(() => {
+    if (feedView.activeHold) {
+      return {
+        drop: feedView.activeHold.feedDrop.drop,
+        claim: feedView.activeHold.claim,
+      };
+    }
+    if (partitionedReservations.active) {
+      return {
+        drop: partitionedReservations.active.drop,
+        claim: partitionedReservations.active.claim,
+      };
+    }
+    return null;
+  }, [feedView.activeHold, partitionedReservations.active]);
+
+  // Seeded rehearsal state (?persona=A..E)
+  const cardState = useMemo(() => resolveStudentCardState(invites), [invites]);
+
+  if (!authChecked || !authToken) {
+    return (
+      <AppShell variant="student">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <FoodCardSkeleton />
+          <FoodCardSkeleton />
+          <FoodCardSkeleton />
+        </div>
+      </AppShell>
+    );
+  }
+
+  const displayNickname = seededPersona
+    ? `Persona ${seededPersona.label}`
+    : (sessionStudent?.nickname ?? "Student");
+
+  const dietarySummaryText = formatDietarySummary(prefAllergens, prefDiets);
+
+  // ============================================================
+  // SEEDED PERSONA REHEARSAL MODE (?persona=A..E)
+  // ============================================================
+  if (seededPersona) {
+    const activeSeededDrop =
+      cardState.kind === "invite" ||
+      cardState.kind === "pickup" ||
+      cardState.kind === "picked_up"
+        ? cardState.activeInvite.drop
+        : null;
+    const activeSeededDropLocation = activeSeededDrop
+      ? formatConsumerDropLocation(activeSeededDrop)
+      : "";
+    const activeSeededPickupInstructions = activeSeededDrop
+      ? getDropPickupInstructions(activeSeededDrop)
       : null;
-  const activeSeededDropLocation = activeSeededDrop
-    ? formatDropResponseLocation(activeSeededDrop)
-    : "";
-  const activeSeededPickupInstructions = activeSeededDrop
-    ? getDropPickupInstructions(activeSeededDrop)
-    : null;
-  const activeSeededDirectionsUrl = activeSeededDrop
-    ? getDropWalkingDirectionsUrl(activeSeededDrop)
-    : null;
+    const activeSeededDirectionsUrl = activeSeededDrop
+      ? getDropWalkingDirectionsUrl(activeSeededDrop)
+      : null;
 
-  // Normal campus feed & map view state
-  const feedView = resolveStudentFeedView(feedDrops, linkedDropId);
-  const mapSummaryModel = !seededPersona
-    ? buildStudentCampusMapModel(feedDrops, effectiveNowMs)
-    : null;
-
-  return (
-    <div className="min-h-screen bg-owl-black text-zinc-100">
-      <DemoHeader sourceMode={sourceMode} isDemo={true} />
-
-      <main className="mx-auto flex max-w-md flex-col justify-between space-y-5 px-4 pb-10 pt-5 sm:max-w-lg">
-        {/* Compact Student Bar with Menu Toggle (NO location/building controls) */}
-        <section className="space-y-3 rounded-2xl border border-zinc-800 bg-owl-slate p-4">
-          <div className="flex items-center justify-between gap-3">
+    return (
+      <AppShell variant="student" maxWidth="md">
+        <div className="space-y-5">
+          <section className="consumer-card flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h1
                   data-testid="student-nickname"
-                  className="truncate text-lg font-extrabold text-white"
+                  className="truncate text-lg font-extrabold text-ink"
                 >
                   {displayNickname}
                 </h1>
-                {seededPersona && (
-                  <span
-                    data-testid="seeded-persona-banner"
-                    className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-300"
-                  >
-                    Simulated persona
-                  </span>
-                )}
-                {!seededPersona && alertsPaused && (
-                  <span
-                    data-testid="alerts-paused-badge"
-                    className="rounded-full border border-zinc-600 bg-zinc-800 px-2 py-0.5 text-[11px] font-semibold text-zinc-300"
-                  >
-                    Alerts paused (browsing active)
-                  </span>
-                )}
+                <StatusBadge tone="gold">
+                  <span data-testid="seeded-persona-banner">Rehearsal</span>
+                </StatusBadge>
               </div>
-              <p
-                data-testid="student-subtitle"
-                className="truncate text-xs text-zinc-400"
-              >
-                {displaySubtitle}
-              </p>
+              <p className="text-xs text-ink-muted">Marietta Campus</p>
             </div>
-
-            <button
-              type="button"
-              data-testid="student-menu-button"
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen((prev) => !prev)}
-              className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-xl border border-zinc-700 bg-owl-black px-3.5 py-2 text-xs font-bold text-zinc-200 transition hover:border-owl-gold hover:text-white"
+            <Link
+              href="/join"
+              className="consumer-button-secondary min-h-[44px] px-4 py-2 text-xs"
             >
-              Menu
-            </button>
-          </div>
+              Join screen
+            </Link>
+          </section>
 
-          {menuOpen && (
-            <div className="flex flex-col gap-3 border-t border-zinc-800 pt-3">
-              {!seededPersona && (
-                <div
-                  data-testid="student-preferences-panel"
-                  className="space-y-3 rounded-xl border border-zinc-800 bg-owl-black/60 p-3.5"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-bold text-white">
-                      Dietary preferences &amp; alerts
-                    </span>
-                    <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
-                      <input
-                        type="checkbox"
-                        data-testid="student-alerts-paused-toggle"
-                        checked={alertsPaused}
-                        onChange={(e) => {
-                          setAlertsPaused(e.target.checked);
-                          setPrefsStatus(null);
-                        }}
-                        className="h-4 w-4 rounded border-zinc-600 accent-owl-gold"
-                      />
-                      <span>Pause new drop alerts</span>
-                    </label>
-                  </div>
-                  <p className="text-[11px] text-zinc-400">
-                    Pausing alerts stops notifications, while browsing and
-                    reserving from the campus feed remain active.
-                  </p>
-
-                  <div className="space-y-1.5">
-                    <div className="text-[11px] font-semibold text-zinc-300">
-                      Allergens to avoid
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {ALLERGENS.map((alg) => {
-                        const active = prefAllergens.includes(alg);
-                        return (
-                          <button
-                            key={alg}
-                            type="button"
-                            data-testid={`pref-allergen-${alg}`}
-                            aria-pressed={active}
-                            onClick={() => togglePrefAllergen(alg)}
-                            className={`min-h-[36px] rounded-lg border px-2.5 py-1 text-xs font-semibold transition ${
-                              active
-                                ? "border-amber-400 bg-amber-500/20 text-amber-100"
-                                : "border-zinc-700 bg-owl-black text-zinc-300"
-                            }`}
-                          >
-                            {active ? "✓ " : ""}
-                            {alg.replace("_", " ")}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <div className="text-[11px] font-semibold text-zinc-300">
-                      Dietary requirements
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {DIETS.map((diet) => {
-                        const active = prefDiets.includes(diet);
-                        return (
-                          <button
-                            key={diet}
-                            type="button"
-                            data-testid={`pref-diet-${diet}`}
-                            aria-pressed={active}
-                            onClick={() => togglePrefDiet(diet)}
-                            className={`min-h-[36px] rounded-lg border px-2.5 py-1 text-xs font-semibold transition ${
-                              active
-                                ? "border-emerald-400 bg-emerald-500/20 text-emerald-100"
-                                : "border-zinc-700 bg-owl-black text-zinc-300"
-                            }`}
-                          >
-                            {active ? "✓ " : ""}
-                            {diet.replace("_", " ")}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {prefsStatus && (
-                    <p
-                      data-testid="student-preferences-status"
-                      className="text-xs font-semibold text-emerald-300"
-                    >
-                      {prefsStatus}
-                    </p>
-                  )}
-
-                  <button
-                    type="button"
-                    data-testid="save-preferences-button"
-                    disabled={busyId !== null}
-                    onClick={() =>
-                      void handleSavePreferences(
-                        prefAllergens,
-                        prefDiets,
-                        alertsPaused,
-                      )
-                    }
-                    className="min-h-[40px] w-full rounded-xl bg-owl-gold px-4 py-2 text-xs font-extrabold text-owl-black transition hover:bg-owl-goldDark disabled:opacity-50"
-                  >
-                    {busyId === "preferences"
-                      ? "Saving..."
-                      : "Save preferences"}
-                  </button>
-                </div>
-              )}
-
-              <p className="text-xs text-zinc-400">
-                Leaving releases any held spot so another student can use it.
-              </p>
-              <button
-                type="button"
-                data-testid="leave-demo-button"
-                disabled={busyId !== null}
-                onClick={() => void handleLeaveDemo()}
-                className="min-h-[44px] w-full rounded-xl border border-rose-500/40 bg-rose-950/30 px-4 py-2.5 text-xs font-bold text-rose-200 transition hover:bg-rose-900/40 disabled:opacity-50"
-              >
-                {busyId === "leave" ? "Leaving..." : "Leave demo"}
-              </button>
-            </div>
-          )}
-        </section>
-
-        {!seededPersona && (
-          <PushOptIn state={push.state} onEnable={() => void push.enable()} />
-        )}
-
-        {/* Focused deep-link missing notices */}
-        {!seededPersona &&
-          linkedDropId &&
-          feedLoaded &&
-          feedView.focusedDropMissing && (
-            <p
-              data-testid="drop-link-ended"
-              className="rounded-xl border border-zinc-700 bg-owl-slate/80 px-4 py-3 text-sm text-zinc-300"
-            >
-              That food drop has ended or expired. Active campus drops appear
-              below.
-            </p>
-          )}
-
-        {linkedInviteId &&
-          ((seededPersona &&
+          {linkedInviteId &&
             invitesLoaded &&
             !invites.some(
               (inv) =>
                 inv.id === linkedInviteId &&
                 (inv.status === "sent" || inv.status === "claimed"),
-            )) ||
-            (!seededPersona && feedLoaded)) && (
-            <p
-              data-testid="invite-link-ended"
-              className="rounded-xl border border-zinc-700 bg-owl-slate/80 px-4 py-3 text-sm text-zinc-300"
+            ) && (
+              <p
+                data-testid="invite-link-ended"
+                className="rounded-2xl border border-line bg-surface px-4 py-3 text-sm text-ink-muted"
+              >
+                That invite has ended. Active food offers will appear here.
+              </p>
+            )}
+
+          {errorMessage && (
+            <div
+              role="alert"
+              data-testid="student-error-message"
+              className="rounded-2xl border border-danger/30 bg-danger-tint px-4 py-3 text-sm text-danger"
             >
-              That invite has ended. Active food drops will appear here.
-            </p>
+              {errorMessage}
+            </div>
           )}
 
+          {cardState.kind === "waiting" && (
+            <EmptyState
+              testId="no-invites-card"
+              title="Waiting for a campus food offer"
+              description={`When food matching ${displayNickname} becomes available, an offer will appear here. Allergens always say: ${ALLERGEN_WARNING_TEXT}.`}
+            />
+          )}
+
+          {cardState.kind === "invite" && (
+            <article
+              data-testid={`invite-card-${cardState.activeInvite.id}`}
+              className="consumer-card space-y-5 border-owl-gold/60"
+            >
+              <DropPhoto
+                dropId={cardState.activeInvite.drop.id}
+                hasPhoto={
+                  (cardState.activeInvite.drop as DropResponse).has_photo
+                }
+                photoUrl={
+                  (cardState.activeInvite.drop as DropResponse).photo_url
+                }
+                authToken={authToken}
+                alt={summarizeDropFood(cardState.activeInvite)}
+                overlayTopLeft={<StatusBadge tone="gold">FREE</StatusBadge>}
+                overlayTopRight={
+                  <StatusBadge tone="neutral">
+                    <span
+                      data-testid={`invite-countdown-${cardState.activeInvite.id}`}
+                      className="tabular-nums"
+                    >
+                      {formatRemainingTime(
+                        cardState.activeInvite.expires_at,
+                        nowIso,
+                      )}{" "}
+                      left
+                    </span>
+                  </StatusBadge>
+                }
+              />
+
+              <div className="space-y-1.5">
+                <h2 className="text-xl font-extrabold text-ink">
+                  {summarizeDropFood(cardState.activeInvite)}
+                </h2>
+                <p
+                  data-testid="invite-drop-location"
+                  className="flex items-center gap-1.5 text-sm font-medium text-ink-muted"
+                >
+                  <MapPin size={15} aria-hidden="true" />
+                  <span>{activeSeededDropLocation}</span>
+                </p>
+                {activeSeededPickupInstructions && (
+                  <p
+                    data-testid="invite-pickup-instructions"
+                    className="rounded-2xl bg-surface-subtle px-3.5 py-2.5 text-xs text-ink"
+                  >
+                    <strong>Pickup note:</strong>{" "}
+                    {activeSeededPickupInstructions}
+                  </p>
+                )}
+                <p className="text-xs text-ink-muted">
+                  {cardState.activeInvite.drop.counts.available} of{" "}
+                  {cardState.activeInvite.drop.counts.total} servings left
+                </p>
+              </div>
+
+              {activeSeededDirectionsUrl && (
+                <a
+                  data-testid="get-directions-link"
+                  href={activeSeededDirectionsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="consumer-button-secondary w-full"
+                >
+                  <Navigation size={15} aria-hidden="true" />
+                  <span>Walking directions</span>
+                </a>
+              )}
+
+              <AllergenCard
+                allergens={cardState.activeInvite.drop.allergens_final}
+                notice={cardState.activeInvite.drop.allergen_notice}
+                title="Allergens"
+                compact
+              />
+
+              <div className="space-y-2.5">
+                <button
+                  type="button"
+                  data-testid={`claim-invite-button-${cardState.activeInvite.id}`}
+                  disabled={busyId !== null}
+                  onClick={() =>
+                    void handleClaimInvite(cardState.activeInvite.id)
+                  }
+                  className="consumer-button w-full"
+                >
+                  {busyId === cardState.activeInvite.id
+                    ? "Reserving..."
+                    : "Reserve — hold 10 min"}
+                </button>
+                <button
+                  type="button"
+                  data-testid={`decline-invite-button-${cardState.activeInvite.id}`}
+                  disabled={busyId !== null}
+                  onClick={() =>
+                    void handleDeclineInvite(cardState.activeInvite.id)
+                  }
+                  className="consumer-button-secondary w-full"
+                >
+                  Decline
+                </button>
+              </div>
+            </article>
+          )}
+
+          {cardState.kind === "pickup" && (
+            <article
+              data-testid="active-claim-banner"
+              className="consumer-card space-y-5 border-success/40"
+            >
+              <div className="space-y-1.5">
+                <StatusBadge tone="success">Active hold</StatusBadge>
+                <h2 className="text-xl font-extrabold text-ink">
+                  {summarizeDropFood(cardState.activeInvite)}
+                </h2>
+                <p
+                  data-testid="pickup-drop-location"
+                  className="flex items-center gap-1.5 text-sm font-medium text-ink-muted"
+                >
+                  <MapPin size={15} aria-hidden="true" />
+                  <span>{activeSeededDropLocation}</span>
+                </p>
+                {activeSeededPickupInstructions && (
+                  <p
+                    data-testid="pickup-instructions"
+                    className="rounded-2xl bg-surface-subtle px-3.5 py-2.5 text-xs text-ink"
+                  >
+                    <strong>Pickup note:</strong>{" "}
+                    {activeSeededPickupInstructions}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between rounded-2xl border border-success/30 bg-success-tint px-4 py-3">
+                <div>
+                  <div className="text-xs font-bold text-success">
+                    10-minute hold countdown
+                  </div>
+                  <div className="text-xs text-ink-muted">
+                    Until {formatEasternTime(cardState.activeClaim.held_until)}
+                  </div>
+                </div>
+                <div
+                  data-testid="hold-countdown"
+                  className="text-xl font-extrabold tabular-nums text-success"
+                >
+                  {formatRemainingTime(
+                    cardState.activeClaim.held_until,
+                    nowIso,
+                  )}
+                </div>
+              </div>
+
+              {activeSeededDirectionsUrl && (
+                <a
+                  data-testid="get-directions-link"
+                  href={activeSeededDirectionsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="consumer-button-secondary w-full"
+                >
+                  <Navigation size={15} aria-hidden="true" />
+                  <span>Walking directions</span>
+                </a>
+              )}
+
+              <AllergenCard
+                allergens={cardState.activeInvite.drop.allergens_final}
+                notice={cardState.activeInvite.drop.allergen_notice}
+                title="Allergens"
+                compact
+              />
+
+              <div className="space-y-2.5">
+                <button
+                  type="button"
+                  data-testid="pickup-confirm-button"
+                  disabled={busyId !== null}
+                  onClick={() =>
+                    void handlePickupClaim(cardState.activeClaim.id)
+                  }
+                  className="consumer-button w-full"
+                >
+                  {busyId === cardState.activeClaim.id
+                    ? "Confirming..."
+                    : "Confirm pickup"}
+                </button>
+                <button
+                  type="button"
+                  data-testid="pickup-release-button"
+                  disabled={busyId !== null}
+                  onClick={() =>
+                    void handleReleaseClaim(cardState.activeClaim.id)
+                  }
+                  className="consumer-button-secondary w-full"
+                >
+                  Release reservation
+                </button>
+              </div>
+            </article>
+          )}
+
+          {cardState.kind === "picked_up" && (
+            <section
+              data-testid="picked-up-card"
+              className="consumer-card space-y-4 border-success/40 text-center"
+            >
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success-tint text-success">
+                <CheckCircle2 size={28} aria-hidden="true" />
+              </div>
+              <div data-testid="active-claim-banner" className="space-y-1">
+                <h2 className="text-2xl font-extrabold text-ink">
+                  Enjoy your meal
+                </h2>
+                <p className="text-sm text-ink-muted">
+                  Picked up from{" "}
+                  <strong className="text-ink">
+                    {activeSeededDropLocation}
+                  </strong>
+                  .
+                </p>
+              </div>
+              <p className="text-xs text-ink-muted">
+                Allergens: {ALLERGEN_WARNING_TEXT}.
+              </p>
+            </section>
+          )}
+
+          {cardState.collapsedLines.length > 0 && (
+            <section
+              aria-label="Past offers"
+              className="space-y-1.5 rounded-2xl border border-line bg-surface px-4 py-3"
+            >
+              {cardState.collapsedLines.map((line) => (
+                <p
+                  key={line.id}
+                  data-testid={`collapsed-invite-${line.id}`}
+                  className="truncate text-xs text-ink-muted"
+                >
+                  {line.summary}
+                </p>
+              ))}
+            </section>
+          )}
+        </div>
+      </AppShell>
+    );
+  }
+
+  // ============================================================
+  // NORMAL JOINED STUDENT: 4-TAB CONSUMER EXPERIENCE
+  // ============================================================
+  return (
+    <AppShell
+      variant="student"
+      bottomNav={
+        <BottomNav
+          activeTab={activeTab}
+          onSelectTab={handleSelectTab}
+          activeHoldCount={activeHoldEntry ? 1 : 0}
+        />
+      }
+    >
+      <div className="space-y-6">
         {errorMessage && (
           <div
             role="alert"
             data-testid="student-error-message"
-            className="rounded-xl border border-rose-500/40 bg-rose-950/30 px-4 py-3 text-sm text-rose-200"
+            className="flex items-start justify-between gap-3 rounded-2xl border border-danger/30 bg-danger-tint px-4 py-3 text-sm text-danger"
           >
-            {errorMessage}
+            <span>{errorMessage}</span>
+            <button
+              type="button"
+              aria-label="Dismiss error"
+              onClick={() => setErrorMessage(null)}
+              className="shrink-0 rounded-full p-1 hover:bg-surface/40"
+            >
+              <X size={16} aria-hidden="true" />
+            </button>
           </div>
         )}
 
-        {/* ============================================================
-            NORMAL JOINED STUDENT: CAMPUS-WIDE MULTI-DROP FEED
-           ============================================================ */}
-        {!seededPersona && (
-          <>
-            {/* Active hold banner at top if student currently holds a spot */}
-            {feedView.activeHold && (
-              <article
-                data-testid="active-claim-banner"
-                className="space-y-4 rounded-2xl border border-emerald-500/50 bg-owl-slate p-5 shadow-xl"
+        {/* ==================== TAB 1: HOME ==================== */}
+        {activeTab === "home" && (
+          <div className="space-y-6">
+            {/* Greeting + Active Dietary Summary Pill */}
+            <header className="flex flex-wrap items-end justify-between gap-3">
+              <div className="min-w-0 space-y-1">
+                <h1
+                  data-testid="student-nickname"
+                  className="truncate text-2xl font-extrabold tracking-tight text-ink sm:text-3xl"
+                >
+                  {formatGreeting(displayNickname)}
+                </h1>
+                <p className="text-sm text-ink-muted">
+                  Free campus food available around Marietta Campus
+                </p>
+              </div>
+              <button
+                type="button"
+                data-testid="home-dietary-summary-pill"
+                onClick={() => handleSelectTab("profile")}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-xs font-semibold text-ink transition hover:border-owl-gold"
               >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-extrabold uppercase text-emerald-300">
-                    Your spot is held
-                  </span>
-                  <span
-                    data-testid={
-                      push.realPush
-                        ? "push-notification-label"
-                        : "simulated-notification-label"
-                    }
-                    className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-300"
-                  >
-                    {push.realPush
-                      ? "Real push (Firebase)"
-                      : "Simulated notification"}
-                  </span>
-                </div>
-
-                <div className="space-y-1.5">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
-                    Where to go
-                  </p>
-                  <h2
-                    data-testid="pickup-drop-location"
-                    className="text-2xl font-extrabold text-white"
-                  >
-                    {formatDropResponseLocation(
-                      feedView.activeHold.feedDrop.drop,
-                    )}
-                  </h2>
-                  {getDropPickupInstructions(
-                    feedView.activeHold.feedDrop.drop,
-                  ) && (
-                    <p
-                      data-testid="pickup-instructions"
-                      className="rounded-lg border border-emerald-500/30 bg-owl-black/70 px-3 py-2 text-xs text-zinc-100"
-                    >
-                      <strong className="text-emerald-300">Pickup note:</strong>{" "}
-                      {getDropPickupInstructions(
-                        feedView.activeHold.feedDrop.drop,
-                      )}
-                    </p>
-                  )}
-                  <p className="text-xs text-zinc-300">
-                    Head over before your hold ends, then take a quick food-only
-                    photo (no student ID or people) to confirm pickup.
-                  </p>
-                  {getDropWalkingDirectionsUrl(
-                    feedView.activeHold.feedDrop.drop,
-                  ) && (
-                    <div className="pt-1">
-                      <a
-                        data-testid="get-directions-link"
-                        href={getDropWalkingDirectionsUrl(
-                          feedView.activeHold.feedDrop.drop,
-                        )!}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border border-emerald-400/50 bg-emerald-500/15 px-4 py-2.5 text-sm font-extrabold text-emerald-200 transition hover:bg-emerald-500/25"
-                      >
-                        Get walking directions
-                      </a>
-                    </div>
-                  )}
-                </div>
-
-                {/* Hold countdown */}
-                <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-950/30 px-4 py-3">
-                  <div>
-                    <div className="text-xs font-medium text-emerald-200">
-                      10-minute hold countdown
-                    </div>
-                    <div className="text-xs text-emerald-300/80">
-                      Until{" "}
-                      {formatEasternTime(feedView.activeHold.claim.held_until)}
-                    </div>
-                  </div>
-                  <div
-                    data-testid="hold-countdown"
-                    className="text-xl font-extrabold text-emerald-300"
-                  >
-                    {formatRemainingTime(
-                      feedView.activeHold.claim.held_until,
-                      nowIso,
-                    )}
-                  </div>
-                </div>
-
-                {/* What you reserved */}
-                <div className="space-y-2 rounded-xl bg-owl-black/70 p-3.5">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                    What you reserved
-                  </div>
-                  <div className="text-sm font-bold text-white">
-                    {summarizeDropItems(feedView.activeHold.feedDrop.drop)}
-                  </div>
-                  <ul className="space-y-1 text-xs text-zinc-300">
-                    {feedView.activeHold.feedDrop.drop.vision.items.map(
-                      (item, idx) => (
-                        <li key={`${item.name}-${idx}`}>
-                          • {item.name} (~{item.count_estimate}{" "}
-                          {item.portion_unit})
-                        </li>
-                      ),
-                    )}
-                  </ul>
-                </div>
-
-                <AllergenListDisplay
-                  allergens={feedView.activeHold.feedDrop.drop.allergens_final}
-                  notice={feedView.activeHold.feedDrop.drop.allergen_notice}
-                  title="Allergens"
-                  compact={true}
+                <SlidersHorizontal
+                  size={14}
+                  className="text-owl-goldText"
+                  aria-hidden="true"
                 />
+                <span>{dietarySummaryText}</span>
+              </button>
+            </header>
 
-                {/* Photo-assisted pickup confirmation flow */}
-                {(() => {
-                  const activeClaim = feedView.activeHold.claim;
-                  const holdRemaining = formatRemainingTime(
-                    activeClaim.held_until,
-                    nowIso,
-                  );
-                  const holdIsActive =
-                    activeClaim.status === "held" &&
-                    holdRemaining !== "Expired";
-                  const actions = resolvePickupVerificationActions(
-                    pickupVerification,
-                    holdIsActive,
-                  );
-                  const currentVerification = pickupVerification;
-                  const isUploadingPhoto =
-                    busyId === `pickup-photo:${activeClaim.id}`;
-                  const isRequestingReview =
-                    busyId === `pickup-review:${activeClaim.id}`;
-                  const isCompletingPickup = busyId === activeClaim.id;
-
-                  return (
-                    <div
-                      data-testid="pickup-confirmation-section"
-                      className="space-y-3 rounded-xl border border-emerald-500/30 bg-owl-black/80 p-4"
+            {/* Floating / Prominent Active Hold Banner */}
+            {activeHoldEntry && (
+              <section
+                data-testid="home-active-hold-banner"
+                aria-label="Active reservation"
+                className="flex flex-col justify-between gap-4 rounded-3xl border-2 border-success/50 bg-success-tint p-5 sm:flex-row sm:items-center"
+              >
+                <div className="min-w-0 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge tone="success">Active hold</StatusBadge>
+                    <span
+                      data-testid="home-hold-countdown"
+                      className="inline-flex items-center gap-1 text-xs font-extrabold tabular-nums text-success"
                     >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <div className="text-xs font-extrabold uppercase tracking-wide text-emerald-300">
-                            Photo-assisted pickup confirmation
-                          </div>
-                          <p className="text-xs text-zinc-300">
-                            Step 1: Take a photo of the food only (no people).
-                            Step 2: Complete pickup once verified.
-                          </p>
-                        </div>
-                        {currentVerification?.source && (
-                          <span
-                            data-testid="pickup-verification-source"
-                            className="rounded-full border border-owl-gold/30 bg-owl-gold/10 px-2.5 py-0.5 text-[11px] font-semibold text-owl-gold"
-                          >
-                            {formatPickupVerificationSourceLabel(
-                              currentVerification.source,
-                            )}
-                          </span>
-                        )}
-                      </div>
+                      <Clock size={13} aria-hidden="true" />
+                      <span>
+                        {formatRemainingTime(
+                          activeHoldEntry.claim.held_until,
+                          nowIso,
+                        )}{" "}
+                        left
+                      </span>
+                    </span>
+                  </div>
+                  <h2 className="truncate text-base font-extrabold text-ink">
+                    {summarizeDropItems(activeHoldEntry.drop)}
+                  </h2>
+                  <p className="flex items-center gap-1.5 text-xs text-ink-muted">
+                    <MapPin size={13} aria-hidden="true" />
+                    <span className="truncate">
+                      {formatConsumerDropLocation(activeHoldEntry.drop)}
+                    </span>
+                  </p>
+                </div>
 
-                      <p className="text-[11px] text-zinc-400">
-                        Privacy: Your photo is processed in memory for a
-                        de-identified food match check and is never saved or
-                        shown to the host.
-                      </p>
-
-                      {/* Hidden camera / file input */}
-                      <input
-                        ref={pickupFileInputRef}
-                        type="file"
-                        accept="image/jpeg,image/png"
-                        capture="environment"
-                        data-testid="pickup-photo-input"
-                        disabled={busyId !== null || !holdIsActive}
-                        onChange={(e) =>
-                          handleSelectPickupPhoto(
-                            activeClaim.id,
-                            e.target.files?.[0] ?? null,
-                          )
-                        }
-                        className="sr-only"
-                      />
-
-                      {/* Temporary local preview while uploading (revoked immediately after upload) */}
-                      {pickupPreviewUrl && (
-                        <div
-                          data-testid="pickup-photo-temp-preview"
-                          className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-owl-slate/70 p-2.5 text-xs text-zinc-300"
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={pickupPreviewUrl}
-                            alt="Temporary pickup food preview"
-                            className="h-12 w-12 rounded-md object-cover"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <div className="font-semibold text-white">
-                              Checking food photo...
-                            </div>
-                            <div className="text-[11px] text-zinc-400">
-                              Temporary local preview is discarded right after
-                              upload.
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {pickupError && (
-                        <div
-                          role="alert"
-                          data-testid="pickup-verification-error"
-                          className="space-y-2 rounded-lg border border-rose-500/40 bg-rose-950/30 px-3 py-2.5 text-xs text-rose-200"
-                        >
-                          <p>{pickupError}</p>
-                          {pickupPhotoFile && pickupRequestId && (
-                            <button
-                              type="button"
-                              data-testid="pickup-retry-same-photo-button"
-                              disabled={busyId !== null || !holdIsActive}
-                              onClick={() =>
-                                void handleRetrySamePickupPhoto(activeClaim.id)
-                              }
-                              className="inline-flex min-h-[36px] items-center justify-center rounded-lg border border-rose-400/50 bg-rose-500/20 px-3 py-1.5 text-xs font-bold text-rose-100 transition hover:bg-rose-500/30 disabled:opacity-50"
-                            >
-                              Retry upload with same photo
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Verification status / result card */}
-                      {currentVerification && (
-                        <div
-                          data-testid="pickup-verification-card"
-                          data-status={currentVerification.status}
-                          data-match-status={
-                            currentVerification.match_status ?? ""
-                          }
-                          data-review-status={
-                            currentVerification.review_status ?? "not_requested"
-                          }
-                          className={`space-y-2 rounded-xl border p-3.5 text-xs ${
-                            currentVerification.status === "processing"
-                              ? "border-owl-gold/40 bg-owl-gold/10 text-zinc-100"
-                              : currentVerification.match_status ===
-                                    "consistent" && actions.canCompletePickup
-                                ? "border-emerald-500/50 bg-emerald-950/30 text-emerald-100"
-                                : currentVerification.review_status ===
-                                    "approved"
-                                  ? "border-emerald-500/50 bg-emerald-950/30 text-emerald-100"
-                                  : currentVerification.match_status ===
-                                      "inconsistent"
-                                    ? "border-rose-500/40 bg-rose-950/30 text-rose-100"
-                                    : "border-amber-500/40 bg-amber-950/30 text-amber-100"
-                          }`}
-                        >
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span
-                              data-testid="pickup-verification-status-badge"
-                              className="font-extrabold uppercase tracking-wide"
-                            >
-                              {currentVerification.status === "processing"
-                                ? "Analyzing food photo..."
-                                : currentVerification.review_status ===
-                                    "approved"
-                                  ? "Approved by host override"
-                                  : currentVerification.review_status ===
-                                      "pending"
-                                    ? "Host review pending"
-                                    : currentVerification.review_status ===
-                                        "rejected"
-                                      ? "Host review declined — retake photo"
-                                      : currentVerification.status === "failed"
-                                        ? "Verification unavailable"
-                                        : formatPickupMatchStatusLabel(
-                                            currentVerification.match_status,
-                                          )}
-                            </span>
-
-                            {formatPickupConfidencePercent(
-                              currentVerification.confidence,
-                            ) && (
-                              <span
-                                data-testid="pickup-verification-confidence"
-                                className="rounded-md bg-owl-black/60 px-2 py-0.5 text-[11px] font-bold"
-                              >
-                                Confidence:{" "}
-                                {formatPickupConfidencePercent(
-                                  currentVerification.confidence,
-                                )}
-                              </span>
-                            )}
-                          </div>
-
-                          {currentVerification.explanation && (
-                            <p
-                              data-testid="pickup-verification-explanation"
-                              className="leading-relaxed text-zinc-200"
-                            >
-                              {currentVerification.explanation}
-                            </p>
-                          )}
-
-                          {currentVerification.review_status === "pending" && (
-                            <p
-                              data-testid="pickup-review-pending-note"
-                              className="rounded-lg border border-amber-400/30 bg-owl-black/50 px-2.5 py-2 text-[11px] text-amber-200"
-                            >
-                              Waiting for the host to review the de-identified
-                              assessment. You can also take a clearer food photo
-                              while waiting.
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Mandatory Photo-assisted confirmation notice */}
-                      <p
-                        data-testid="pickup-confirmation-notice"
-                        className="rounded-lg border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-[11px] font-medium leading-relaxed text-amber-200"
-                      >
-                        {actions.notice}
-                      </p>
-
-                      {/* Primary / Retry Photo & Review / Complete Pickup actions */}
-                      <div className="space-y-2 pt-1">
-                        {/* Step 1: Take or retake photo */}
-                        {(!currentVerification || actions.canRetryPhoto) && (
-                          <button
-                            type="button"
-                            data-testid={
-                              currentVerification
-                                ? "pickup-retry-photo-button"
-                                : "pickup-photo-trigger-button"
-                            }
-                            disabled={
-                              busyId !== null ||
-                              !holdIsActive ||
-                              actions.phase === "processing"
-                            }
-                            onClick={handleOpenPickupCamera}
-                            className={`min-h-[48px] w-full rounded-xl px-4 py-3 text-sm font-extrabold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                              actions.canCompletePickup
-                                ? "border border-zinc-700 bg-owl-slate text-zinc-200 hover:border-zinc-500"
-                                : "bg-owl-gold text-owl-black shadow-md hover:bg-owl-goldDark"
-                            }`}
-                          >
-                            {isUploadingPhoto
-                              ? "Uploading & verifying photo..."
-                              : actions.phase === "processing"
-                                ? "Verifying food photo..."
-                                : currentVerification
-                                  ? "Retake / choose another food photo"
-                                  : "Confirm pickup \u2014 take food photo"}
-                          </button>
-                        )}
-
-                        {/* Optional host review request when uncertain or inconsistent */}
-                        {actions.canRequestHostReview &&
-                          actions.verificationId && (
-                            <button
-                              type="button"
-                              data-testid="pickup-request-review-button"
-                              disabled={busyId !== null || !holdIsActive}
-                              onClick={() =>
-                                void handleRequestHostReview(
-                                  activeClaim.id,
-                                  actions.verificationId!,
-                                )
-                              }
-                              className="min-h-[44px] w-full rounded-xl border border-amber-400/50 bg-amber-500/15 px-4 py-2.5 text-xs font-extrabold text-amber-200 transition hover:bg-amber-500/25 disabled:opacity-50"
-                            >
-                              {isRequestingReview
-                                ? "Requesting host review..."
-                                : "Request host review (de-identified)"}
-                            </button>
-                          )}
-
-                        {/* Step 2: Explicit separate pickup completion button (ONLY enabled when consistent ready >= 0.8) */}
-                        <button
-                          type="button"
-                          data-testid="pickup-confirm-button"
-                          disabled={
-                            busyId !== null ||
-                            !actions.canCompletePickup ||
-                            !actions.verificationId
-                          }
-                          onClick={() =>
-                            void handlePickupClaim(
-                              activeClaim.id,
-                              actions.verificationId,
-                            )
-                          }
-                          className="min-h-[52px] w-full rounded-xl bg-emerald-400 px-5 py-3.5 text-base font-extrabold text-owl-black shadow-md transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 disabled:opacity-60"
-                        >
-                          {isCompletingPickup
-                            ? "Completing pickup..."
-                            : actions.canCompletePickup
-                              ? "Complete pickup"
-                              : "Complete pickup (requires verified food photo)"}
-                        </button>
-
-                        <button
-                          type="button"
-                          data-testid="pickup-release-button"
-                          disabled={busyId !== null}
-                          onClick={() =>
-                            void handleReleaseClaim(activeClaim.id)
-                          }
-                          className="min-h-[44px] w-full rounded-xl border border-zinc-800 bg-transparent px-4 py-2.5 text-xs font-semibold text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200 disabled:opacity-50"
-                        >
-                          Release hold
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </article>
+                <div className="flex flex-wrap items-center gap-2">
+                  {getDropWalkingDirectionsUrl(activeHoldEntry.drop) && (
+                    <a
+                      href={getDropWalkingDirectionsUrl(activeHoldEntry.drop)!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="consumer-button-secondary px-4 text-xs"
+                    >
+                      <Navigation size={14} aria-hidden="true" />
+                      <span>Directions</span>
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    data-testid="home-manage-hold-button"
+                    onClick={() => handleSelectTab("reservations")}
+                    className="consumer-button px-5 text-xs"
+                  >
+                    <span>Manage pickup</span>
+                  </button>
+                </div>
+              </section>
             )}
 
-            {/* Feed (default) / Map view switch for normal campus students */}
-            <nav
-              data-testid="student-view-toggle"
-              aria-label="Campus food view mode"
-              className="grid grid-cols-2 gap-2 rounded-2xl border border-zinc-800 bg-owl-slate p-1.5"
-            >
-              <button
-                type="button"
-                data-testid="student-view-feed-button"
-                aria-pressed={viewMode === "feed"}
-                onClick={() => setViewMode("feed")}
-                className={`inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition ${
-                  viewMode === "feed"
-                    ? "bg-owl-gold text-owl-black shadow"
-                    : "text-zinc-300 hover:bg-owl-black/60 hover:text-white"
-                }`}
-              >
-                <span>Feed</span>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                    viewMode === "feed"
-                      ? "bg-owl-black/15 text-owl-black"
-                      : "bg-zinc-800 text-zinc-300"
-                  }`}
-                >
-                  {feedView.orderedDrops.length}
-                </span>
-              </button>
-              <button
-                type="button"
-                data-testid="student-view-map-button"
-                aria-pressed={viewMode === "map"}
-                onClick={() => setViewMode("map")}
-                className={`inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition ${
-                  viewMode === "map"
-                    ? "bg-owl-gold text-owl-black shadow"
-                    : "text-zinc-300 hover:bg-owl-black/60 hover:text-white"
-                }`}
-              >
-                <span>Map</span>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                    viewMode === "map"
-                      ? "bg-owl-black/15 text-owl-black"
-                      : "bg-emerald-500/20 text-emerald-300"
-                  }`}
-                >
-                  {mapSummaryModel?.markers.length ?? 0}
-                </span>
-              </button>
-            </nav>
-
-            {viewMode === "map" ? (
-              <StudentCampusMap
-                feedDrops={feedDrops}
-                feedLoaded={feedLoaded}
-                referenceBuildings={referenceBuildings}
-                linkedDropId={linkedDropId}
-                nowIso={nowIso}
-                referenceNowMs={effectiveNowMs}
-                busyId={busyId}
-                onReserveDrop={handleReserveDrop}
-                onSwitchToFeed={() => setViewMode("feed")}
+            {/* Instant Search Bar */}
+            <div className="relative">
+              <Search
+                size={18}
+                aria-hidden="true"
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-muted"
               />
-            ) : feedView.orderedDrops.length === 0 ? (
-              <section
-                data-testid="empty-feed-card"
-                className="space-y-3 rounded-2xl border border-zinc-800 bg-owl-slate p-6 text-center shadow-lg"
-              >
-                <div className="flex justify-center">
-                  <span
-                    data-testid={
-                      push.realPush
-                        ? "push-notification-label"
-                        : "simulated-notification-label"
-                    }
-                    className="rounded-full border border-owl-gold/35 bg-owl-gold/10 px-3 py-1 text-xs font-semibold text-owl-gold"
-                  >
-                    {push.realPush ? "Real push on" : "Simulated notifications"}
-                  </span>
-                </div>
-                <h2
-                  data-testid="no-invites-card"
-                  className="text-xl font-extrabold text-white"
+              <input
+                type="search"
+                data-testid="student-search-input"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search food, buildings, or notes..."
+                aria-label="Search campus food"
+                className="consumer-input pl-11 pr-11"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  aria-label="Clear search"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-ink-muted hover:bg-surface-subtle hover:text-ink"
                 >
-                  No active food drops on campus right now
-                </h2>
-                <p className="text-sm leading-relaxed text-zinc-300">
-                  When an event host shares leftover trays anywhere on Marietta
-                  campus, the drop tile appears right here so you can check the
-                  location, dietary tags, and reserve a 10-minute pickup hold.
-                </p>
-                <p className="text-xs text-zinc-400">
-                  Allergens always say:{" "}
-                  <strong className="text-amber-300">
-                    {ALLERGEN_WARNING_TEXT}
-                  </strong>
-                  .
-                </p>
-              </section>
+                  <X size={16} aria-hidden="true" />
+                </button>
+              )}
+            </div>
+
+            {/* Horizontal Scrollable Category & Dietary Chips (zero page overflow) */}
+            <div
+              role="region"
+              aria-label="Food categories and dietary filters"
+              className="-mx-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0"
+            >
+              <div className="flex w-max items-center gap-2">
+                {STUDENT_FILTER_CHIPS.map((chip) => {
+                  const selected = activeCategory === chip.id;
+                  return (
+                    <button
+                      key={chip.id}
+                      type="button"
+                      data-testid={`category-chip-${chip.id}`}
+                      aria-pressed={selected}
+                      onClick={() => setActiveCategory(chip.id)}
+                      className={`inline-flex min-h-[44px] shrink-0 items-center rounded-full border px-4 text-xs font-bold transition ${
+                        selected
+                          ? "border-owl-gold bg-owl-gold text-owl-goldInk"
+                          : "border-line bg-surface text-ink-muted hover:border-ink-muted/40 hover:text-ink"
+                      }`}
+                    >
+                      {chip.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Feed Listings Grid */}
+            {!feedLoaded ? (
+              <div
+                data-testid="home-feed-skeleton"
+                className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+              >
+                <FoodCardSkeleton />
+                <FoodCardSkeleton />
+                <FoodCardSkeleton />
+              </div>
+            ) : filteredHomeDrops.length === 0 ? (
+              <EmptyState
+                testId="empty-feed-card"
+                title={
+                  feedDrops.length === 0
+                    ? "No food on campus right now"
+                    : "No listings match your filter"
+                }
+                description={
+                  feedDrops.length === 0
+                    ? `When an event host shares leftover food on Marietta Campus, it will show up right here. Allergens always say: ${ALLERGEN_WARNING_TEXT}.`
+                    : "Try switching categories or clearing your search to see other available food."
+                }
+                action={
+                  feedDrops.length > 0 ? (
+                    <button
+                      type="button"
+                      data-testid="clear-home-filters-button"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setActiveCategory("all");
+                      }}
+                      className="consumer-button-secondary"
+                    >
+                      Clear filters
+                    </button>
+                  ) : undefined
+                }
+              />
             ) : (
               <section
                 data-testid="campus-feed-list"
-                aria-label="Active campus food drops"
-                className="space-y-4"
+                aria-label="Available campus food"
+                className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
               >
-                <div className="flex items-center justify-between px-1">
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-300">
-                    Active campus drops ({feedView.orderedDrops.length})
-                  </h2>
-                  <span
-                    data-testid={
-                      push.realPush
-                        ? "push-notification-label"
-                        : "simulated-notification-label"
-                    }
-                    className="rounded-full border border-owl-gold/30 bg-owl-gold/10 px-2.5 py-0.5 text-[11px] font-semibold text-owl-gold"
-                  >
-                    {push.realPush ? "Real push on" : "Simulated notifications"}
-                  </span>
-                </div>
-
-                {feedView.orderedDrops.map((item) => {
+                {filteredHomeDrops.map((item) => {
                   const { drop, can_reserve, unavailable_reason, claim } = item;
-                  const isFocused =
-                    Boolean(linkedDropId) && drop.id === linkedDropId?.trim();
                   const isOwnHeld = claim?.status === "held";
                   const isOwnPickedUp = claim?.status === "picked_up";
-                  const locationText = formatDropResponseLocation(drop);
-                  const pickupNote = getDropPickupInstructions(drop);
-                  const directionsUrl = getDropWalkingDirectionsUrl(drop);
-                  const unavailableExplanation = formatUnavailableReason(
-                    unavailable_reason,
-                    claim,
+                  const disabledReason = !can_reserve
+                    ? formatUnavailableReason(unavailable_reason, claim)
+                    : null;
+
+                  const badge = isOwnHeld ? (
+                    <StatusBadge tone="success">Held by you</StatusBadge>
+                  ) : isOwnPickedUp ? (
+                    <StatusBadge tone="success">Picked up</StatusBadge>
+                  ) : drop.counts.available <= 0 ? (
+                    <StatusBadge tone="neutral">Claimed out</StatusBadge>
+                  ) : (
+                    <StatusBadge tone="gold">FREE</StatusBadge>
                   );
 
                   return (
-                    <article
+                    <FoodCard
                       key={drop.id}
-                      data-testid={`feed-drop-card-${drop.id}`}
-                      data-focused={isFocused ? "true" : "false"}
-                      className={`space-y-4 rounded-2xl border bg-owl-slate p-5 shadow-lg ${
-                        isFocused
-                          ? "border-owl-gold ring-2 ring-owl-gold/50"
-                          : isOwnHeld || isOwnPickedUp
-                            ? "border-emerald-500/50"
-                            : can_reserve
-                              ? "border-owl-gold/40"
-                              : "border-zinc-800"
-                      }`}
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {isFocused && (
-                            <span
-                              data-testid={`feed-drop-focused-${drop.id}`}
-                              className="rounded-full bg-owl-gold px-2.5 py-0.5 text-[11px] font-extrabold text-owl-black"
-                            >
-                              Focused drop
-                            </span>
-                          )}
+                      drop={drop}
+                      authToken={authToken}
+                      href={`/student/drops/${drop.id}`}
+                      badge={badge}
+                      disabledReason={
+                        !isOwnHeld && !isOwnPickedUp ? disabledReason : null
+                      }
+                      nowIso={nowIso}
+                      testId={`feed-drop-card-${drop.id}`}
+                      footer={
+                        <div className="grid grid-cols-2 gap-2">
+                          <Link
+                            href={`/student/drops/${drop.id}`}
+                            data-testid={`view-details-button-${drop.id}`}
+                            className="consumer-button-secondary px-3 text-xs"
+                          >
+                            View details
+                          </Link>
                           {isOwnHeld ? (
-                            <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-extrabold uppercase text-emerald-300">
-                              Spot held
-                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleSelectTab("reservations")}
+                              className="consumer-button px-3 text-xs"
+                            >
+                              View hold
+                            </button>
                           ) : isOwnPickedUp ? (
-                            <span
-                              data-testid="picked-up-card"
-                              className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-extrabold uppercase text-emerald-300"
+                            <button
+                              type="button"
+                              disabled
+                              className="consumer-button-secondary px-3 text-xs opacity-60"
                             >
                               Picked up
-                            </span>
-                          ) : drop.counts.available <= 0 ? (
-                            <span
-                              data-testid={`feed-drop-sold-out-${drop.id}`}
-                              className="rounded-full bg-zinc-800 px-2.5 py-0.5 text-xs font-bold uppercase text-zinc-300"
-                            >
-                              All spots held or claimed
-                            </span>
+                            </button>
                           ) : (
-                            <span className="rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-0.5 text-xs font-bold text-emerald-300">
-                              {drop.counts.available} of {drop.counts.total}{" "}
-                              servings available
-                            </span>
+                            <button
+                              type="button"
+                              data-testid={`reserve-drop-button-${drop.id}`}
+                              disabled={!can_reserve || busyId !== null}
+                              onClick={() => void handleReserveDrop(drop.id)}
+                              className="consumer-button px-3 text-xs"
+                            >
+                              {busyId === drop.id
+                                ? "Reserving..."
+                                : can_reserve
+                                  ? "Reserve"
+                                  : "Unavailable"}
+                            </button>
                           )}
                         </div>
-
-                        <span
-                          data-testid={`feed-drop-deadline-${drop.id}`}
-                          className="rounded-full bg-owl-black px-3 py-1 text-xs font-bold text-owl-gold"
-                        >
-                          Ends {formatEasternTime(drop.expires_at)} (
-                          {formatRemainingTime(drop.expires_at, nowIso)})
-                        </span>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <h3
-                          data-testid={`feed-drop-title-${drop.id}`}
-                          className="text-xl font-extrabold text-white"
-                        >
-                          {summarizeDropItems(drop)}
-                        </h3>
-                        <p
-                          data-testid={`feed-drop-location-${drop.id}`}
-                          className="text-sm font-bold text-zinc-100"
-                        >
-                          {locationText}
-                        </p>
-                        {pickupNote && (
-                          <p
-                            data-testid={`feed-drop-instructions-${drop.id}`}
-                            className="rounded-lg border border-zinc-800 bg-owl-black/60 px-3 py-2 text-xs text-zinc-200"
-                          >
-                            <strong className="text-owl-gold">
-                              Pickup note:
-                            </strong>{" "}
-                            {pickupNote}
-                          </p>
-                        )}
-                        <p
-                          data-testid={`feed-drop-available-${drop.id}`}
-                          className="text-xs text-zinc-400"
-                        >
-                          {drop.counts.available} available • {drop.counts.held}{" "}
-                          held • {drop.counts.picked_up} picked up
-                        </p>
-
-                        {directionsUrl && (
-                          <div className="pt-1">
-                            <a
-                              data-testid={`get-directions-link-${drop.id}`}
-                              href={directionsUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-3.5 py-2 text-xs font-bold text-emerald-200 transition hover:bg-emerald-500/25"
-                            >
-                              Get walking directions
-                            </a>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Food breakdown & dietary tags */}
-                      <div className="space-y-2 rounded-xl bg-owl-black/70 p-3.5">
-                        <ul className="space-y-1 text-sm text-zinc-100">
-                          {drop.vision.items.map((foodItem, idx) => (
-                            <li
-                              key={`${foodItem.name}-${idx}`}
-                              className="flex items-center justify-between gap-2"
-                            >
-                              <span className="font-medium">
-                                {foodItem.name}
-                              </span>
-                              <span className="shrink-0 text-xs text-zinc-400">
-                                ~{foodItem.count_estimate}{" "}
-                                {foodItem.portion_unit}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                        {drop.diet_tags_final.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 pt-1">
-                            {drop.diet_tags_final.map((d) => (
-                              <span
-                                key={d}
-                                className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-300"
-                              >
-                                {d.replace("_", " ")}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Allergens with mandatory notice */}
-                      <AllergenListDisplay
-                        allergens={drop.allergens_final}
-                        notice={drop.allergen_notice}
-                        title="Allergens"
-                        compact={true}
-                      />
-
-                      {/* Reservation action or explanation */}
-                      {isOwnHeld ? (
-                        <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-3.5 py-2.5 text-xs font-semibold text-emerald-200">
-                          Your 10-minute pickup hold is active above. Use
-                          &ldquo;Confirm pickup&rdquo; or &ldquo;Release
-                          hold&rdquo; on your hold card.
-                        </div>
-                      ) : isOwnPickedUp ? (
-                        <div className="space-y-2 pt-1">
-                          <p
-                            data-testid={`feed-drop-unavailable-${drop.id}`}
-                            data-reason={unavailable_reason ?? "picked_up"}
-                            className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-3.5 py-2.5 text-xs font-semibold text-emerald-200"
-                          >
-                            {unavailableExplanation ??
-                              "You picked up from this drop."}
-                          </p>
-                          <p
-                            data-testid="pickup-confirmation-notice"
-                            className="rounded-lg border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-[11px] font-medium leading-relaxed text-amber-200"
-                          >
-                            {PICKUP_CONFIRMATION_NOTICE}
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="space-y-2 pt-1">
-                          {!can_reserve && unavailableExplanation && (
-                            <p
-                              data-testid={`feed-drop-unavailable-${drop.id}`}
-                              data-reason={unavailable_reason ?? ""}
-                              className="rounded-xl border border-amber-500/30 bg-amber-950/20 px-3.5 py-2.5 text-xs font-semibold text-amber-200"
-                            >
-                              {unavailableExplanation}
-                            </p>
-                          )}
-
-                          <button
-                            type="button"
-                            data-testid={`reserve-drop-button-${drop.id}`}
-                            disabled={!can_reserve || busyId !== null}
-                            onClick={() => void handleReserveDrop(drop.id)}
-                            className="min-h-[52px] w-full rounded-xl bg-owl-gold px-5 py-3.5 text-base font-extrabold text-owl-black shadow-md transition hover:bg-owl-goldDark disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            {busyId === drop.id
-                              ? "Reserving..."
-                              : can_reserve
-                                ? "Reserve \u2013 hold 10 min"
-                                : "Unavailable to reserve"}
-                          </button>
-                        </div>
-                      )}
-                    </article>
+                      }
+                    />
                   );
                 })}
               </section>
             )}
-          </>
+          </div>
         )}
 
-        {/* ============================================================
-            EXPLICIT SEEDED PERSONA REHEARSAL (?persona=A..E)
-           ============================================================ */}
-        {seededPersona && (
-          <>
-            {cardState.kind === "waiting" && (
-              <section
-                data-testid="no-invites-card"
-                className="space-y-3 rounded-2xl border border-zinc-800 bg-owl-slate p-6 text-center shadow-lg"
-              >
-                <div className="flex justify-center">
-                  <span
-                    data-testid="simulated-notification-label"
-                    className="rounded-full border border-owl-gold/35 bg-owl-gold/10 px-3 py-1 text-xs font-semibold text-owl-gold"
+        {/* ==================== TAB 2: MAP ==================== */}
+        {activeTab === "map" && (
+          <div className="space-y-4">
+            <header className="space-y-1">
+              <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
+                Campus Map
+              </h1>
+              <p className="text-sm text-ink-muted">
+                Tap a Marietta Campus building pin to preview food and get
+                walking directions.
+              </p>
+            </header>
+
+            <StudentCampusMap
+              feedDrops={feedDrops}
+              feedLoaded={feedLoaded}
+              referenceBuildings={referenceBuildings}
+              linkedDropId={linkedDropId}
+              nowIso={nowIso}
+              referenceNowMs={effectiveNowMs}
+              busyId={busyId}
+              authToken={authToken}
+              onReserveDrop={handleReserveDrop}
+              onSwitchToFeed={() => handleSelectTab("home")}
+            />
+          </div>
+        )}
+
+        {/* ==================== TAB 3: RESERVATIONS ==================== */}
+        {activeTab === "reservations" && (
+          <div className="mx-auto max-w-2xl space-y-6">
+            <header className="space-y-1">
+              <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
+                Reservations
+              </h1>
+              <p className="text-sm text-ink-muted">
+                Manage your active pickup hold and view past pickups.
+              </p>
+            </header>
+
+            {!feedLoaded && !reservationsLoaded ? (
+              <div className="space-y-4">
+                <ListRowSkeleton />
+                <ListRowSkeleton />
+              </div>
+            ) : !activeHoldEntry &&
+              partitionedReservations.history.length === 0 ? (
+              <EmptyState
+                testId="reservations-empty-state"
+                icon={<ShoppingBag size={28} aria-hidden="true" />}
+                title="No reservations yet"
+                description="Reserve a serving from the Home feed or Campus Map to hold it for 10 minutes while you walk over."
+                action={
+                  <button
+                    type="button"
+                    onClick={() => handleSelectTab("home")}
+                    className="consumer-button"
                   >
-                    Simulated notifications
-                  </span>
-                </div>
-                <h2 className="text-xl font-extrabold text-white">
-                  We&apos;ll show rehearsal invites here
-                </h2>
-                <p className="text-sm leading-relaxed text-zinc-300">
-                  When a host shares food in seeded rehearsal mode that matches{" "}
-                  <span className="font-semibold text-white">
+                    Browse campus food
+                  </button>
+                }
+              />
+            ) : (
+              <>
+                {/* Active Hold */}
+                {activeHoldEntry && (
+                  <section
+                    aria-label="Active reservation"
+                    className="space-y-3"
+                  >
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-ink-muted">
+                      Active reservation
+                    </h2>
+                    <ActiveHoldCard
+                      drop={activeHoldEntry.drop}
+                      claim={activeHoldEntry.claim}
+                      authToken={authToken}
+                      nowIso={nowIso}
+                      pickupVerification={pickupVerification}
+                      pickupPreviewUrl={pickupPreviewUrl}
+                      pickupError={pickupError}
+                      hasRetryablePhoto={Boolean(
+                        pickupPhotoFile && pickupRequestId,
+                      )}
+                      busyId={busyId}
+                      onSelectPickupPhoto={handleSelectPickupPhoto}
+                      onRetrySamePickupPhoto={handleRetrySamePickupPhoto}
+                      onRequestHostReview={handleRequestHostReview}
+                      onConfirmPickup={handlePickupClaim}
+                      onReleaseReservation={handleReleaseClaim}
+                      onClearSelectedPhoto={clearSelectedPickupPhoto}
+                    />
+                  </section>
+                )}
+
+                {/* Past & Completed Reservations History */}
+                {partitionedReservations.history.length > 0 && (
+                  <section
+                    data-testid="reservation-history-list"
+                    aria-label="Past reservations"
+                    className="space-y-3"
+                  >
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-ink-muted">
+                      Past reservations (
+                      {partitionedReservations.history.length})
+                    </h2>
+                    <div className="space-y-3">
+                      {partitionedReservations.history.map((item) => {
+                        const statusMeta = formatReservationStatusMeta(
+                          item.claim.status,
+                        );
+                        const title = summarizeDropItems(item.drop);
+                        const locationText = formatConsumerDropLocation(
+                          item.drop,
+                        );
+                        return (
+                          <article
+                            key={item.claim.id}
+                            data-testid={`reservation-history-item-${item.claim.id}`}
+                            data-status={item.claim.status}
+                            className="flex items-center gap-4 rounded-3xl border border-line bg-surface p-3.5 shadow-card"
+                          >
+                            <DropPhoto
+                              dropId={item.drop.id}
+                              hasPhoto={item.drop.has_photo}
+                              photoUrl={item.drop.photo_url}
+                              authToken={authToken}
+                              alt={title}
+                              aspect="square"
+                              className="h-16 w-16 shrink-0 rounded-2xl"
+                            />
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <h3 className="truncate text-sm font-extrabold text-ink">
+                                  {title}
+                                </h3>
+                                <StatusBadge tone={statusMeta.tone}>
+                                  {statusMeta.label}
+                                </StatusBadge>
+                              </div>
+                              <p className="flex items-center gap-1 truncate text-xs text-ink-muted">
+                                <MapPin
+                                  size={12}
+                                  className="shrink-0"
+                                  aria-hidden="true"
+                                />
+                                <span className="truncate">{locationText}</span>
+                              </p>
+                              <p className="text-[11px] text-ink-muted">
+                                {formatEasternDateTime(item.claim.held_until)}
+                              </p>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </section>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ==================== TAB 4: PROFILE ==================== */}
+        {activeTab === "profile" && (
+          <div className="mx-auto max-w-2xl space-y-6">
+            {/* Student Identity Card */}
+            <section className="consumer-card flex items-center gap-4">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-owl-goldTint text-owl-goldText">
+                <User size={26} aria-hidden="true" />
+              </span>
+              <div className="min-w-0 space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1
+                    data-testid="student-nickname"
+                    className="truncate text-xl font-extrabold tracking-tight text-ink"
+                  >
                     {displayNickname}
-                  </span>
-                  , an invite card will appear right here.
-                </p>
-                <p className="text-xs text-zinc-400">
+                  </h1>
+                  <StatusBadge tone="gold">Marietta Campus</StatusBadge>
+                </div>
+                <p className="text-xs text-ink-muted">{dietarySummaryText}</p>
+              </div>
+            </section>
+
+            {/* Dietary & Allergen Preferences */}
+            <section
+              data-testid="student-preferences-panel"
+              className="consumer-card space-y-5"
+            >
+              <div className="space-y-1">
+                <h2 className="text-base font-bold text-ink">
+                  Dietary &amp; allergen filters
+                </h2>
+                <p className="text-xs leading-relaxed text-ink-muted">
                   Allergens always say:{" "}
-                  <strong className="text-amber-300">
+                  <strong className="font-semibold text-ink">
                     {ALLERGEN_WARNING_TEXT}
                   </strong>
-                  .
+                  . Confirm ingredients directly with the host.
                 </p>
-              </section>
-            )}
+              </div>
 
-            {cardState.kind === "invite" && (
-              <article
-                data-testid={`invite-card-${cardState.activeInvite.id}`}
-                className="space-y-5 rounded-2xl border border-owl-gold/50 bg-owl-slate p-5 shadow-xl"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span
-                    data-testid="simulated-notification-label"
-                    className="rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-xs font-bold text-amber-300"
-                  >
-                    Simulated notification
-                  </span>
-                  <span
-                    data-testid={`invite-countdown-${cardState.activeInvite.id}`}
-                    className="rounded-full bg-owl-black px-3 py-1 text-xs font-extrabold text-owl-gold"
-                  >
-                    {formatRemainingTime(
-                      cardState.activeInvite.expires_at,
-                      nowIso,
-                    )}{" "}
-                    left
-                  </span>
+              <div className="space-y-2">
+                <div className="text-xs font-bold text-ink">
+                  Allergens to avoid
                 </div>
-
-                <div className="space-y-1.5">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-owl-gold">
-                    Seeded rehearsal • {displaySubtitle}
-                  </p>
-                  <h2 className="text-2xl font-extrabold text-white">
-                    {summarizeDropFood(cardState.activeInvite)}
-                  </h2>
-                  <p
-                    data-testid="invite-drop-location"
-                    className="text-sm font-bold text-zinc-100"
-                  >
-                    {activeSeededDropLocation}
-                  </p>
-                  {activeSeededPickupInstructions && (
-                    <p
-                      data-testid="invite-pickup-instructions"
-                      className="rounded-lg border border-zinc-800 bg-owl-black/60 px-3 py-2 text-xs text-zinc-200"
-                    >
-                      <strong className="text-owl-gold">Pickup note:</strong>{" "}
-                      {activeSeededPickupInstructions}
-                    </p>
-                  )}
-                  <p className="text-xs text-zinc-400">
-                    About {cardState.activeInvite.drop.counts.available} of{" "}
-                    {cardState.activeInvite.drop.counts.total} servings left
-                  </p>
-                  {activeSeededDirectionsUrl && (
-                    <div className="pt-1">
-                      <a
-                        data-testid="get-directions-link"
-                        href={activeSeededDirectionsUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-3.5 py-2 text-xs font-bold text-emerald-200 transition hover:bg-emerald-500/25"
+                <div className="flex flex-wrap gap-2">
+                  {ALLERGENS.map((alg) => {
+                    const active = prefAllergens.includes(alg);
+                    return (
+                      <button
+                        key={alg}
+                        type="button"
+                        data-testid={`pref-allergen-${alg}`}
+                        aria-pressed={active}
+                        onClick={() => togglePrefAllergen(alg)}
+                        className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-3.5 text-xs font-semibold capitalize transition ${
+                          active
+                            ? "border-warning bg-warning-tint text-warning"
+                            : "border-line bg-surface-subtle text-ink hover:border-ink-muted/40"
+                        }`}
                       >
-                        Get directions
-                      </a>
-                    </div>
-                  )}
+                        {active && <Check size={14} aria-hidden="true" />}
+                        <span>{alg.replaceAll("_", " ")}</span>
+                      </button>
+                    );
+                  })}
                 </div>
+              </div>
 
-                <div className="space-y-2 rounded-xl bg-owl-black/70 p-3.5">
-                  <ul className="space-y-1 text-sm text-zinc-100">
-                    {cardState.activeInvite.drop.vision.items.map(
-                      (item, idx) => (
-                        <li
-                          key={`${item.name}-${idx}`}
-                          className="flex items-center justify-between gap-2"
-                        >
-                          <span className="font-medium">{item.name}</span>
-                          <span className="shrink-0 text-xs text-zinc-400">
-                            ~{item.count_estimate} {item.portion_unit}
-                          </span>
-                        </li>
-                      ),
-                    )}
-                  </ul>
-                  {cardState.activeInvite.drop.diet_tags_final.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {cardState.activeInvite.drop.diet_tags_final.map((d) => (
-                        <span
-                          key={d}
-                          className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-300"
-                        >
-                          {d.replace("_", " ")}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+              <div className="space-y-2 border-t border-line pt-4">
+                <div className="text-xs font-bold text-ink">
+                  Dietary preferences
                 </div>
-
-                <AllergenListDisplay
-                  allergens={cardState.activeInvite.drop.allergens_final}
-                  notice={cardState.activeInvite.drop.allergen_notice}
-                  title="Allergens"
-                  compact={true}
-                />
-
-                <div className="space-y-2.5 pt-1">
-                  <button
-                    type="button"
-                    data-testid={`claim-invite-button-${cardState.activeInvite.id}`}
-                    disabled={busyId !== null}
-                    onClick={() => void handleClaim(cardState.activeInvite.id)}
-                    className="min-h-[52px] w-full rounded-xl bg-owl-gold px-5 py-3.5 text-base font-extrabold text-owl-black shadow-md transition hover:bg-owl-goldDark disabled:opacity-50"
-                  >
-                    {busyId === cardState.activeInvite.id
-                      ? "Reserving..."
-                      : "Reserve \u2013 hold 10 min"}
-                  </button>
-
-                  <button
-                    type="button"
-                    data-testid={`decline-invite-button-${cardState.activeInvite.id}`}
-                    disabled={busyId !== null}
-                    onClick={() =>
-                      void handleDecline(cardState.activeInvite.id)
-                    }
-                    className="min-h-[44px] w-full rounded-xl border border-zinc-800 bg-transparent px-4 py-2.5 text-xs font-semibold text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200 disabled:opacity-50"
-                  >
-                    Decline
-                  </button>
-                </div>
-              </article>
-            )}
-
-            {cardState.kind === "pickup" && (
-              <article
-                data-testid="active-claim-banner"
-                className="space-y-5 rounded-2xl border border-emerald-500/50 bg-owl-slate p-5 shadow-xl"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-extrabold uppercase text-emerald-300">
-                    Your spot is held
-                  </span>
-                  <span
-                    data-testid="simulated-notification-label"
-                    className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-300"
-                  >
-                    Simulated notification
-                  </span>
-                </div>
-
-                <div className="space-y-1.5">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
-                    Where to go
-                  </p>
-                  <h2
-                    data-testid="pickup-drop-location"
-                    className="text-2xl font-extrabold text-white"
-                  >
-                    {activeSeededDropLocation}
-                  </h2>
-                  {activeSeededPickupInstructions && (
-                    <p
-                      data-testid="pickup-instructions"
-                      className="rounded-lg border border-emerald-500/30 bg-owl-black/70 px-3 py-2 text-xs text-zinc-100"
-                    >
-                      <strong className="text-emerald-300">Pickup note:</strong>{" "}
-                      {activeSeededPickupInstructions}
-                    </p>
-                  )}
-                  <p
-                    data-testid="legacy-seeded-rehearsal-note"
-                    className="text-xs text-amber-300"
-                  >
-                    Legacy seeded persona rehearsal (?persona=A..E): direct
-                    rehearsal pickup requires no photo body.
-                  </p>
-                  {activeSeededDirectionsUrl && (
-                    <div className="pt-1">
-                      <a
-                        data-testid="get-directions-link"
-                        href={activeSeededDirectionsUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border border-emerald-400/50 bg-emerald-500/15 px-4 py-2.5 text-sm font-extrabold text-emerald-200 transition hover:bg-emerald-500/25"
+                <div className="flex flex-wrap gap-2">
+                  {DIETS.map((diet) => {
+                    const active = prefDiets.includes(diet);
+                    return (
+                      <button
+                        key={diet}
+                        type="button"
+                        data-testid={`pref-diet-${diet}`}
+                        aria-pressed={active}
+                        onClick={() => togglePrefDiet(diet)}
+                        className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-3.5 text-xs font-semibold capitalize transition ${
+                          active
+                            ? "border-success bg-success-tint text-success"
+                            : "border-line bg-surface-subtle text-ink hover:border-ink-muted/40"
+                        }`}
                       >
-                        Get directions
-                      </a>
-                    </div>
-                  )}
+                        {active && <Check size={14} aria-hidden="true" />}
+                        <span>{diet.replaceAll("_", " ")}</span>
+                      </button>
+                    );
+                  })}
                 </div>
+              </div>
 
-                <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-950/30 px-4 py-3">
-                  <div>
-                    <div className="text-xs font-medium text-emerald-200">
-                      10-minute hold countdown
-                    </div>
-                    <div className="text-xs text-emerald-300/80">
-                      Until{" "}
-                      {formatEasternTime(cardState.activeClaim.held_until)}
-                    </div>
-                  </div>
-                  <div
-                    data-testid="hold-countdown"
-                    className="text-xl font-extrabold text-emerald-300"
-                  >
-                    {formatRemainingTime(
-                      cardState.activeClaim.held_until,
-                      nowIso,
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-2 rounded-xl bg-owl-black/70 p-3.5">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                    What you reserved
-                  </div>
-                  <div className="text-sm font-bold text-white">
-                    {summarizeDropFood(cardState.activeInvite)}
-                  </div>
-                  <ul className="space-y-1 text-xs text-zinc-300">
-                    {cardState.activeInvite.drop.vision.items.map(
-                      (item, idx) => (
-                        <li key={`${item.name}-${idx}`}>
-                          • {item.name} (~{item.count_estimate}{" "}
-                          {item.portion_unit})
-                        </li>
-                      ),
-                    )}
-                  </ul>
-                </div>
-
-                <AllergenListDisplay
-                  allergens={cardState.activeInvite.drop.allergens_final}
-                  notice={cardState.activeInvite.drop.allergen_notice}
-                  title="Allergens"
-                  compact={true}
-                />
-
-                <div className="space-y-2.5 pt-1">
-                  <button
-                    type="button"
-                    data-testid="pickup-confirm-button"
-                    disabled={busyId !== null}
-                    onClick={() =>
-                      void handlePickupClaim(cardState.activeClaim.id)
-                    }
-                    className="min-h-[52px] w-full rounded-xl bg-owl-gold px-5 py-3.5 text-base font-extrabold text-owl-black shadow-md transition hover:bg-owl-goldDark disabled:opacity-50"
-                  >
-                    {busyId === cardState.activeClaim.id
-                      ? "Confirming..."
-                      : "Confirm picked up (legacy seeded rehearsal)"}
-                  </button>
-
-                  <button
-                    type="button"
-                    data-testid="pickup-release-button"
-                    disabled={busyId !== null}
-                    onClick={() =>
-                      void handleReleaseClaim(cardState.activeClaim.id)
-                    }
-                    className="min-h-[44px] w-full rounded-xl border border-zinc-800 bg-transparent px-4 py-2.5 text-xs font-semibold text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200 disabled:opacity-50"
-                  >
-                    Release
-                  </button>
-                </div>
-              </article>
-            )}
-
-            {cardState.kind === "picked_up" && (
-              <section
-                data-testid="picked-up-card"
-                className="space-y-4 rounded-2xl border border-emerald-500/40 bg-owl-slate p-6 text-center shadow-lg"
-              >
-                <div className="flex justify-center gap-2">
-                  <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-extrabold uppercase text-emerald-300">
-                    Picked up
-                  </span>
-                  <span
-                    data-testid="simulated-notification-label"
-                    className="rounded-full border border-owl-gold/30 bg-owl-gold/10 px-3 py-1 text-xs font-semibold text-owl-gold"
-                  >
-                    Simulated notification
-                  </span>
-                </div>
-
-                <div
-                  data-testid="active-claim-banner"
-                  className="space-y-1.5 text-center"
+              {prefsStatus && (
+                <p
+                  data-testid="student-preferences-status"
+                  className="text-xs font-semibold text-success"
                 >
-                  <h2 className="text-2xl font-extrabold text-white">
-                    Enjoy your meal
-                  </h2>
-                  <p className="text-sm text-zinc-300">
-                    Picked up from{" "}
-                    <strong className="text-white">
-                      {activeSeededDropLocation}
-                    </strong>
-                    .
-                  </p>
-                  {activeSeededPickupInstructions && (
-                    <p className="text-xs text-zinc-400">
-                      Pickup note: {activeSeededPickupInstructions}
-                    </p>
-                  )}
-                </div>
-
-                <p className="text-xs text-zinc-400">
-                  Allergens: {ALLERGEN_WARNING_TEXT}.
+                  {prefsStatus}
                 </p>
-              </section>
-            )}
+              )}
 
-            {cardState.collapsedLines.length > 0 && (
-              <section
-                aria-label="Past invites"
-                className="space-y-1.5 rounded-xl border border-zinc-800/80 bg-owl-slate/50 px-3.5 py-2.5"
+              <button
+                type="button"
+                data-testid="save-preferences-button"
+                disabled={busyId !== null}
+                onClick={() =>
+                  void handleSavePreferences(
+                    prefAllergens,
+                    prefDiets,
+                    alertsPaused,
+                  )
+                }
+                className="consumer-button w-full"
               >
-                {cardState.collapsedLines.map((line) => (
-                  <p
-                    key={line.id}
-                    data-testid={`collapsed-invite-${line.id}`}
-                    className="truncate text-xs text-zinc-400"
-                  >
-                    {line.summary}
+                {busyId === "preferences" ? "Saving..." : "Save preferences"}
+              </button>
+            </section>
+
+            {/* Notifications Card */}
+            <section className="consumer-card space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <h2 className="text-base font-bold text-ink">
+                    Food notifications
+                  </h2>
+                  <p className="text-xs leading-relaxed text-ink-muted">
+                    Get notified when free food matching your dietary settings
+                    is posted on campus.
                   </p>
-                ))}
-              </section>
-            )}
-          </>
+                </div>
+                {alertsPaused ? (
+                  <BellOff
+                    size={20}
+                    className="shrink-0 text-ink-muted"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <Bell
+                    size={20}
+                    className="shrink-0 text-owl-goldText"
+                    aria-hidden="true"
+                  />
+                )}
+              </div>
+
+              <PushOptIn
+                role="student"
+                state={push.state}
+                onEnable={() => void push.enable()}
+              />
+
+              <label className="flex min-h-[48px] cursor-pointer items-center justify-between gap-3 rounded-2xl border border-line bg-surface-subtle px-4 py-3">
+                <div className="space-y-0.5">
+                  <span className="block text-sm font-semibold text-ink">
+                    Pause food alerts
+                  </span>
+                  <span className="block text-xs text-ink-muted">
+                    You can still browse and reserve food anytime.
+                  </span>
+                </div>
+                <input
+                  type="checkbox"
+                  data-testid="student-alerts-paused-toggle"
+                  checked={alertsPaused}
+                  disabled={busyId === "preferences"}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setAlertsPaused(checked);
+                    void handleSavePreferences(
+                      prefAllergens,
+                      prefDiets,
+                      checked,
+                    );
+                  }}
+                  className="h-5 w-5 shrink-0 rounded accent-owl-gold"
+                />
+              </label>
+            </section>
+
+            {/* Appearance Selector */}
+            <section className="consumer-card space-y-3">
+              <div className="space-y-1">
+                <h2 className="text-base font-bold text-ink">Appearance</h2>
+                <p className="text-xs text-ink-muted">
+                  Choose light, dark, or match your device settings.
+                </p>
+              </div>
+              <div
+                role="group"
+                aria-label="Theme preference"
+                className="grid grid-cols-3 gap-2"
+              >
+                {THEME_OPTIONS.map(({ id, label, Icon }) => {
+                  const selected = themePreference === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      data-testid={`profile-theme-${id}`}
+                      aria-pressed={selected}
+                      onClick={() => setThemePreference(id)}
+                      className={`inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl border px-3 text-xs font-bold transition ${
+                        selected
+                          ? "border-owl-gold bg-owl-goldTint text-owl-goldText"
+                          : "border-line bg-surface-subtle text-ink-muted hover:text-ink"
+                      }`}
+                    >
+                      <Icon size={15} aria-hidden="true" />
+                      <span>{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* Sign Out */}
+            <section className="consumer-card space-y-3">
+              <p className="text-xs leading-relaxed text-ink-muted">
+                Signing out releases any active reservation hold so another
+                student on campus can reserve it.
+              </p>
+              <button
+                type="button"
+                data-testid="leave-demo-button"
+                disabled={busyId !== null}
+                onClick={() => void handleSignOut()}
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-danger/40 bg-danger-tint px-5 py-3 text-sm font-bold text-danger transition hover:opacity-90 disabled:opacity-50"
+              >
+                <LogOut size={16} aria-hidden="true" />
+                <span>
+                  {busyId === "leave" ? "Signing out..." : "Sign out"}
+                </span>
+              </button>
+            </section>
+          </div>
         )}
-      </main>
-    </div>
+      </div>
+    </AppShell>
   );
 }
 
@@ -2039,9 +1820,13 @@ export default function StudentPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-owl-black p-6 text-sm text-zinc-400">
-          Loading...
-        </div>
+        <AppShell variant="student">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <FoodCardSkeleton />
+            <FoodCardSkeleton />
+            <FoodCardSkeleton />
+          </div>
+        </AppShell>
       }
     >
       <StudentContent />
