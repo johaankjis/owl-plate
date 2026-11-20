@@ -116,6 +116,20 @@ async function screenshot(page, name) {
           .fill(`Synthetic ${mode} ${i}`);
         await student.getByTestId("join-submit").click();
         await student.waitForURL(/\/student/);
+        await student.getByTestId("nav-tab-map").click();
+        const marker = student.getByTestId(`campus-map-marker-${building.id}`);
+        await marker.waitFor();
+        assert.equal(
+          await marker.getAttribute("data-latitude"),
+          String(building.latitude),
+        );
+        assert.equal(
+          await marker.getAttribute("data-longitude"),
+          String(building.longitude),
+        );
+        await marker.click();
+        await student.getByTestId(`map-drop-card-${drop.id}`).waitFor();
+        await student.getByTestId("nav-tab-home").click();
         await student.getByTestId("student-search-input").fill(building.name);
         await student.getByTestId(`view-details-button-${drop.id}`).click();
         await student.waitForURL(new RegExp(`/student/drops/${drop.id}`));
@@ -185,6 +199,11 @@ async function screenshot(page, name) {
       await dashboard.getByText("66.7%", { exact: true }).first().waitFor();
       await screenshot(dashboard, `${mode}-analytics-acceptance`);
       await screenshot(host, `${mode}-host-handoff`);
+      await coordinator
+        .getByTestId(`pantry-referral-status-${item.id}`)
+        .filter({ hasText: "Handed off (simulated)" })
+        .waitFor();
+      await screenshot(coordinator, `${mode}-pantry-completed`);
       assert.doesNotMatch(
         await coordinator.locator("body").innerText(),
         /Live Gemini|OpenRouter|API connected|Join the campus feed|notification simulation/i,
@@ -220,6 +239,11 @@ async function screenshot(page, name) {
       }
       await screenshot(dashboard, `${mode}-analytics-recording`);
       await coordinator.reload();
+      await coordinator.getByTestId("pantry-section-incoming").waitFor();
+      await coordinator
+        .locator('[data-testid^="pantry-referral-card-"]')
+        .first()
+        .waitFor();
       await screenshot(coordinator, `${mode}-pantry-recording`);
       const alias = await open("/impact");
       await alias

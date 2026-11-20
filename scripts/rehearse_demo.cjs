@@ -120,24 +120,22 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     await Promise.all(
       Object.entries(pages).map(([name, page]) =>
         page.goto(
-          `${web}/${name === "projector" ? "dispatch" : name === "student" ? "student?persona=A" : name}`,
+          `${web}/${name === "projector" ? "admin/projector" : name === "student" ? "student?persona=A" : "host?rehearsal=1"}`,
         ),
       ),
     );
     const { host, projector, student } = pages;
     await student
-      .getByTestId("student-vision-mode-label")
-      .filter({ hasText: "Saved demo estimates" })
+      .getByTestId("seeded-persona-banner")
+      .filter({ hasText: "Rehearsal" })
       .waitFor();
-    await student.getByTestId("student-menu-button").click();
     assert.equal(
       await student
         .locator('[data-testid*="building-selector"], [data-testid*="checkin"]')
         .count(),
       0,
-      "No student location controls in seeded menus either",
+      "No student location controls",
     );
-    await student.getByTestId("student-menu-button").click();
     await scene(
       "host",
       "1. Photograph and review",
