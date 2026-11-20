@@ -627,7 +627,13 @@ def _enrich_listings(
 
 
 def _select_active_listings(all_listings: list[dict]) -> list[dict]:
-    """Keep every live (and unexpired claimed_out) listing plus the newest expired one."""
+    """Keep every live and claimed_out listing the feed sends, plus the newest
+    expired one.
+
+    The analytics feed already excludes expired drops upstream, so claimed_out
+    entries here are assumed current; if the feed ever includes stale ones they
+    would linger on the map until the next refresh replaces the set.
+    """
     current: list[dict] = []
     expired: list[dict] = []
     for entry in all_listings:

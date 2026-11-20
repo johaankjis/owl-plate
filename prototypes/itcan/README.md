@@ -151,9 +151,10 @@ recommendations. Tell that conversation once:
 `it patch` updates only page state, never the page's HTML. After pulling a
 new `command-center.html` (or `whats-left.html`) into `~/owl-plate-it`,
 re-run `create_command_center.py` (or `create_companion.py --drop-id …`) in
-the same conversation: the page id is derived from the listing, so the
-binding and the handler stay the same, and the page is republished with the
-new HTML and a fresh real snapshot.
+the same conversation: the command center's page id is fixed, and the pickup
+companion's is derived from its listing, so both bindings and their handlers
+stay the same while the page is republished with the new HTML and a fresh
+real snapshot.
 
 ### Acceptance walkthrough (two buildings)
 
