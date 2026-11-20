@@ -3,20 +3,145 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  --owl-bg: #f8f8fa;
+  --owl-bg-rgb: 248 248 250;
+  --owl-surface: #ffffff;
+  --owl-surface-rgb: 255 255 255;
+  --owl-surface-subtle: #f1f2f6;
+  --owl-surface-subtle-rgb: 241 242 246;
+  --owl-border: #e4e5ec;
+  --owl-border-rgb: 228 229 236;
+  --owl-ink: #121214;
+  --owl-ink-rgb: 18 18 20;
+  --owl-ink-muted: #525560;
+  --owl-ink-muted-rgb: 82 85 96;
+  --owl-gold: #fdbb30;
+  --owl-gold-rgb: 253 187 48;
+  --owl-gold-hover: #e5a41b;
+  --owl-gold-hover-rgb: 229 164 27;
+  --owl-gold-ink: #121214;
+  --owl-gold-ink-rgb: 18 18 20;
+  --owl-gold-text: #8a5e00;
+  --owl-gold-text-rgb: 138 94 0;
+  --owl-gold-tint: #fef6e1;
+  --owl-gold-tint-rgb: 254 246 225;
+  --owl-success: #15803d;
+  --owl-success-rgb: 21 128 61;
+  --owl-success-tint: #dcfce7;
+  --owl-success-tint-rgb: 220 252 231;
+  --owl-warning: #92400e;
+  --owl-warning-rgb: 146 64 14;
+  --owl-warning-tint: #fef3c7;
+  --owl-warning-tint-rgb: 254 243 199;
+  --owl-danger: #be123c;
+  --owl-danger-rgb: 190 18 60;
+  --owl-danger-tint: #ffe4e6;
+  --owl-danger-tint-rgb: 255 228 230;
+}
+.dark {
+  --owl-bg: #0f1013;
+  --owl-bg-rgb: 15 16 19;
+  --owl-surface: #18191e;
+  --owl-surface-rgb: 24 25 30;
+  --owl-surface-subtle: #22242b;
+  --owl-surface-subtle-rgb: 34 36 43;
+  --owl-border: #353842;
+  --owl-border-rgb: 53 56 66;
+  --owl-ink: #f4f4f6;
+  --owl-ink-rgb: 244 244 246;
+  --owl-ink-muted: #a1a5b2;
+  --owl-ink-muted-rgb: 161 165 178;
+  --owl-gold: #fdbb30;
+  --owl-gold-rgb: 253 187 48;
+  --owl-gold-hover: #e5a41b;
+  --owl-gold-hover-rgb: 229 164 27;
+  --owl-gold-ink: #121214;
+  --owl-gold-ink-rgb: 18 18 20;
+  --owl-gold-text: #fdbb30;
+  --owl-gold-text-rgb: 253 187 48;
+  --owl-gold-tint: #382e19;
+  --owl-gold-tint-rgb: 56 46 25;
+  --owl-success: #4ade80;
+  --owl-success-rgb: 74 222 128;
+  --owl-success-tint: #163424;
+  --owl-success-tint-rgb: 22 52 36;
+  --owl-warning: #fbbf24;
+  --owl-warning-rgb: 251 191 36;
+  --owl-warning-tint: #3d2f16;
+  --owl-warning-tint-rgb: 61 47 22;
+  --owl-danger: #fb7185;
+  --owl-danger-rgb: 251 113 133;
+  --owl-danger-tint: #3b1e29;
+  --owl-danger-tint-rgb: 59 30 41;
 }
 
-body {
-  background-color: #121214;
-  color: #f4f4f5;
-  font-family:
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    "Helvetica Neue",
-    Arial,
-    sans-serif;
+@layer base {
+  html {
+    color-scheme: light;
+    scroll-behavior: smooth;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    background: var(--owl-bg);
+    color: var(--owl-ink);
+    font-family:
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif;
+    overflow-wrap: anywhere;
+  }
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  :focus-visible {
+    outline: 3px solid var(--owl-gold-text);
+    outline-offset: 3px;
+  }
+  ::selection {
+    background: var(--owl-gold);
+    color: #121214;
+  }
+  input,
+  select,
+  textarea {
+    max-width: 100%;
+  }
+}
+@layer components {
+  .consumer-button {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-owl-gold px-6 py-3 text-sm font-bold text-owl-goldInk transition hover:bg-owl-goldDark disabled:opacity-50;
+  }
+  .consumer-button-secondary {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-line bg-surface px-5 py-3 text-sm font-semibold text-ink transition hover:bg-surface-subtle disabled:opacity-50;
+  }
+  .consumer-input {
+    @apply min-h-12 w-full rounded-2xl border border-line bg-surface px-4 py-3 text-base text-ink placeholder:text-ink-muted;
+  }
+  .consumer-card {
+    @apply rounded-3xl border border-line bg-surface p-5 shadow-card;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -37,6 +37,8 @@ import type {
   FeedResponse,
   FeedUnavailableReason,
   HostPantryReferralResponse,
+  HostDropsResponse,
+  StudentReservationsResponse,
   HostPickupReview,
   HostPickupReviewDecision,
   HostPickupReviewStatus,
@@ -3129,4 +3131,55 @@ export function fixtureDecidePantryReferral(
   recomputeCounts(store, drop.id);
   saveStore(store);
   return serializePantryReferral(store, referral);
+}
+
+/** Recover only the current host's listings, including completed and draft listings. */
+export function fixtureGetHostDrops(credential: AuthToken): HostDropsResponse {
+  const store = loadStore();
+  expireDeadlines(store);
+  if (!credential.startsWith("demo-host"))
+    throw new FixtureContractError(403, "forbidden", "Host access required.");
+  const drops = Object.values(store.drops)
+    .filter(
+      (drop) =>
+        (store.dropOwnerByDropId[drop.id] ?? "demo-host") === credential,
+    )
+    .sort(
+      (a, b) =>
+        b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id),
+    );
+  for (const drop of drops) recomputeCounts(store, drop.id);
+  saveStore(store);
+  return { drops, server_time: store.serverTimeIso, is_demo: true };
+}
+/** Keep completed reservations visible without leaking another student's history. */
+export function fixtureGetMyReservations(
+  credential: AuthToken,
+): StudentReservationsResponse {
+  const store = loadStore();
+  expireDeadlines(store);
+  const student = resolveStudentIdentity(store, credential);
+  const reservations = Object.values(store.claims)
+    .filter((claim) => claim.recipientKey === student.recipientKey)
+    .reverse()
+    .map((claim) => {
+      const drop = store.drops[claim.dropId]!;
+      recomputeCounts(store, drop.id);
+      const latest = getLatestAttemptForClaim(store, claim.id);
+      return {
+        claim: {
+          id: claim.id,
+          invite_id: claim.inviteId,
+          drop_id: claim.dropId,
+          status: claim.status,
+          held_until: claim.heldUntil,
+        },
+        drop,
+        pickup_verification: latest
+          ? serializePickupVerification(store, latest)
+          : null,
+      };
+    });
+  saveStore(store);
+  return { reservations, server_time: store.serverTimeIso, is_demo: true };
 }

@@ -28,6 +28,8 @@ import type {
   ErrorDetail,
   FeedResponse,
   HostPantryReferralResponse,
+  HostDropsResponse,
+  StudentReservationsResponse,
   HostPickupReview,
   HostPickupReviewDecision,
   HostPickupReviewsResponse,
@@ -65,6 +67,8 @@ import {
   fixtureGetDistribution,
   fixtureGetDrop,
   fixtureGetHostPantryReferral,
+  fixtureGetHostDrops,
+  fixtureGetMyReservations,
   fixtureGetHostPickupReviews,
   fixtureGetHostPushTokenStatus,
   fixtureGetMyFeed,
@@ -712,4 +716,72 @@ export async function confirmHostPantryHandoff(
     credential,
     () => fixtureConfirmHostPantryHandoff(dropId, req, credential),
   );
+}
+
+/** Recover the publishing host's own listings without presenter credentials. */
+export async function getHostDrops(
+  credential: AuthToken = "demo-host",
+): Promise<ApiResult<HostDropsResponse>> {
+  return request("/hosts/me/drops", { method: "GET" }, credential, () =>
+    fixtureGetHostDrops(credential),
+  );
+}
+/** Load only the student's active and completed reservation lifecycle. */
+export async function getMyReservations(
+  credential: AuthToken,
+): Promise<ApiResult<StudentReservationsResponse>> {
+  return request(
+    "/students/me/reservations",
+    { method: "GET" },
+    credential,
+    () => fixtureGetMyReservations(credential),
+  );
+}
+/** Fetch an authorized host-listing JPEG; never put credentials in a URL or cache. */
+export async function getDropPhotoBlob(
+  dropId: string,
+  credential: AuthToken,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  if (!credential)
+    throw new ApiContractError(
+      401,
+      "unauthorized",
+      "Sign in to view this photo.",
+    );
+  if (UI_FIXTURE_MODE)
+    throw new ApiContractError(
+      404,
+      "not_found",
+      "No uploaded photo for this sample listing.",
+    );
+  const controller = new AbortController();
+  const relay = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  signal?.addEventListener("abort", relay, { once: true });
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(
+      buildApiUrl(`/drops/${encodeURIComponent(dropId)}/photo`),
+      {
+        headers: { Authorization: `Bearer ${credential}` },
+        cache: "no-store",
+        signal: controller.signal,
+      },
+    );
+    if (!response.ok) throw await parseErrorResponse(response);
+    if (
+      response.headers.get("content-type")?.split(";")[0]?.trim() !==
+      "image/jpeg"
+    )
+      throw new ApiContractError(
+        422,
+        "invalid_photo",
+        "This photo could not be displayed.",
+      );
+    return await response.blob();
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", relay);
+  }
 }

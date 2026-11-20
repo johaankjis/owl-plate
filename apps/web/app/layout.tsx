@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { ThemeProvider } from "../lib/theme";
 
 export const metadata: Metadata = {
-  title: "Owl Plate — KSU Campus Food Dispatch",
+  title: "Owl Plate — Good food, shared on campus",
   description:
-    "Routes leftover event food to nearby KSU students who can safely eat it, quietly putting students who need it most first.",
+    "Discover free food on campus, save a serving and find your next pickup.",
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -34,19 +35,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className="min-h-screen bg-owl-black text-zinc-100 antialiased">
-        {process.env.NEXT_PUBLIC_UI_FIXTURE_MODE === "true" && (
-          <div
-            role="status"
-            data-testid="ui-fixture-banner"
-            className="bg-amber-300 px-4 py-3 text-center font-semibold text-black"
-          >
-            Standalone UI fixture mode — simulated browser data. API requests
-            and real notifications are disabled.
-          </div>
-        )}
-        {children}
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('owl_plate_theme')||'light';var d=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light'}catch(e){}})()`,
+          }}
+        />
+      </head>
+      <body className="min-h-screen antialiased">
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

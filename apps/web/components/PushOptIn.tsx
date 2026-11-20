@@ -26,19 +26,19 @@ export function PushOptIn({
     return (
       <div
         data-testid={isHost ? "host-notifications-on" : "notifications-on"}
-        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-200"
+        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-success/30 bg-success-tint px-4 py-3 text-sm font-semibold text-success"
       >
         <span>
           {isHost
-            ? "Pickup update notifications on for this device (food name and available counts only; no student data)."
-            : "Notifications on for this phone. You can lock it; we'll buzz you when food is nearby."}
+            ? "Pickup notifications are on."
+            : "Food alerts are on for this phone."}
         </span>
         {isHost && onDisable && (
           <button
             type="button"
             data-testid="disable-host-notifications-button"
             onClick={onDisable}
-            className="min-h-[36px] shrink-0 rounded-lg border border-emerald-400/40 bg-owl-black/60 px-3 py-1.5 text-xs font-bold text-emerald-200 transition hover:bg-owl-black"
+            className="min-h-[44px] shrink-0 rounded-lg border border-success/30 bg-surface px-3 py-1.5 text-xs font-bold text-success transition hover:bg-surface-subtle"
           >
             Turn off
           </button>
@@ -49,10 +49,10 @@ export function PushOptIn({
 
   if (state.kind === "not_configured") {
     return (
-      <p className="rounded-xl border border-zinc-700 px-4 py-3 text-xs text-zinc-400">
+      <p className="rounded-xl border border-line px-4 py-3 text-xs text-ink-muted">
         {isHost
-          ? "Real push is not configured in this build. Pickup counts and reviews update automatically here."
-          : "Real push is not configured in this build. Invites still appear here."}
+          ? "Pickup updates appear here automatically."
+          : "New food appears here automatically."}
       </p>
     );
   }
@@ -61,9 +61,9 @@ export function PushOptIn({
     return (
       <div
         data-testid="push-home-screen-hint"
-        className="space-y-1 rounded-xl border border-owl-gold/30 bg-owl-gold/5 px-4 py-3 text-sm text-zinc-200"
+        className="space-y-1 rounded-xl border border-owl-gold/30 bg-owl-gold/5 px-4 py-3 text-sm text-ink"
       >
-        <p className="font-semibold text-owl-gold">
+        <p className="font-semibold text-owl-goldText">
           {isHost
             ? "Want a buzz when a serving is marked collected?"
             : "Want a buzz when food is nearby?"}
@@ -88,19 +88,19 @@ export function PushOptIn({
         }
         disabled={state.kind === "working"}
         onClick={onEnable}
-        className="min-h-[48px] w-full rounded-xl border border-owl-gold/60 bg-owl-black px-4 py-3 text-sm font-bold text-owl-gold transition hover:bg-owl-gold/10 disabled:opacity-60"
+        className="min-h-[48px] w-full rounded-xl border border-owl-gold/60 bg-surface px-4 py-3 text-sm font-bold text-owl-goldText transition hover:bg-owl-gold/10 disabled:opacity-60"
       >
         {state.kind === "working"
           ? "Turning on…"
           : isHost
-            ? "Enable host pickup notifications"
+            ? "Enable pickup notifications"
             : "Enable notifications"}
       </button>
       {state.kind === "error" && (
         <p
           role="alert"
           data-testid="push-error"
-          className="text-xs text-rose-300"
+          className="text-xs text-danger"
         >
           {state.message}
         </p>
