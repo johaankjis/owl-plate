@@ -14,6 +14,9 @@ const uploadPhoto = process.env.OWL_TEST_FOOD_PHOTO
   ? fs.readFileSync(process.env.OWL_TEST_FOOD_PHOTO)
   : h.photo;
 evidence.uploaded_food_photograph = Boolean(process.env.OWL_TEST_FOOD_PHOTO);
+if (process.env.OWL_TEST_FOOD_PHOTO)
+  evidence.mode =
+    "Stock food photograph host upload; synthetic student sessions and pickup-test pixels; fixture vision; simulated notifications; actual routes";
 async function noOverflow(page) {
   const dimensions = await page.evaluate(() => ({
     width: innerWidth,
