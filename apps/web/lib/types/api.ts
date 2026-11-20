@@ -98,10 +98,21 @@ export type DemoScenario = DemoStatusResponse["scenario"];
 
 export type FeedDrop = components["schemas"]["FeedDrop"];
 export type FeedResponse = components["schemas"]["FeedResponse"];
+/**
+ * Narrow additive overrides for Milestone 3 `available_drops` fields until
+ * integration regenerates `openapi.json` / `lib/api.generated.ts`.
+ */
 export type BuildingDistribution =
-  components["schemas"]["BuildingDistribution"];
-export type CampusDistributionResponse =
-  components["schemas"]["CampusDistributionResponse"];
+  components["schemas"]["BuildingDistribution"] & {
+    available_drops?: number;
+  };
+export type CampusDistributionResponse = Omit<
+  components["schemas"]["CampusDistributionResponse"],
+  "buildings"
+> & {
+  available_drops?: number;
+  buildings: BuildingDistribution[];
+};
 
 export type SeededPersonaLabel = "A" | "B" | "C" | "D" | "E";
 

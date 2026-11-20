@@ -23,6 +23,13 @@ import {
   type DispatchResponse,
   type DropResponse,
 } from "../../lib/presenter-api";
+import type { Building } from "../../lib/types/api";
+import { isVerifiedBuilding } from "../../lib/buildings";
+import {
+  computeH3CellForCoords,
+  resolveBuildingAvailableDrops,
+  resolveCampusAvailableDrops,
+} from "../../lib/campus-map";
 import { useVisionMode, visionModeLabel } from "../../lib/vision-mode";
 
 const ALLERGEN_NOTICE = "may contain, confirm with host";
@@ -69,6 +76,7 @@ export default function DispatchProjectorPage() {
   const [dispatch, setDispatch] = useState<DispatchResponse | null>(null);
   const [drop, setDrop] = useState<DropResponse | null>(null);
   const [areaLabels, setAreaLabels] = useState<Record<string, string>>({});
+  const [referenceBuildings, setReferenceBuildings] = useState<Building[]>([]);
   const [joinUrl, setJoinUrl] = useState("/join");
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -113,6 +121,7 @@ export default function DispatchProjectorPage() {
           }
         }
         if (buildingsRes.status === "fulfilled") {
+          setReferenceBuildings(buildingsRes.value.buildings);
           for (const building of buildingsRes.value.buildings) {
             nextLabels[building.id] = building.name;
           }
@@ -198,6 +207,7 @@ export default function DispatchProjectorPage() {
       status?.scenario !== "visitors");
 
   const campusActiveDrops = distribution?.active_drops ?? 0;
+  const campusAvailableDrops = resolveCampusAvailableDrops(distribution);
   const campusJoinedStudents =
     distribution?.joined_students ?? status?.visitors ?? 0;
   const campusCounts = distribution?.counts ?? {
@@ -257,12 +267,18 @@ export default function DispatchProjectorPage() {
 
         {!isSeededMode ? (
           <>
-            <section className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+            <section className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
               <StatTile
                 label="Active drops"
                 testId="distribution-active-drops"
                 value={campusActiveDrops}
                 accent="text-owl-gold"
+              />
+              <StatTile
+                label="Available drops"
+                testId="distribution-available-drops"
+                value={campusAvailableDrops}
+                accent="text-emerald-300"
               />
               <StatTile
                 label="Joined students"
@@ -277,13 +293,13 @@ export default function DispatchProjectorPage() {
                 accent="text-emerald-400"
               />
               <StatTile
-                label="Held"
+                label="Reserved"
                 testId="dispatch-count-held"
                 value={campusCounts.held}
                 accent="text-owl-gold"
               />
               <StatTile
-                label="Picked up"
+                label="Collected"
                 testId="dispatch-count-picked-up"
                 value={campusCounts.picked_up}
                 accent="text-zinc-100"
@@ -317,7 +333,7 @@ export default function DispatchProjectorPage() {
                   </div>
                   <div className="mt-4 text-xl text-zinc-300">
                     No student locations or check-ins collected · direct reserve
-                    from mobile feed
+                    from mobile feed or map
                   </div>
                 </div>
               </section>
@@ -333,6 +349,7 @@ export default function DispatchProjectorPage() {
                     campusBuildingName={drop?.building?.name}
                     distributionMode="campus_feed"
                     buildingDistributions={campusBuildings}
+                    referenceBuildings={referenceBuildings}
                   />
                   {drop && (
                     <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-800 bg-owl-slate px-5 py-4 text-lg">
@@ -349,9 +366,11 @@ export default function DispatchProjectorPage() {
                         data-testid="dispatch-vision-source"
                         className="rounded bg-purple-500/20 px-2 py-0.5 text-sm font-semibold text-purple-200"
                       >
-                        {drop.vision_source === "gemini"
-                          ? "Live Gemini"
-                          : "Saved demo estimate"}
+                        {drop.vision_source === "openrouter"
+                          ? "Live Gemini via OpenRouter"
+                          : drop.vision_source === "gemini"
+                            ? "Live Gemini"
+                            : "Saved demo estimate"}
                       </span>
                       {drop.allergens_final.length > 0 && (
                         <span className="text-amber-200">
@@ -390,10 +409,34 @@ export default function DispatchProjectorPage() {
                             b.building?.name ??
                             areaLabels[b.building_code] ??
                             b.building_code;
+                          const availDrops = resolveBuildingAvailableDrops(b);
+                          const hasAvailable = b.counts.available > 0;
+                          const verified = isVerifiedBuilding(b.building);
+                          const h3Cell = verified
+                            ? computeH3CellForCoords(
+                                b.building!.latitude,
+                                b.building!.longitude,
+                              )
+                            : null;
                           return (
                             <li
                               key={b.building_code}
                               data-testid={`distribution-building-${b.building_code}`}
+                              data-latitude={
+                                verified ? String(b.building!.latitude) : ""
+                              }
+                              data-longitude={
+                                verified ? String(b.building!.longitude) : ""
+                              }
+                              data-h3-cell={h3Cell ?? ""}
+                              data-available-drops={String(availDrops)}
+                              data-active-drops={String(b.active_drops)}
+                              data-available={String(b.counts.available)}
+                              data-reserved={String(b.counts.held)}
+                              data-collected={String(b.counts.picked_up)}
+                              data-availability-status={
+                                hasAvailable ? "available" : "exhausted"
+                              }
                               className="space-y-2 px-5 py-4"
                             >
                               <div className="flex items-center justify-between gap-3">
@@ -402,7 +445,12 @@ export default function DispatchProjectorPage() {
                                     {buildingName}
                                   </div>
                                   <div className="text-sm text-zinc-400">
-                                    {b.active_drops}{" "}
+                                    <span
+                                      data-testid={`distribution-building-available-drops-${b.building_code}`}
+                                    >
+                                      {availDrops} available
+                                    </span>{" "}
+                                    of {b.active_drops}{" "}
                                     {b.active_drops === 1
                                       ? "active drop"
                                       : "active drops"}{" "}
@@ -410,13 +458,16 @@ export default function DispatchProjectorPage() {
                                   </div>
                                 </div>
                                 <span
+                                  data-testid={`distribution-building-status-${b.building_code}`}
                                   className={`shrink-0 rounded-full px-3.5 py-1 text-sm font-bold ${
-                                    b.counts.available > 0
+                                    hasAvailable
                                       ? "bg-emerald-500/20 text-emerald-300"
                                       : "bg-amber-500/20 text-amber-300"
                                   }`}
                                 >
-                                  {b.counts.available} available
+                                  {hasAvailable
+                                    ? `${b.counts.available} available`
+                                    : "Exhausted (reserved / collected)"}
                                 </span>
                               </div>
                               <div className="flex flex-wrap gap-4 text-sm text-zinc-300">
@@ -427,13 +478,13 @@ export default function DispatchProjectorPage() {
                                   </strong>
                                 </span>
                                 <span>
-                                  Held:{" "}
+                                  Reserved:{" "}
                                   <strong className="text-owl-gold">
                                     {b.counts.held}
                                   </strong>
                                 </span>
                                 <span>
-                                  Picked up:{" "}
+                                  Collected:{" "}
                                   <strong className="text-zinc-100">
                                     {b.counts.picked_up}
                                   </strong>
@@ -451,9 +502,10 @@ export default function DispatchProjectorPage() {
                       Campus-wide feed privacy
                     </h2>
                     <p className="mt-1">
-                      Projector displays aggregate host pickup counts and
-                      verified building coordinates only. Student locations,
-                      nicknames, and dietary filters are never shown here.
+                      Projector displays aggregate host pickup counts
+                      (available, reserved, collected) and verified building
+                      coordinates only. Student locations, nicknames, and
+                      dietary filters are never shown here.
                     </p>
                   </div>
                 </div>

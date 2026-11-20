@@ -1646,9 +1646,12 @@ export function fixtureGetDistribution(): CampusDistributionResponse {
   };
 
   const byBuilding = new Map<string, BuildingDistribution>();
+  let totalAvailableDrops = 0;
 
   for (const drop of activeCampusDrops) {
     const c = recomputeCounts(store, drop.id);
+    const hasAvailable = c.available > 0 ? 1 : 0;
+    totalAvailableDrops += hasAvailable;
     totalCounts.total += c.total;
     totalCounts.available += c.available;
     totalCounts.held += c.held;
@@ -1658,6 +1661,7 @@ export function fixtureGetDistribution(): CampusDistributionResponse {
     const existing = byBuilding.get(code);
     if (existing) {
       existing.active_drops += 1;
+      existing.available_drops = (existing.available_drops ?? 0) + hasAvailable;
       existing.counts.total += c.total;
       existing.counts.available += c.available;
       existing.counts.held += c.held;
@@ -1667,6 +1671,7 @@ export function fixtureGetDistribution(): CampusDistributionResponse {
         building_code: code,
         building: drop.building ?? null,
         active_drops: 1,
+        available_drops: hasAvailable,
         counts: { ...c },
       });
     }
@@ -1680,6 +1685,7 @@ export function fixtureGetDistribution(): CampusDistributionResponse {
     distribution_mode:
       store.scenario === "visitors" ? "campus_feed" : "seeded_waves",
     active_drops: activeCampusDrops.length,
+    available_drops: totalAvailableDrops,
     joined_students: Object.keys(store.visitorsByToken).length,
     counts: totalCounts,
     buildings,

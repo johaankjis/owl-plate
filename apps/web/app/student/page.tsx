@@ -10,12 +10,14 @@ import React, {
 import { useRouter, useSearchParams } from "next/navigation";
 import { DemoHeader } from "../../components/DemoHeader";
 import { AllergenListDisplay } from "../../components/AllergenBadge";
+import { StudentCampusMap } from "../../components/StudentCampusMap";
 import {
   ALLERGENS,
   ALLERGEN_WARNING_TEXT,
   DIETS,
   PICKUP_CONFIRMATION_NOTICE,
   type Allergen,
+  type Building,
   type Diet,
   type FeedDrop,
   type InviteResponse,
@@ -25,6 +27,7 @@ import {
 import {
   claimInvite,
   declineInvite,
+  getBuildings,
   getMyFeed,
   getMyInvites,
   getMySession,
@@ -45,6 +48,7 @@ import {
   handleUnauthorizedError,
   parseSeededPersonaParam,
 } from "../../lib/session";
+import { buildStudentCampusMapModel } from "../../lib/campus-map";
 import { formatEasternTime, formatRemainingTime } from "../../lib/time";
 import { usePushOptIn } from "../../lib/push";
 import { PushOptIn } from "../../components/PushOptIn";
@@ -83,9 +87,13 @@ function StudentContent() {
   const [sourceMode, setSourceMode] =
     useState<DataSourceMode>(INITIAL_DATA_SOURCE);
 
-  // Campus feed state (normal joined students)
+  // Campus feed & map view state (normal joined students; Feed stays default)
+  const [viewMode, setViewMode] = useState<"feed" | "map">("feed");
   const [feedDrops, setFeedDrops] = useState<FeedDrop[]>([]);
   const [feedLoaded, setFeedLoaded] = useState<boolean>(false);
+  const [feedServerTime, setFeedServerTime] = useState<string | null>(null);
+  const [feedReceivedAt, setFeedReceivedAt] = useState<number | null>(null);
+  const [referenceBuildings, setReferenceBuildings] = useState<Building[]>([]);
 
   // Milestone 2: Photo-assisted pickup verification state for active held campus-feed claim
   const [pickupVerification, setPickupVerification] =
@@ -187,6 +195,16 @@ function StudentContent() {
         onApiError(err, "Could not load your session");
       });
 
+    // Read-only verified Marietta campus building coordinates for map reference context only.
+    getBuildings()
+      .then((res) => {
+        if (!active) return;
+        setReferenceBuildings(res.data.buildings);
+      })
+      .catch(() => {
+        // Campus map gracefully falls back to active drop coordinates if unavailable.
+      });
+
     return () => {
       active = false;
     };
@@ -196,10 +214,13 @@ function StudentContent() {
     if (!authToken || seededPersona) return;
     try {
       const res = await getMyFeed(authToken);
+      const received = Date.now();
       setFeedDrops(res.data.drops);
+      setFeedServerTime(res.data.server_time ?? null);
+      setFeedReceivedAt(received);
       setFeedLoaded(true);
       setSourceMode(res.source);
-      setNowTick(Date.now());
+      setNowTick(received);
     } catch (err) {
       onApiError(err, "Could not refresh campus food feed");
     }
@@ -607,7 +628,14 @@ function StudentContent() {
     ? SEEDED_PERSONA_AREA_LABELS[seededPersona.label]
     : "Marietta Campus Feed";
 
-  const nowIso = new Date(nowTick).toISOString();
+  const serverClockMs =
+    !seededPersona && feedServerTime && feedReceivedAt !== null
+      ? Date.parse(feedServerTime) + Math.max(0, nowTick - feedReceivedAt)
+      : nowTick;
+  const effectiveNowMs = Number.isFinite(serverClockMs)
+    ? serverClockMs
+    : nowTick;
+  const nowIso = new Date(effectiveNowMs).toISOString();
 
   // Seeded rehearsal view state (?persona=A..E)
   const cardState = resolveStudentCardState(invites);
@@ -627,8 +655,11 @@ function StudentContent() {
     ? getDropWalkingDirectionsUrl(activeSeededDrop)
     : null;
 
-  // Normal campus feed view state
+  // Normal campus feed & map view state
   const feedView = resolveStudentFeedView(feedDrops, linkedDropId);
+  const mapSummaryModel = !seededPersona
+    ? buildStudentCampusMapModel(feedDrops, effectiveNowMs)
+    : null;
 
   return (
     <div className="min-h-screen bg-owl-black text-zinc-100">
@@ -1292,8 +1323,71 @@ function StudentContent() {
               </article>
             )}
 
-            {/* Empty campus feed state */}
-            {feedView.orderedDrops.length === 0 ? (
+            {/* Feed (default) / Map view switch for normal campus students */}
+            <nav
+              data-testid="student-view-toggle"
+              aria-label="Campus food view mode"
+              className="grid grid-cols-2 gap-2 rounded-2xl border border-zinc-800 bg-owl-slate p-1.5"
+            >
+              <button
+                type="button"
+                data-testid="student-view-feed-button"
+                aria-pressed={viewMode === "feed"}
+                onClick={() => setViewMode("feed")}
+                className={`inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition ${
+                  viewMode === "feed"
+                    ? "bg-owl-gold text-owl-black shadow"
+                    : "text-zinc-300 hover:bg-owl-black/60 hover:text-white"
+                }`}
+              >
+                <span>Feed</span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                    viewMode === "feed"
+                      ? "bg-owl-black/15 text-owl-black"
+                      : "bg-zinc-800 text-zinc-300"
+                  }`}
+                >
+                  {feedView.orderedDrops.length}
+                </span>
+              </button>
+              <button
+                type="button"
+                data-testid="student-view-map-button"
+                aria-pressed={viewMode === "map"}
+                onClick={() => setViewMode("map")}
+                className={`inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition ${
+                  viewMode === "map"
+                    ? "bg-owl-gold text-owl-black shadow"
+                    : "text-zinc-300 hover:bg-owl-black/60 hover:text-white"
+                }`}
+              >
+                <span>Map</span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                    viewMode === "map"
+                      ? "bg-owl-black/15 text-owl-black"
+                      : "bg-emerald-500/20 text-emerald-300"
+                  }`}
+                >
+                  {mapSummaryModel?.markers.length ?? 0}
+                </span>
+              </button>
+            </nav>
+
+            {viewMode === "map" ? (
+              <StudentCampusMap
+                feedDrops={feedDrops}
+                feedLoaded={feedLoaded}
+                referenceBuildings={referenceBuildings}
+                linkedDropId={linkedDropId}
+                nowIso={nowIso}
+                referenceNowMs={effectiveNowMs}
+                busyId={busyId}
+                onReserveDrop={handleReserveDrop}
+                onSwitchToFeed={() => setViewMode("feed")}
+              />
+            ) : feedView.orderedDrops.length === 0 ? (
               <section
                 data-testid="empty-feed-card"
                 className="space-y-3 rounded-2xl border border-zinc-800 bg-owl-slate p-6 text-center shadow-lg"
