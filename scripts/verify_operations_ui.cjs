@@ -202,6 +202,22 @@ async function screenshot(page, name) {
         .getByText(/Recording dataset/i)
         .first()
         .waitFor();
+      for (const period of ["today", "all", "7d", "all"]) {
+        const next = dashboard.waitForResponse(
+          (r) =>
+            new URL(r.url()).pathname.endsWith("/analytics/operations") &&
+            new URL(r.url()).searchParams.get("period") === period &&
+            r.status() === 200,
+        );
+        await dashboard.getByTestId(`operations-period-${period}`).click();
+        const snapshot = await (await next).json();
+        await dashboard
+          .getByTestId("operations-kpi-shared")
+          .filter({
+            hasText: new RegExp(`^${snapshot.summary.total_servings_offered}$`),
+          })
+          .waitFor();
+      }
       await screenshot(dashboard, `${mode}-analytics-recording`);
       await coordinator.reload();
       await screenshot(coordinator, `${mode}-pantry-recording`);
