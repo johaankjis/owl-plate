@@ -98,6 +98,7 @@ async function screenshot(page, name) {
       await host.getByTestId("publish-drop-button").click();
       const drop = await (await published).json();
       await host.getByTestId("host-drop-panel").waitFor();
+      await dashboard.bringToFront();
       await dashboard
         .getByTestId(`operations-listing-photo-${drop.id}`)
         .locator("[data-photo-state='loaded']")
