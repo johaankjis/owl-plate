@@ -99,3 +99,7 @@ verify-operations:
 .PHONY: verify-operations-ui
 verify-operations-ui:
 	OWL_WEB_URL=http://127.0.0.1:3027 node scripts/verify_operations_ui.cjs
+
+.PHONY: recording-dataset
+recording-dataset:
+	$(PYTHON) -m scripts.load_recording_dataset --confirm-replace-demo-data
