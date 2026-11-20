@@ -102,4 +102,5 @@ verify-operations-ui:
 
 .PHONY: recording-dataset
 recording-dataset:
+	test "$(CONFIRM_REPLACE_DEMO_DATA)" = "true"
 	$(PYTHON) -m scripts.load_recording_dataset --confirm-replace-demo-data
