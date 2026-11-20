@@ -1,23 +1,99 @@
+# Environment and secrets (keep example templates)
 .env
 .env.*
+*.env
+*.env.local
 !.env.example
-.venv/
-*.egg-info/
-__pycache__/
-.pytest_cache/
-.ruff_cache/
-*.pyc
-*.db
-*.db-*
+!**/*.env.example
+.secrets
+.secrets/
+*service-account*.json
+*service_account*.json
+*firebase-adminsdk*.json
+*google-credentials*.json
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local tooling and hosting bindings
+.it
+.it/
+.vercel/
+build/
+
+# Node / Next.js
 node_modules/
 .next/
+out/
+.turbo/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+.venv/
+venv/
+.virtualenv/
+*.egg-info/
+dist/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Runtime databases and local data
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.sqlite3-*
 data/survey/
 uploads/
+
+# Test artifacts and temporary recordings
 test-results/
 playwright-report/
-*.tsbuildinfo
+blob-report/
+playwright/.cache/
+coverage/
+tmp/
+.tmp/
 
-# Local packaging and hosting bindings
-build/
-.vercel/
-.secrets/
+# Submission videos, recordings, presentations, and generated submission renders
+*.mp4
+*.mov
+*.webm
+*.mkv
+*.avi
+*.m4v
+*.pptx
+*.ppt
+*.odp
+submission/*.pdf
+submission/evidence/
+submission/qr/
+submission/qr-local-review/
+submission/REHEARSAL.html
+submission/SURVEY_APPROVAL.html
+
+# OS and editor artifacts
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Local hackathon deliverables and review artifacts are submitted separately.
+/submission/
+
+# Obsolete presentation builders retained locally and in history.
+/scripts/build_deck.py
+/scripts/build_fallback_recording.py
+/scripts/verify_rehearsal.cjs

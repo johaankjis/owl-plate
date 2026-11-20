@@ -373,3 +373,562 @@ test("parseSeededPersonaParam resolves rehearsal query parameter ?persona=A..E",
   assert.equal(session.parseSeededPersonaParam(""), null);
   assert.equal(session.parseSeededPersonaParam(null), null);
 });
+
+test("getBuildings calls GET /buildings and updateDrop sends canonical building id, room, and pickup_instructions", async () => {
+  const requests = [];
+  const { api } = loadClient({
+    fetch: async (url, options) => {
+      const parsed = new URL(url);
+      requests.push({
+        method: options.method,
+        pathname: parsed.pathname,
+        auth: options.headers.get("Authorization"),
+        body: options.body ? JSON.parse(options.body) : null,
+      });
+      if (parsed.pathname === "/buildings") {
+        return Response.json({
+          campus: "marietta",
+          buildings: [
+            {
+              id: "ksu-marietta-joe-mack-wilson-student-center",
+              name: "Joe Mack Wilson Student Center",
+              building_code: "A",
+              building_number: "840",
+              category: "student_life",
+              latitude: 33.9389,
+              longitude: -84.5197,
+              verification_status: "verified",
+              sources: [],
+            },
+          ],
+        });
+      }
+      if (parsed.pathname === "/drops/drop-123" && options.method === "PATCH") {
+        const body = JSON.parse(options.body);
+        return Response.json({
+          id: "drop-123",
+          status: "draft",
+          building_code: body.building_code,
+          room: body.room,
+          pickup_instructions: body.pickup_instructions,
+        });
+      }
+      throw new Error(`Unexpected path: ${parsed.pathname}`);
+    },
+  });
+
+  const buildingsRes = await api.getBuildings();
+  assert.equal(buildingsRes.data.campus, "marietta");
+  assert.equal(
+    buildingsRes.data.buildings[0].id,
+    "ksu-marietta-joe-mack-wilson-student-center",
+  );
+
+  const patchRes = await api.updateDrop("drop-123", {
+    servings_final: 4,
+    allergens_final: ["dairy"],
+    diet_tags_final: ["vegetarian"],
+    building_code: "ksu-marietta-joe-mack-wilson-student-center",
+    room: "214",
+    pickup_instructions: "2nd floor lobby table by east stairs",
+    expires_in_minutes: 45,
+    safety_review: {
+      covered_and_temperature_safe: true,
+      served_within_two_hours: true,
+      untouched: true,
+      ingredient_information_checked: false,
+      religious_diets_confirmed: false,
+    },
+  });
+
+  assert.equal(
+    patchRes.data.building_code,
+    "ksu-marietta-joe-mack-wilson-student-center",
+  );
+  assert.equal(
+    patchRes.data.pickup_instructions,
+    "2nd floor lobby table by east stairs",
+  );
+  assert.equal(requests[0].method, "GET");
+  assert.equal(requests[0].pathname, "/buildings");
+  assert.equal(requests[0].auth, null);
+  assert.equal(
+    requests[1].body.building_code,
+    "ksu-marietta-joe-mack-wilson-student-center",
+  );
+  assert.equal(
+    requests[1].body.pickup_instructions,
+    "2nd floor lobby table by east stairs",
+  );
+});
+
+test("joinDemoSession accepts canonical campus building id and surfaces 422 invalid_building error", async () => {
+  const { api } = loadClient({
+    fetch: async (_url, options) => {
+      const body = JSON.parse(options.body);
+      if (body.area === "ksu-marietta-unknown") {
+        return Response.json(
+          {
+            detail: {
+              code: "invalid_building",
+              message: "Unknown or unverified building ID.",
+            },
+          },
+          { status: 422 },
+        );
+      }
+      return Response.json(
+        {
+          token: "demo-session-campus-1",
+          student: {
+            id: "00000000-0000-4000-9000-000000000099",
+            nickname: "CampusOwl",
+            area: body.area,
+            allergens: [],
+            diets: [],
+            kind: "visitor",
+            valid_until: "2026-11-18T19:00:00Z",
+          },
+        },
+        { status: 201 },
+      );
+    },
+  });
+
+  const okRes = await api.joinDemoSession({
+    nickname: "CampusOwl",
+    area: "ksu-marietta-atrium-building",
+    allergens: [],
+    diets: [],
+  });
+  assert.equal(okRes.data.student.area, "ksu-marietta-atrium-building");
+
+  await assert.rejects(
+    api.joinDemoSession({
+      nickname: "CampusOwl",
+      area: "ksu-marietta-unknown",
+    }),
+    (error) =>
+      error.status === 422 &&
+      error.code === "invalid_building" &&
+      error.message === "Unknown or unverified building ID.",
+  );
+});
+
+test("location-free joinDemoSession omits area and getMyFeed, reserveDrop, and getDistribution call contract routes", async () => {
+  const requests = [];
+  const { api } = loadClient({
+    fetch: async (url, options) => {
+      const parsed = new URL(url);
+      requests.push({
+        method: options.method,
+        pathname: parsed.pathname,
+        auth: options.headers.get("Authorization"),
+        body: options.body ? JSON.parse(options.body) : null,
+      });
+
+      if (parsed.pathname === "/sessions" && options.method === "POST") {
+        return Response.json(
+          {
+            token: "demo-session-feed-1",
+            student: {
+              id: "00000000-0000-4000-9000-000000000010",
+              nickname: "FeedOwl",
+              area: null,
+              allergens: ["peanut"],
+              diets: ["vegetarian"],
+              kind: "visitor",
+              valid_until: "2026-11-18T19:00:00Z",
+            },
+          },
+          { status: 201 },
+        );
+      }
+
+      if (parsed.pathname === "/students/me/feed" && options.method === "GET") {
+        return Response.json({
+          drops: [
+            {
+              drop: {
+                id: "drop-feed-1",
+                status: "live",
+                distribution_mode: "campus_feed",
+                building_code: "ksu-marietta-joe-mack-wilson-student-center",
+                room: "214",
+                pickup_instructions: "2nd floor lobby",
+                building: null,
+              },
+              can_reserve: true,
+              unavailable_reason: null,
+              claim: null,
+            },
+          ],
+          server_time: "2026-11-18T17:00:00Z",
+          is_demo: true,
+        });
+      }
+
+      if (
+        parsed.pathname === "/drops/drop-feed-1/reserve" &&
+        options.method === "POST"
+      ) {
+        return Response.json({
+          id: "claim-feed-1",
+          invite_id: "inv-feed-1",
+          drop_id: "drop-feed-1",
+          status: "held",
+          held_until: "2026-11-18T17:10:00Z",
+        });
+      }
+
+      if (parsed.pathname === "/distribution" && options.method === "GET") {
+        return Response.json({
+          distribution_mode: "campus_feed",
+          active_drops: 1,
+          joined_students: 5,
+          counts: { total: 4, available: 3, held: 1, picked_up: 0 },
+          buildings: [
+            {
+              building_code: "ksu-marietta-joe-mack-wilson-student-center",
+              building: null,
+              active_drops: 1,
+              counts: { total: 4, available: 3, held: 1, picked_up: 0 },
+            },
+          ],
+          server_time: "2026-11-18T17:00:00Z",
+          is_demo: true,
+        });
+      }
+
+      throw new Error(`Unexpected path: ${parsed.pathname}`);
+    },
+  });
+
+  const joinRes = await api.joinDemoSession({
+    nickname: "FeedOwl",
+    allergens: ["peanut"],
+    diets: ["vegetarian"],
+  });
+  assert.equal(joinRes.data.student.area, null);
+  assert.equal("area" in requests[0].body, false);
+
+  const feedRes = await api.getMyFeed("demo-session-feed-1");
+  assert.equal(feedRes.data.drops.length, 1);
+  assert.equal(feedRes.data.drops[0].can_reserve, true);
+
+  const reserveRes = await api.reserveDrop(
+    "drop-feed-1",
+    "demo-session-feed-1",
+  );
+  assert.equal(reserveRes.data.id, "claim-feed-1");
+  assert.equal(reserveRes.data.status, "held");
+
+  const distRes = await api.getDistribution();
+  assert.equal(distRes.data.distribution_mode, "campus_feed");
+  assert.equal(distRes.data.active_drops, 1);
+  assert.equal(distRes.data.joined_students, 5);
+
+  assert.deepEqual(
+    requests.map((r) => ({
+      method: r.method,
+      pathname: r.pathname,
+      auth: r.auth,
+    })),
+    [
+      { method: "POST", pathname: "/sessions", auth: null },
+      {
+        method: "GET",
+        pathname: "/students/me/feed",
+        auth: "Bearer demo-session-feed-1",
+      },
+      {
+        method: "POST",
+        pathname: "/drops/drop-feed-1/reserve",
+        auth: "Bearer demo-session-feed-1",
+      },
+      {
+        method: "GET",
+        pathname: "/distribution",
+        auth: "Bearer demo-projector",
+      },
+    ],
+  );
+});
+
+test("Milestone 2 pickup photo, verification poll, review request, explicit pickup completion, host review queue/decision, and host push-token routes match contract", async () => {
+  const requests = [];
+  const claimId = "00000000-0000-4000-8000-000000000501";
+  const dropId = "00000000-0000-4000-8000-000000000101";
+  const verificationId = "00000000-0000-4000-8000-000000000701";
+  const requestId = "11111111-2222-4333-8444-555555555555";
+
+  const { api, calls } = loadClient({
+    fetch: async (url, options) => {
+      const parsed = new URL(url);
+      const isMultipart = options.body instanceof FormData;
+      requests.push({
+        method: options.method,
+        pathname: parsed.pathname,
+        auth: options.headers.get("Authorization"),
+        isMultipart,
+        photoName: isMultipart ? options.body.get("photo")?.name : null,
+        requestIdField: isMultipart ? options.body.get("request_id") : null,
+        body: !isMultipart && options.body ? JSON.parse(options.body) : null,
+      });
+
+      if (
+        parsed.pathname === `/claims/${claimId}/pickup-photo` &&
+        options.method === "POST"
+      ) {
+        return Response.json({
+          id: verificationId,
+          claim_id: claimId,
+          status: "ready",
+          match_status: "consistent",
+          confidence: 0.91,
+          explanation: "Visible food trays match the listing.",
+          source: "openrouter",
+          created_at: "2026-11-18T17:02:00Z",
+          review_status: "not_requested",
+          can_confirm: true,
+          notice:
+            "Photo-assisted confirmation. A photo cannot independently establish physical pickup or food safety.",
+        });
+      }
+
+      if (
+        parsed.pathname === `/claims/${claimId}/pickup-verification` &&
+        options.method === "GET"
+      ) {
+        return Response.json({
+          verification: {
+            id: verificationId,
+            claim_id: claimId,
+            status: "ready",
+            match_status: "uncertain",
+            confidence: 0.62,
+            explanation: "Closed container.",
+            source: "openrouter",
+            created_at: "2026-11-18T17:02:00Z",
+            review_status: "not_requested",
+            can_confirm: false,
+            notice:
+              "Photo-assisted confirmation. A photo cannot independently establish physical pickup or food safety.",
+          },
+        });
+      }
+
+      if (
+        parsed.pathname === `/claims/${claimId}/pickup-review` &&
+        options.method === "POST"
+      ) {
+        return Response.json({
+          id: verificationId,
+          claim_id: claimId,
+          status: "ready",
+          match_status: "uncertain",
+          confidence: 0.62,
+          explanation: "Closed container.",
+          source: "openrouter",
+          created_at: "2026-11-18T17:02:00Z",
+          review_status: "pending",
+          can_confirm: false,
+          notice:
+            "Photo-assisted confirmation. A photo cannot independently establish physical pickup or food safety.",
+        });
+      }
+
+      if (
+        parsed.pathname === `/claims/${claimId}/pickup` &&
+        options.method === "POST"
+      ) {
+        return Response.json({
+          id: claimId,
+          invite_id: "inv-1",
+          drop_id: dropId,
+          status: "picked_up",
+          held_until: "2026-11-18T17:10:00Z",
+        });
+      }
+
+      if (
+        parsed.pathname === `/drops/${dropId}/pickup-reviews` &&
+        options.method === "GET"
+      ) {
+        return Response.json({
+          reviews: [
+            {
+              id: verificationId,
+              drop_id: dropId,
+              match_status: "uncertain",
+              confidence: 0.62,
+              explanation: "Closed container.",
+              source: "openrouter",
+              review_status: "pending",
+              created_at: "2026-11-18T17:02:00Z",
+              held_until: "2026-11-18T17:10:00Z",
+              notice:
+                "Photo-assisted confirmation. A photo cannot independently establish physical pickup or food safety.",
+            },
+          ],
+          server_time: "2026-11-18T17:02:04Z",
+        });
+      }
+
+      if (
+        parsed.pathname ===
+          `/drops/${dropId}/pickup-reviews/${verificationId}` &&
+        options.method === "POST"
+      ) {
+        return Response.json({
+          id: verificationId,
+          drop_id: dropId,
+          match_status: "uncertain",
+          confidence: 0.62,
+          explanation: "Closed container.",
+          source: "openrouter",
+          review_status: "approved",
+          created_at: "2026-11-18T17:02:00Z",
+          held_until: "2026-11-18T17:10:00Z",
+          notice:
+            "Photo-assisted confirmation. A photo cannot independently establish physical pickup or food safety.",
+        });
+      }
+
+      if (parsed.pathname === "/hosts/me/push-token") {
+        if (options.method === "POST") {
+          return Response.json({ registered: true });
+        }
+        if (options.method === "GET") {
+          return Response.json({ registered: true });
+        }
+        if (options.method === "DELETE") {
+          return Response.json({ registered: false });
+        }
+      }
+
+      throw new Error(`Unexpected path: ${parsed.pathname}`);
+    },
+  });
+
+  const photoFile = new File(
+    [new Uint8Array([137, 80, 78, 71])],
+    "pickup.png",
+    { type: "image/png" },
+  );
+
+  const photoRes = await api.submitPickupPhoto(
+    claimId,
+    photoFile,
+    requestId,
+    "demo-session-stu-1",
+  );
+  assert.equal(photoRes.data.can_confirm, true);
+  assert.equal(photoRes.data.id, verificationId);
+  assert.ok(calls.deadlines[0] >= 60000);
+
+  const pollRes = await api.getPickupVerification(
+    claimId,
+    "demo-session-stu-1",
+  );
+  assert.equal(pollRes.data.verification.match_status, "uncertain");
+
+  const revReqRes = await api.requestPickupReview(
+    claimId,
+    verificationId,
+    "demo-session-stu-1",
+  );
+  assert.equal(revReqRes.data.review_status, "pending");
+
+  const pickupRes = await api.pickupClaim(claimId, "demo-session-stu-1", {
+    verification_id: verificationId,
+  });
+  assert.equal(pickupRes.data.status, "picked_up");
+
+  const hostReviewsRes = await api.getHostPickupReviews(dropId, "demo-host");
+  assert.equal(hostReviewsRes.data.reviews.length, 1);
+
+  const decideRes = await api.decideHostPickupReview(
+    dropId,
+    verificationId,
+    "approve",
+    "demo-host",
+  );
+  assert.equal(decideRes.data.review_status, "approved");
+
+  const pushPost = await api.registerHostPushToken(
+    {
+      token: "fcm-host-token-12345678901234567890",
+      platform: "web",
+    },
+    "demo-host",
+  );
+  assert.equal(pushPost.data.registered, true);
+
+  const pushGet = await api.getHostPushTokenStatus("demo-host");
+  assert.equal(pushGet.data.registered, true);
+
+  const pushDel = await api.deleteHostPushToken("demo-host");
+  assert.equal(pushDel.data.registered, false);
+
+  assert.equal(requests[0].isMultipart, true);
+  assert.equal(requests[0].photoName, "pickup.png");
+  assert.equal(requests[0].requestIdField, requestId);
+  assert.equal(requests[0].auth, "Bearer demo-session-stu-1");
+  assert.deepEqual(requests[2].body, { verification_id: verificationId });
+  assert.deepEqual(requests[3].body, { verification_id: verificationId });
+  assert.equal(requests[4].auth, "Bearer demo-host");
+  assert.deepEqual(requests[5].body, { decision: "approve" });
+  assert.equal(requests[6].pathname, "/hosts/me/push-token");
+  assert.equal(requests[6].method, "POST");
+  assert.equal(requests[7].method, "GET");
+  assert.equal(requests[8].method, "DELETE");
+  assert.equal(calls.fixtures, 0);
+});
+
+test("submitPickupPhoto and pickupClaim surface 503/409 errors without silent fixture fallback", async () => {
+  const { api, calls } = loadClient({
+    fetch: async (url) => {
+      const parsed = new URL(url);
+      if (parsed.pathname.endsWith("/pickup-photo")) {
+        return Response.json(
+          {
+            detail: {
+              code: "vision_unavailable",
+              message: "OpenRouter pickup verification failed.",
+            },
+          },
+          { status: 503 },
+        );
+      }
+      return Response.json(
+        {
+          detail: {
+            code: "pickup_verification_required",
+            message:
+              "Photo-assisted verification is required before completing pickup.",
+          },
+        },
+        { status: 409 },
+      );
+    },
+  });
+
+  await assert.rejects(
+    api.submitPickupPhoto(
+      "claim-1",
+      new File([new Uint8Array([1, 2, 3])], "food.jpg", {
+        type: "image/jpeg",
+      }),
+      "11111111-2222-4333-8444-555555555555",
+      "demo-session-1",
+    ),
+    (err) => err.status === 503 && err.code === "vision_unavailable",
+  );
+
+  await assert.rejects(
+    api.pickupClaim("claim-1", "demo-session-1"),
+    (err) => err.status === 409 && err.code === "pickup_verification_required",
+  );
+  assert.equal(calls.fixtures, 0);
+});

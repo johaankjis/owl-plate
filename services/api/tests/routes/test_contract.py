@@ -207,12 +207,12 @@ def test_provider_errors_and_fixture_forbidden_outside_demo(backend):
 def test_notification_outbox_retries_without_duplicate_success(backend):
     received = []
 
-    def unavailable(invite_id, student_id, drop_id):
+    def unavailable(invite_id, student_id, drop_id, **options):
         raise RuntimeError("provider unavailable")
 
     backend.notify = unavailable
     drop = publish_drop(backend)
-    backend.notify = lambda *ids: received.append(ids)
+    backend.notify = lambda *ids, **options: received.append(ids)
     backend.tick(10)
     backend.tick(10)
     assert len(received) == 2

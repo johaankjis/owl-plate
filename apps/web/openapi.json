@@ -481,6 +481,333 @@
         }
       }
     },
+    "/drops/{drop_id}/photo": {
+      "get": {
+        "summary": "Drop Photo",
+        "description": "Sanitized listing photo for in-scope callers; Bearer header only, never cached.",
+        "operationId": "drop_photo_drops__drop_id__photo_get",
+        "parameters": [
+          {
+            "name": "drop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Drop Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sanitized JPEG",
+            "content": {
+              "image/jpeg": {}
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hosts/me/drops": {
+      "get": {
+        "summary": "Host Drops",
+        "description": "The calling host's own listings in every status, newest first.",
+        "operationId": "host_drops_hosts_me_drops_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostDropsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/students/me/reservations": {
+      "get": {
+        "summary": "My Reservations",
+        "description": "The calling student's own holds in every status, newest first.",
+        "operationId": "my_reservations_students_me_reservations_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentReservationsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/drops/{drop_id}/dispatch": {
       "get": {
         "summary": "Dispatch",
@@ -521,6 +848,337 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DispatchResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/students/me/feed": {
+      "get": {
+        "summary": "Feed",
+        "description": "List every active campus drop for the caller; no location is involved.",
+        "operationId": "feed_students_me_feed_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/drops/{drop_id}/reserve": {
+      "post": {
+        "summary": "Reserve",
+        "description": "Hold a serving straight from the feed through the atomic service boundary.",
+        "operationId": "reserve_drops__drop_id__reserve_post",
+        "parameters": [
+          {
+            "name": "drop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Drop Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/distribution": {
+      "get": {
+        "summary": "Distribution",
+        "description": "Projector aggregate by host building; never student positions.",
+        "operationId": "distribution_distribution_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampusDistributionResponse"
                 }
               }
             }
@@ -1059,8 +1717,279 @@
     "/claims/{claim_id}/pickup": {
       "post": {
         "summary": "Pickup",
-        "description": "Keep unverified pickup strictly inside explicit demo mode.",
+        "description": "Feed pickups need a consistent photo check; seeded rehearsal keeps no-body pickup.",
         "operationId": "pickup_claims__claim_id__pickup_post",
+        "parameters": [
+          {
+            "name": "claim_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Claim Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PickupRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/claims/{claim_id}/pickup-photo": {
+      "post": {
+        "summary": "Pickup Photo",
+        "description": "Bound the upload, then let the service check it in memory; 202 while processing.",
+        "operationId": "pickup_photo_claims__claim_id__pickup_photo_post",
+        "parameters": [
+          {
+            "name": "claim_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Claim Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_pickup_photo_claims__claim_id__pickup_photo_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PickupVerification"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PickupVerification"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/claims/{claim_id}/pickup-verification": {
+      "get": {
+        "summary": "Pickup Verification",
+        "description": "Latest photo check on the caller's own claim.",
+        "operationId": "pickup_verification_claims__claim_id__pickup_verification_get",
         "parameters": [
           {
             "name": "claim_id",
@@ -1095,7 +2024,991 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ClaimResponse"
+                  "$ref": "#/components/schemas/PickupVerificationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/claims/{claim_id}/pickup-review": {
+      "post": {
+        "summary": "Pickup Review",
+        "description": "Explicitly ask the host to review the latest check.",
+        "operationId": "pickup_review_claims__claim_id__pickup_review_post",
+        "parameters": [
+          {
+            "name": "claim_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Claim Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PickupReviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PickupVerification"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/drops/{drop_id}/pickup-reviews": {
+      "get": {
+        "summary": "Pickup Reviews",
+        "description": "De-identified review queue for the publishing host's own drop.",
+        "operationId": "pickup_reviews_drops__drop_id__pickup_reviews_get",
+        "parameters": [
+          {
+            "name": "drop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Drop Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostPickupReviewsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/drops/{drop_id}/pickup-reviews/{verification_id}": {
+      "post": {
+        "summary": "Decide Pickup Review",
+        "description": "Record the host's explicit approve or reject decision.",
+        "operationId": "decide_pickup_review_drops__drop_id__pickup_reviews__verification_id__post",
+        "parameters": [
+          {
+            "name": "drop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Drop Id"
+            }
+          },
+          {
+            "name": "verification_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Verification Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HostReviewDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostPickupReview"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/drops/{drop_id}/pantry-referral": {
+      "get": {
+        "summary": "Pantry Referral",
+        "description": "Simulated pantry referral for the publishing host's own drop; demo only.",
+        "operationId": "pantry_referral_drops__drop_id__pantry_referral_get",
+        "parameters": [
+          {
+            "name": "drop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Drop Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostPantryReferralResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Request Pantry Referral",
+        "description": "Explicit simulated request; nothing is sent to KSU and no stock is reserved.",
+        "operationId": "request_pantry_referral_drops__drop_id__pantry_referral_post",
+        "parameters": [
+          {
+            "name": "drop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Drop Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PantryReferralRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PantryReferral"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/drops/{drop_id}/pantry-referral/handoff": {
+      "post": {
+        "summary": "Pantry Handoff",
+        "description": "Simulated handoff confirmation by the publishing host; not a verified transfer.",
+        "operationId": "pantry_handoff_drops__drop_id__pantry_referral_handoff_post",
+        "parameters": [
+          {
+            "name": "drop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Drop Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PantryHandoffRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PantryReferral"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pantry/referrals": {
+      "get": {
+        "summary": "Pantry Referrals",
+        "description": "De-identified referral queue for the synthetic demo coordinator only.",
+        "operationId": "pantry_referrals_pantry_referrals_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PantryReferralsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pantry/referrals/{referral_id}/decision": {
+      "post": {
+        "summary": "Decide Pantry Referral",
+        "description": "Simulated coordinator accept or reject under the shared inventory lock.",
+        "operationId": "decide_pantry_referral_pantry_referrals__referral_id__decision_post",
+        "parameters": [
+          {
+            "name": "referral_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Referral Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PantryDecisionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PantryReferral"
                 }
               }
             }
@@ -1440,6 +3353,333 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushTokenResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hosts/me/push-token": {
+      "get": {
+        "summary": "Host Push Status",
+        "description": "Report the authenticated host's current backend registration.",
+        "operationId": "host_push_status_hosts_me_push_token_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushTokenResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Host Push Register",
+        "description": "Opt the authenticated host in to their own pickup updates.",
+        "operationId": "host_push_register_hosts_me_push_token_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushTokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushTokenResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Host Push Forget",
+        "description": "Opt the authenticated host out; deferred sends recheck this.",
+        "operationId": "host_push_forget_hosts_me_push_token_delete",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1872,6 +4112,241 @@
         }
       }
     },
+    "/analytics/operations": {
+      "get": {
+        "summary": "Operations",
+        "description": "Projector-only aggregate analytics from persisted rows; never identities.",
+        "operationId": "operations_analytics_operations_get",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": ["today", "7d", "30d", "all"],
+              "type": "string",
+              "default": "7d",
+              "title": "Period"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/demo/recording-dataset": {
+      "post": {
+        "summary": "Recording Dataset",
+        "description": "Explicitly confirmed replacement of demo data with the simulated recording set.",
+        "operationId": "recording_dataset_demo_recording_dataset_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordingDatasetRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/demo/status": {
       "get": {
         "summary": "Status",
@@ -1972,6 +4447,85 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/buildings": {
+      "get": {
+        "summary": "Buildings",
+        "description": "List verified campus buildings; public map data needing no location permission.",
+        "operationId": "buildings_buildings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildingsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request Entity Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -2480,6 +5034,244 @@
         "required": ["photo"],
         "title": "Body_create_drop_drops_post"
       },
+      "Body_pickup_photo_claims__claim_id__pickup_photo_post": {
+        "properties": {
+          "photo": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Photo"
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "required": ["photo", "request_id"],
+        "title": "Body_pickup_photo_claims__claim_id__pickup_photo_post"
+      },
+      "Building": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^ksu-marietta-[a-z0-9]+(-[a-z0-9]+)*$",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "building_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Building Code"
+          },
+          "building_number": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Building Number"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["academic", "student_life", "housing", "other"],
+            "title": "Category"
+          },
+          "latitude": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Longitude"
+          },
+          "verification_status": {
+            "type": "string",
+            "const": "verified",
+            "title": "Verification Status",
+            "default": "verified"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/BuildingSource"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Sources"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "category",
+          "latitude",
+          "longitude",
+          "sources"
+        ],
+        "title": "Building",
+        "description": "A verified campus building; public map data, never a student's location."
+      },
+      "BuildingDistribution": {
+        "properties": {
+          "building_code": {
+            "type": "string",
+            "title": "Building Code"
+          },
+          "building": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Building"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "active_drops": {
+            "type": "integer",
+            "title": "Active Drops"
+          },
+          "available_drops": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Available Drops"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/Counts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "building_code",
+          "building",
+          "active_drops",
+          "available_drops",
+          "counts"
+        ],
+        "title": "BuildingDistribution",
+        "description": "Host pickup aggregate per building; never a student position."
+      },
+      "BuildingSource": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "pattern": "^https?://",
+            "title": "Url"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["url", "title"],
+        "title": "BuildingSource"
+      },
+      "BuildingsResponse": {
+        "properties": {
+          "campus": {
+            "type": "string",
+            "const": "marietta",
+            "title": "Campus",
+            "default": "marietta"
+          },
+          "buildings": {
+            "items": {
+              "$ref": "#/components/schemas/Building"
+            },
+            "type": "array",
+            "title": "Buildings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["buildings"],
+        "title": "BuildingsResponse"
+      },
+      "CampusDistributionResponse": {
+        "properties": {
+          "distribution_mode": {
+            "type": "string",
+            "enum": ["campus_feed", "seeded_waves"],
+            "title": "Distribution Mode"
+          },
+          "active_drops": {
+            "type": "integer",
+            "title": "Active Drops"
+          },
+          "available_drops": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Available Drops"
+          },
+          "joined_students": {
+            "type": "integer",
+            "title": "Joined Students"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/Counts"
+          },
+          "buildings": {
+            "items": {
+              "$ref": "#/components/schemas/BuildingDistribution"
+            },
+            "type": "array",
+            "title": "Buildings"
+          },
+          "server_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Server Time"
+          },
+          "is_demo": {
+            "type": "boolean",
+            "title": "Is Demo"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "distribution_mode",
+          "active_drops",
+          "available_drops",
+          "joined_students",
+          "counts",
+          "buildings",
+          "server_time",
+          "is_demo"
+        ],
+        "title": "CampusDistributionResponse"
+      },
       "ClaimResponse": {
         "properties": {
           "id": {
@@ -2530,12 +5322,25 @@
           "picked_up": {
             "type": "integer",
             "title": "Picked Up"
+          },
+          "pantry_held": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pantry Held",
+            "default": 0
+          },
+          "pantry_transferred": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pantry Transferred",
+            "default": 0
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": ["total", "available", "held", "picked_up"],
-        "title": "Counts"
+        "title": "Counts",
+        "description": "Per-drop inventory: total = available + held + picked_up + pantry_held + pantry_transferred.\n\n``held`` and ``picked_up`` are student holds and pickups only; simulated pantry\nallocations are reported separately and never folded into student pickups."
       },
       "DemoActiveDropResponse": {
         "properties": {
@@ -2770,6 +5575,12 @@
             "title": "Scenario",
             "default": "seeded"
           },
+          "distribution_mode": {
+            "type": "string",
+            "enum": ["campus_feed", "seeded_waves"],
+            "title": "Distribution Mode",
+            "default": "seeded_waves"
+          },
           "next_wave_at": {
             "anyOf": [
               {
@@ -2844,7 +5655,7 @@
           },
           "building_code": {
             "type": "string",
-            "maxLength": 40,
+            "maxLength": 80,
             "minLength": 1,
             "title": "Building Code"
           },
@@ -2852,6 +5663,12 @@
             "type": "string",
             "maxLength": 80,
             "title": "Room",
+            "default": ""
+          },
+          "pickup_instructions": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Pickup Instructions",
             "default": ""
           },
           "expires_in_minutes": {
@@ -2895,6 +5712,21 @@
           "room": {
             "type": "string",
             "title": "Room"
+          },
+          "pickup_instructions": {
+            "type": "string",
+            "title": "Pickup Instructions",
+            "default": ""
+          },
+          "building": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Building"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "vision": {
             "$ref": "#/components/schemas/VisionEstimate"
@@ -2969,9 +5801,31 @@
             "title": "Allergen Notice",
             "default": "may contain, confirm with host"
           },
+          "distribution_mode": {
+            "type": "string",
+            "enum": ["campus_feed", "seeded_waves"],
+            "title": "Distribution Mode",
+            "default": "seeded_waves"
+          },
           "is_demo": {
             "type": "boolean",
             "title": "Is Demo"
+          },
+          "has_photo": {
+            "type": "boolean",
+            "title": "Has Photo",
+            "default": false
+          },
+          "photo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo Url"
           }
         },
         "additionalProperties": false,
@@ -3021,6 +5875,74 @@
         "required": ["detail"],
         "title": "ErrorResponse"
       },
+      "FeedDrop": {
+        "properties": {
+          "drop": {
+            "$ref": "#/components/schemas/DropResponse"
+          },
+          "can_reserve": {
+            "type": "boolean",
+            "title": "Can Reserve"
+          },
+          "unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "allergen_conflict",
+                  "diet_mismatch",
+                  "active_claim",
+                  "capacity",
+                  "already_reserved"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable Reason"
+          },
+          "claim": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClaimResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["drop", "can_reserve", "unavailable_reason", "claim"],
+        "title": "FeedDrop",
+        "description": "One campus-wide listing judged only against the caller's own preferences."
+      },
+      "FeedResponse": {
+        "properties": {
+          "drops": {
+            "items": {
+              "$ref": "#/components/schemas/FeedDrop"
+            },
+            "type": "array",
+            "title": "Drops"
+          },
+          "server_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Server Time"
+          },
+          "is_demo": {
+            "type": "boolean",
+            "title": "Is Demo"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["drops", "server_time", "is_demo"],
+        "title": "FeedResponse"
+      },
       "FoodItem": {
         "properties": {
           "name": {
@@ -3059,6 +5981,170 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HostDropsResponse": {
+        "properties": {
+          "drops": {
+            "items": {
+              "$ref": "#/components/schemas/DropResponse"
+            },
+            "type": "array",
+            "title": "Drops"
+          },
+          "server_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Server Time"
+          },
+          "is_demo": {
+            "type": "boolean",
+            "title": "Is Demo"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["drops", "server_time", "is_demo"],
+        "title": "HostDropsResponse",
+        "description": "The calling host's own listings in every status, newest first."
+      },
+      "HostPantryReferralResponse": {
+        "properties": {
+          "referral": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PantryReferral"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "destination": {
+            "$ref": "#/components/schemas/PantryDestination"
+          },
+          "notice": {
+            "type": "string",
+            "title": "Notice",
+            "default": "Demo only \u2014 no request is sent to KSU CARE. KSU catering policy prohibits removing leftovers from event spaces. This simulation does not authorize redistribution or establish food safety."
+          },
+          "is_demo": {
+            "type": "boolean",
+            "const": true,
+            "title": "Is Demo",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["referral", "destination"],
+        "title": "HostPantryReferralResponse"
+      },
+      "HostPickupReview": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "drop_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Drop Id"
+          },
+          "match_status": {
+            "type": "string",
+            "enum": ["consistent", "uncertain", "inconsistent"],
+            "title": "Match Status"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          },
+          "source": {
+            "type": "string",
+            "enum": ["fixture", "openrouter"],
+            "title": "Source"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "held_until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Held Until"
+          },
+          "review_status": {
+            "type": "string",
+            "enum": [
+              "not_requested",
+              "pending",
+              "approved",
+              "rejected",
+              "expired",
+              "superseded"
+            ],
+            "title": "Review Status"
+          },
+          "notice": {
+            "type": "string",
+            "title": "Notice",
+            "default": "Photo-assisted confirmation. A photo cannot independently establish physical pickup or food safety."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "drop_id",
+          "match_status",
+          "confidence",
+          "explanation",
+          "source",
+          "created_at",
+          "held_until",
+          "review_status"
+        ],
+        "title": "HostPickupReview",
+        "description": "De-identified assessment metadata; the opaque ID is neither a student nor a claim ID."
+      },
+      "HostPickupReviewsResponse": {
+        "properties": {
+          "reviews": {
+            "items": {
+              "$ref": "#/components/schemas/HostPickupReview"
+            },
+            "type": "array",
+            "title": "Reviews"
+          },
+          "server_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Server Time"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["reviews", "server_time"],
+        "title": "HostPickupReviewsResponse"
+      },
+      "HostReviewDecision": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": ["approve", "reject"],
+            "title": "Decision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["decision"],
+        "title": "HostReviewDecision"
       },
       "InviteResponse": {
         "properties": {
@@ -3121,12 +6207,15 @@
             "title": "Nickname"
           },
           "area": {
-            "type": "string",
-            "enum": [
-              "demo-venue",
-              "demo-next-door",
-              "demo-across-quad",
-              "demo-far-side"
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
             ],
             "title": "Area"
           },
@@ -3159,9 +6248,9 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": ["nickname", "area"],
+        "required": ["nickname"],
         "title": "JoinRequest",
-        "description": "Everything a visitor shares to join; no contact details or real identity."
+        "description": "Everything a visitor shares to join; no contact details, identity or location.\n\n``area`` is deprecated: honored only for explicit seeded rehearsal callers and ignored\n(never stored) in the campus-feed scenario."
       },
       "JoinResponse": {
         "properties": {
@@ -3178,6 +6267,936 @@
         "required": ["token", "student"],
         "title": "JoinResponse",
         "description": "The bearer token is shown once; the client keeps it in local storage."
+      },
+      "OperationsActivity": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "listing_published",
+              "reservation_opened",
+              "student_pickup",
+              "pantry_requested",
+              "pantry_accepted",
+              "pantry_rejected",
+              "pantry_handoff",
+              "pantry_expired"
+            ],
+            "title": "Kind"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurred At"
+          },
+          "drop_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Drop Id"
+          },
+          "food": {
+            "type": "string",
+            "title": "Food"
+          },
+          "building_name": {
+            "type": "string",
+            "title": "Building Name"
+          },
+          "servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Servings"
+          },
+          "is_simulated": {
+            "type": "boolean",
+            "title": "Is Simulated"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "occurred_at",
+          "drop_id",
+          "food",
+          "building_name",
+          "servings",
+          "is_simulated"
+        ],
+        "title": "OperationsActivity"
+      },
+      "OperationsBuilding": {
+        "properties": {
+          "building": {
+            "$ref": "#/components/schemas/Building"
+          },
+          "published_listings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Published Listings"
+          },
+          "active_listings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Active Listings"
+          },
+          "available_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Available Servings"
+          },
+          "student_reserved_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Student Reserved Servings"
+          },
+          "student_pickups": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Student Pickups"
+          },
+          "pantry_reserved_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pantry Reserved Servings"
+          },
+          "pantry_transfers": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pantry Transfers"
+          },
+          "total_servings_offered": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Servings Offered"
+          },
+          "expired_unclaimed_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expired Unclaimed Servings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "building",
+          "published_listings",
+          "active_listings",
+          "available_servings",
+          "student_reserved_servings",
+          "student_pickups",
+          "pantry_reserved_servings",
+          "pantry_transfers",
+          "total_servings_offered",
+          "expired_unclaimed_servings"
+        ],
+        "title": "OperationsBuilding"
+      },
+      "OperationsCategory": {
+        "properties": {
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "published_listings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Published Listings"
+          },
+          "total_servings_offered": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Servings Offered"
+          },
+          "student_pickups": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Student Pickups"
+          },
+          "pantry_transfers": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pantry Transfers"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "category",
+          "published_listings",
+          "total_servings_offered",
+          "student_pickups",
+          "pantry_transfers"
+        ],
+        "title": "OperationsCategory"
+      },
+      "OperationsDataset": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["current", "recording"],
+            "title": "Kind"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "is_simulated": {
+            "type": "boolean",
+            "title": "Is Simulated"
+          },
+          "seed_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed Version"
+          },
+          "anchor_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anchor Time"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "label",
+          "is_simulated",
+          "seed_version",
+          "anchor_time"
+        ],
+        "title": "OperationsDataset",
+        "description": "Provenance of the rows being shown; ``recording`` is always simulated data."
+      },
+      "OperationsEstimates": {
+        "properties": {
+          "currency": {
+            "type": "string",
+            "const": "USD",
+            "title": "Currency",
+            "default": "USD"
+          },
+          "meal_value_per_serving": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Meal Value Per Serving"
+          },
+          "food_kg_per_serving": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Food Kg Per Serving"
+          },
+          "recovered_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Recovered Servings"
+          },
+          "equivalent_meal_value": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Equivalent Meal Value"
+          },
+          "recovered_food_kg": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Recovered Food Kg"
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Assumptions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "meal_value_per_serving",
+          "food_kg_per_serving",
+          "recovered_servings",
+          "equivalent_meal_value",
+          "recovered_food_kg",
+          "assumptions"
+        ],
+        "title": "OperationsEstimates",
+        "description": "Illustrative, server-configured per-serving assumptions; never measured impact."
+      },
+      "OperationsListing": {
+        "properties": {
+          "drop_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Drop Id"
+          },
+          "food": {
+            "type": "string",
+            "title": "Food"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "building": {
+            "$ref": "#/components/schemas/Building"
+          },
+          "room": {
+            "type": "string",
+            "title": "Room"
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Published At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["live", "claimed_out"],
+            "title": "Status"
+          },
+          "has_photo": {
+            "type": "boolean",
+            "title": "Has Photo"
+          },
+          "photo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo Url"
+          },
+          "total_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Servings"
+          },
+          "available": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Available"
+          },
+          "held": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Held"
+          },
+          "picked_up": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Picked Up"
+          },
+          "pantry_held": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pantry Held"
+          },
+          "pantry_transferred": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pantry Transferred"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "drop_id",
+          "food",
+          "category",
+          "building",
+          "room",
+          "published_at",
+          "expires_at",
+          "status",
+          "has_photo",
+          "photo_url",
+          "total_servings",
+          "available",
+          "held",
+          "picked_up",
+          "pantry_held",
+          "pantry_transferred"
+        ],
+        "title": "OperationsListing",
+        "description": "One unexpired selected listing; the photo is the bearer-scoped relative path only."
+      },
+      "OperationsOutcomes": {
+        "properties": {
+          "available": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Available"
+          },
+          "student_reserved": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Student Reserved"
+          },
+          "student_pickups": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Student Pickups"
+          },
+          "pantry_reserved": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pantry Reserved"
+          },
+          "pantry_transfers": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pantry Transfers"
+          },
+          "expired_unclaimed": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expired Unclaimed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "available",
+          "student_reserved",
+          "student_pickups",
+          "pantry_reserved",
+          "pantry_transfers",
+          "expired_unclaimed"
+        ],
+        "title": "OperationsOutcomes",
+        "description": "Six mutually exclusive buckets that always sum to servings offered."
+      },
+      "OperationsResponse": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "dataset": {
+            "$ref": "#/components/schemas/OperationsDataset"
+          },
+          "recording_available": {
+            "type": "boolean",
+            "title": "Recording Available"
+          },
+          "period": {
+            "type": "string",
+            "enum": ["today", "7d", "30d", "all"],
+            "title": "Period"
+          },
+          "timezone": {
+            "type": "string",
+            "const": "America/New_York",
+            "title": "Timezone",
+            "default": "America/New_York"
+          },
+          "window_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Window Start"
+          },
+          "server_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Server Time"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/OperationsSummary"
+          },
+          "outcomes": {
+            "$ref": "#/components/schemas/OperationsOutcomes"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/OperationsSeriesPoint"
+            },
+            "type": "array",
+            "title": "Series"
+          },
+          "buildings": {
+            "items": {
+              "$ref": "#/components/schemas/OperationsBuilding"
+            },
+            "type": "array",
+            "title": "Buildings"
+          },
+          "activity": {
+            "items": {
+              "$ref": "#/components/schemas/OperationsActivity"
+            },
+            "type": "array",
+            "title": "Activity"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/OperationsCategory"
+            },
+            "type": "array",
+            "title": "Categories"
+          },
+          "active_listings": {
+            "items": {
+              "$ref": "#/components/schemas/OperationsListing"
+            },
+            "type": "array",
+            "title": "Active Listings"
+          },
+          "estimates": {
+            "$ref": "#/components/schemas/OperationsEstimates"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "dataset",
+          "recording_available",
+          "period",
+          "window_start",
+          "server_time",
+          "summary",
+          "outcomes",
+          "series",
+          "buildings",
+          "activity",
+          "categories",
+          "active_listings",
+          "estimates",
+          "notes"
+        ],
+        "title": "OperationsResponse"
+      },
+      "OperationsSeriesPoint": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "published_listings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Published Listings"
+          },
+          "servings_offered": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Servings Offered"
+          },
+          "student_pickups": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Student Pickups"
+          },
+          "pantry_transfers": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pantry Transfers"
+          },
+          "expired_unclaimed": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expired Unclaimed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "date",
+          "published_listings",
+          "servings_offered",
+          "student_pickups",
+          "pantry_transfers",
+          "expired_unclaimed"
+        ],
+        "title": "OperationsSeriesPoint",
+        "description": "One New York day; every count is dated by its own durable event timestamp."
+      },
+      "OperationsSummary": {
+        "properties": {
+          "published_listings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Published Listings"
+          },
+          "active_listings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Active Listings"
+          },
+          "total_servings_offered": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Servings Offered"
+          },
+          "available_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Available Servings"
+          },
+          "student_reserved_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Student Reserved Servings"
+          },
+          "student_pickups": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Student Pickups"
+          },
+          "pantry_reserved_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pantry Reserved Servings"
+          },
+          "pantry_transfers": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pantry Transfers"
+          },
+          "expired_unclaimed_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expired Unclaimed Servings"
+          },
+          "pending_pickup_reviews": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pending Pickup Reviews"
+          },
+          "pending_pantry_requests": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pending Pantry Requests"
+          },
+          "buildings_served": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Buildings Served"
+          },
+          "joined_sessions": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Joined Sessions"
+          },
+          "student_pickup_rate_percent": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Student Pickup Rate Percent"
+          },
+          "combined_recovery_rate_percent": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Combined Recovery Rate Percent"
+          },
+          "average_reservation_seconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Reservation Seconds"
+          },
+          "participating_hosts": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Participating Hosts"
+          },
+          "participating_students": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Participating Students"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "published_listings",
+          "active_listings",
+          "total_servings_offered",
+          "available_servings",
+          "student_reserved_servings",
+          "student_pickups",
+          "pantry_reserved_servings",
+          "pantry_transfers",
+          "expired_unclaimed_servings",
+          "pending_pickup_reviews",
+          "pending_pantry_requests",
+          "buildings_served",
+          "joined_sessions",
+          "student_pickup_rate_percent",
+          "combined_recovery_rate_percent",
+          "average_reservation_seconds",
+          "participating_hosts",
+          "participating_students"
+        ],
+        "title": "OperationsSummary"
+      },
+      "PantryDecisionRequest": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": ["accept", "reject"],
+            "title": "Decision"
+          },
+          "servings": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 500.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Servings"
+          },
+          "demo_policy_acknowledged": {
+            "type": "boolean",
+            "const": true,
+            "title": "Demo Policy Acknowledged"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["decision", "demo_policy_acknowledged"],
+        "title": "PantryDecisionRequest"
+      },
+      "PantryDestination": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "building": {
+            "$ref": "#/components/schemas/Building"
+          },
+          "room": {
+            "type": "string",
+            "title": "Room"
+          },
+          "directions_url": {
+            "type": "string",
+            "title": "Directions Url"
+          },
+          "care_source_url": {
+            "type": "string",
+            "title": "Care Source Url"
+          },
+          "catering_policy_url": {
+            "type": "string",
+            "title": "Catering Policy Url"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "building",
+          "room",
+          "directions_url",
+          "care_source_url",
+          "catering_policy_url"
+        ],
+        "title": "PantryDestination",
+        "description": "The verified demo pantry destination; directions target the building point only."
+      },
+      "PantryHandoffRequest": {
+        "properties": {
+          "demo_handoff_confirmed": {
+            "type": "boolean",
+            "const": true,
+            "title": "Demo Handoff Confirmed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["demo_handoff_confirmed"],
+        "title": "PantryHandoffRequest"
+      },
+      "PantryReferral": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "drop_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Drop Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "suggested",
+              "requested",
+              "accepted",
+              "handoff_confirmed",
+              "rejected",
+              "expired"
+            ],
+            "title": "Status"
+          },
+          "requested_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Requested Servings"
+          },
+          "accepted_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Accepted Servings"
+          },
+          "transferred_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Transferred Servings"
+          },
+          "eligible_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Eligible Servings"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "destination": {
+            "$ref": "#/components/schemas/PantryDestination"
+          },
+          "drop": {
+            "$ref": "#/components/schemas/DropResponse"
+          },
+          "notice": {
+            "type": "string",
+            "title": "Notice",
+            "default": "Demo only \u2014 no request is sent to KSU CARE. KSU catering policy prohibits removing leftovers from event spaces. This simulation does not authorize redistribution or establish food safety."
+          },
+          "is_demo": {
+            "type": "boolean",
+            "const": true,
+            "title": "Is Demo",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "drop_id",
+          "status",
+          "requested_servings",
+          "accepted_servings",
+          "transferred_servings",
+          "eligible_servings",
+          "created_at",
+          "updated_at",
+          "expires_at",
+          "destination",
+          "drop"
+        ],
+        "title": "PantryReferral",
+        "description": "A simulated pantry referral; never a real request, approval or food-safety claim."
+      },
+      "PantryReferralRequest": {
+        "properties": {
+          "servings": {
+            "type": "integer",
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Servings"
+          },
+          "demo_policy_acknowledged": {
+            "type": "boolean",
+            "const": true,
+            "title": "Demo Policy Acknowledged"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["servings", "demo_policy_acknowledged"],
+        "title": "PantryReferralRequest",
+        "description": "Acknowledging the demo notice never waives KSU catering policy."
+      },
+      "PantryReferralsResponse": {
+        "properties": {
+          "referrals": {
+            "items": {
+              "$ref": "#/components/schemas/PantryReferral"
+            },
+            "type": "array",
+            "title": "Referrals"
+          },
+          "server_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Server Time"
+          },
+          "is_demo": {
+            "type": "boolean",
+            "const": true,
+            "title": "Is Demo",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["referrals", "server_time"],
+        "title": "PantryReferralsResponse"
       },
       "PersonaDecision": {
         "properties": {
@@ -3247,6 +7266,150 @@
         ],
         "title": "PersonaDecision"
       },
+      "PickupRequest": {
+        "properties": {
+          "verification_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verification Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PickupRequest",
+        "description": "Optional for legacy seeded rehearsal; required for campus-feed pickups."
+      },
+      "PickupReviewRequest": {
+        "properties": {
+          "verification_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Verification Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["verification_id"],
+        "title": "PickupReviewRequest"
+      },
+      "PickupVerification": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "claim_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Claim Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["processing", "ready", "failed"],
+            "title": "Status"
+          },
+          "match_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": ["consistent", "uncertain", "inconsistent"]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Status"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          },
+          "source": {
+            "type": "string",
+            "enum": ["fixture", "openrouter"],
+            "title": "Source"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "review_status": {
+            "type": "string",
+            "enum": [
+              "not_requested",
+              "pending",
+              "approved",
+              "rejected",
+              "expired",
+              "superseded"
+            ],
+            "title": "Review Status"
+          },
+          "can_confirm": {
+            "type": "boolean",
+            "title": "Can Confirm"
+          },
+          "notice": {
+            "type": "string",
+            "title": "Notice",
+            "default": "Photo-assisted confirmation. A photo cannot independently establish physical pickup or food safety."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "claim_id",
+          "status",
+          "match_status",
+          "confidence",
+          "explanation",
+          "source",
+          "created_at",
+          "review_status",
+          "can_confirm"
+        ],
+        "title": "PickupVerification",
+        "description": "A student's own photo-assisted check; never proof of pickup or food safety."
+      },
+      "PickupVerificationResponse": {
+        "properties": {
+          "verification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PickupVerification"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["verification"],
+        "title": "PickupVerificationResponse"
+      },
       "Preferences": {
         "properties": {
           "allergens": {
@@ -3290,6 +7453,8 @@
         "properties": {
           "building_code": {
             "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
             "title": "Building Code"
           }
         },
@@ -3336,6 +7501,20 @@
         "type": "object",
         "required": ["registered"],
         "title": "PushTokenResponse"
+      },
+      "RecordingDatasetRequest": {
+        "properties": {
+          "confirm_reset": {
+            "type": "boolean",
+            "const": true,
+            "title": "Confirm Reset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["confirm_reset"],
+        "title": "RecordingDatasetRequest",
+        "description": "Loading replaces all demo app data, so the caller must confirm explicitly."
       },
       "SafetyReview": {
         "properties": {
@@ -3396,12 +7575,15 @@
             "title": "Nickname"
           },
           "area": {
-            "type": "string",
-            "enum": [
-              "demo-venue",
-              "demo-next-door",
-              "demo-across-quad",
-              "demo-far-side"
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
             ],
             "title": "Area"
           },
@@ -3445,15 +7627,57 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "id",
-          "nickname",
-          "area",
-          "allergens",
-          "diets",
-          "valid_until"
-        ],
+        "required": ["id", "nickname", "allergens", "diets", "valid_until"],
         "title": "SessionStudent"
+      },
+      "StudentReservation": {
+        "properties": {
+          "claim": {
+            "$ref": "#/components/schemas/ClaimResponse"
+          },
+          "drop": {
+            "$ref": "#/components/schemas/DropResponse"
+          },
+          "pickup_verification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PickupVerification"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["claim", "drop", "pickup_verification"],
+        "title": "StudentReservation",
+        "description": "One of the caller's own holds with its listing; nothing about other students."
+      },
+      "StudentReservationsResponse": {
+        "properties": {
+          "reservations": {
+            "items": {
+              "$ref": "#/components/schemas/StudentReservation"
+            },
+            "type": "array",
+            "title": "Reservations"
+          },
+          "server_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Server Time"
+          },
+          "is_demo": {
+            "type": "boolean",
+            "title": "Is Demo"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["reservations", "server_time", "is_demo"],
+        "title": "StudentReservationsResponse"
       },
       "SurveyAnswers": {
         "properties": {
@@ -3744,12 +7968,15 @@
             "title": "Nickname"
           },
           "area": {
-            "type": "string",
-            "enum": [
-              "demo-venue",
-              "demo-next-door",
-              "demo-across-quad",
-              "demo-far-side"
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
             ],
             "title": "Area"
           },
@@ -3802,7 +8029,6 @@
         "type": "object",
         "required": [
           "nickname",
-          "area",
           "ring_distance",
           "status",
           "reason_codes",

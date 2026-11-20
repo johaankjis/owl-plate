@@ -153,9 +153,15 @@ def push_banner(mode: str) -> str:
 
 
 def build_fingerprint(env: dict[str, str]) -> str:
-    """Rebuild only when web sources or public build values change."""
+    """Rebuild when sources or build-time proxy and public values change."""
     digest = hashlib.sha256(DEMO_ENV["NEXT_PUBLIC_API_URL"].encode())
-    for name in ("NEXT_PUBLIC_FIREBASE_CONFIG", "NEXT_PUBLIC_FIREBASE_VAPID_KEY"):
+    origin = env.get("OWL_API_ORIGIN") or "http://127.0.0.1:8017"
+    digest.update(f"OWL_API_ORIGIN={origin}".encode())
+    for name in (
+        "NEXT_PUBLIC_FIREBASE_CONFIG",
+        "NEXT_PUBLIC_FIREBASE_VAPID_KEY",
+        "NEXT_PUBLIC_IT_COMPANION_BASE_URL",
+    ):
         digest.update(f"{name}={env.get(name, '')}".encode())
     for folder in ("app", "components", "lib", "public"):
         for path in sorted((WEB / folder).rglob("*")):
@@ -253,18 +259,21 @@ def run(args: argparse.Namespace) -> None:
         children.append(subprocess.Popen(commands[1], cwd=WEB, env=env, start_new_session=True))
         wait_healthy(f"http://127.0.0.1:{args.api_port}/health")
         wait_healthy(f"http://127.0.0.1:{args.port}/backend/health")
-        reset(args.api_port)
+        reset(args.api_port, args.scenario)
         base = f"http://localhost:{args.port}"
         mode_line = vision_banner(args.vision, vision_env)
         print(
             "\n"
-            "  Owl Plate demo ready (clean state, live-visitor scenario)\n"
+            f"  Owl Plate demo ready (clean state, {args.scenario} scenario)\n"
             f"  Mode: {mode_line} + {push_banner(args.notifications)}\n\n"
             f"  Home       {base}/\n"
             f"  Host       {base}/host\n"
             f"  Join       {base}/join\n"
-            f"  Dispatch   {base}/dispatch   (presenter controls at the bottom)\n\n"
-            "  Reset anytime: Presenter controls on /dispatch, or `make demo-reset`.\n"
+            f"  Analytics  {base}/dispatch\n"
+            f"  Projector  {base}/admin/projector   (internal presenter controls)\n\n"
+            "  Reset anytime: Presenter controls on /admin/projector, or:\n"
+            f"    {sys.executable} -m scripts.present --reset-only "
+            f"--api-port {args.api_port} --scenario {args.scenario}\n"
             "  Stop: Ctrl+C\n",
             flush=True,
         )

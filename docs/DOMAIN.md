@@ -22,7 +22,7 @@ Manager source check, Nov 18: the KSU News URL below returned HTTP 200 and expli
 
 | Fact | Source |
 |---|---|
-| Submission due Fri Nov 20, 12:00 PM: pitch deck (PowerPoint) plus demo video, or a note that you'll demo live | Opening ceremony slides |
+| Submission due Fri Nov 20, 12:00 PM | Opening ceremony slides |
 | Pitch and judging Fri 5:30 to 8:30 PM, 5 minutes per team | Opening ceremony slides |
 | Pitch structure: 0:00 to 1:00 problem, 1:00 to 2:00 solution, 2:00 to 4:00 demo, 4:00 to 5:00 how and next | Opening ceremony slides |
 | AI Club rubric: campus impact backed by real data 25, use of AI as the core 25, feasibility for KSU 20, creativity 15, pitch 15 | Opening ceremony slides |
@@ -32,6 +32,7 @@ Manager source check, Nov 18: the KSU News URL below returned HTTP 200 and expli
 
 | Fact | Source |
 |---|---|
+| The U.S. Government Accountability Office estimated about 3.8 million U.S. college students experienced food insecurity in 2020. | GAO-24-107074 (2024), https://www.gao.gov/products/gao-24-107074 (citation supplied by the project lead, Nov 20) |
 | A Cal State report found 21 to 24 percent of students across its 23 campuses faced food insecurity. | Cal State Fullerton news (Titan Bites) |
 | A Temple University study reported more than 45 percent of college students were food insecure. | NBC San Diego (UCSD story), citing Temple |
 
@@ -79,3 +80,29 @@ Note: no KSU free food alert program was found in our search. TODO(verify) with 
 * https://thedailytexan.com/2025/10/15/ut-begins-free-leftover-food-program/
 * https://www.pittsburghmagazine.com/?p=9104
 * https://www.fus.edu/news-events/news/freeeats-fus
+
+## CARE pantry demo destination and catering restriction (verified Nov 20, 2026)
+
+The official CARE Services page lists the Marietta Campus Pantry at
+**JMW Student Center, Room 184**. Use the existing verified campus registry's
+Joe Mack Wilson Student Center building point for directions; this is not a
+verified room entrance. Source (HTTP200, retrieved Nov20 UTC):
+https://campus.kennesaw.edu/current-students/student-affairs/wellbeing/care-services/
+
+Official Catering Policies, Food Removal section (HTTP200, retrieved Nov20 UTC):
+“Due to health regulations, leftovers cannot be removed from any event space.
+This policy is strictly enforced.” Source:
+https://campus.kennesaw.edu/offices-services/catering/policies.php
+The catering home page corroborates this restriction:
+https://campus.kennesaw.edu/offices-services/catering/index.php
+
+The official campus pantry page describes donation procedures, including
+coordination of large group donations, but this does NOT establish acceptance
+of prepared event leftovers:
+https://campus.kennesaw.edu/current-students/student-affairs/wellbeing/care-services/community-resources/campus-pantry.php
+
+Milestone4 is a **simulated pantry referral and handoff only**, with no external
+messages, KSU approval, partnership or food-safety certification. UI must show
+the catering restriction rather than imply that a demo checkbox waives it.
+Real redistribution authorization/exception and prepared-food eligibility remain
+unverified and require a separate future decision. No KSU employee was contacted.

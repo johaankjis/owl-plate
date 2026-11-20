@@ -11,6 +11,8 @@
 
 import type {
   AuthToken,
+  BuildingsResponse,
+  CampusDistributionResponse,
   ClaimResponse,
   DemoActiveDropResponse,
   DemoAreasResponse,
@@ -24,10 +26,23 @@ import type {
   DropEdit,
   DropResponse,
   ErrorDetail,
+  FeedResponse,
+  HostPantryReferralResponse,
+  HostDropsResponse,
+  StudentReservationsResponse,
+  HostPickupReview,
+  HostPickupReviewDecision,
+  HostPickupReviewsResponse,
   InviteResponse,
   InvitesResponse,
   JoinRequest,
   JoinResponse,
+  PantryHandoffConfirmRequest,
+  PantryReferral,
+  PantryReferralRequest,
+  PickupClaimRequest,
+  PickupVerification,
+  PickupVerificationResponse,
   Preferences,
   PresenceRequest,
   PresenceResponse,
@@ -38,22 +53,39 @@ import type {
 } from "./types/api";
 import {
   fixtureClaimInvite,
+  fixtureConfirmHostPantryHandoff,
   fixtureCreateDrop,
+  fixtureDecideHostPickupReview,
   fixtureDeclineInvite,
+  fixtureDeleteHostPushToken,
   fixtureDemoReset,
   fixtureDemoTick,
+  fixtureGetBuildings,
   fixtureGetDemoAreas,
   fixtureGetDemoStatus,
   fixtureGetDispatch,
+  fixtureGetDistribution,
   fixtureGetDrop,
+  fixtureGetHostPantryReferral,
+  fixtureGetHostDrops,
+  fixtureGetMyReservations,
+  fixtureGetHostPickupReviews,
+  fixtureGetHostPushTokenStatus,
+  fixtureGetMyFeed,
   fixtureGetMyInvites,
   fixtureGetMySession,
+  fixtureGetPickupVerification,
   fixtureJoinSession,
   fixtureLeaveSession,
   fixturePickupClaim,
   fixturePublishDrop,
+  fixtureRegisterHostPushToken,
   fixtureRegisterPushToken,
   fixtureReleaseClaim,
+  fixtureRequestHostPantryReferral,
+  fixtureRequestPickupReview,
+  fixtureReserveDrop,
+  fixtureSubmitPickupPhoto,
   fixtureUpdateDrop,
   fixtureUpdatePreferences,
   fixtureUpdatePresence,
@@ -210,6 +242,12 @@ async function request<T>(
   }
 }
 
+export async function getBuildings(): Promise<ApiResult<BuildingsResponse>> {
+  return request<BuildingsResponse>("/buildings", { method: "GET" }, null, () =>
+    fixtureGetBuildings(),
+  );
+}
+
 export async function getDemoAreas(): Promise<ApiResult<DemoAreasResponse>> {
   return request<DemoAreasResponse>(
     "/demo/areas",
@@ -278,7 +316,7 @@ export async function createDrop(
     "/drops",
     { method: "POST", body: form },
     credential,
-    () => fixtureCreateDrop(hostNote),
+    () => fixtureCreateDrop(hostNote, credential),
     65000,
   );
 }
@@ -316,7 +354,7 @@ export async function getDrop(
     `/drops/${encodeURIComponent(dropId)}`,
     { method: "GET" },
     credential,
-    () => fixtureGetDrop(dropId),
+    () => fixtureGetDrop(dropId, credential),
   );
 }
 
@@ -370,12 +408,109 @@ export async function releaseClaim(
 export async function pickupClaim(
   claimId: string,
   credential: AuthToken,
+  req?: PickupClaimRequest,
 ): Promise<ApiResult<ClaimResponse>> {
+  const hasVerificationId = Boolean(req?.verification_id?.trim());
   return request<ClaimResponse>(
     `/claims/${encodeURIComponent(claimId)}/pickup`,
-    { method: "POST" },
+    {
+      method: "POST",
+      ...(hasVerificationId
+        ? {
+            body: JSON.stringify({
+              verification_id: req!.verification_id!.trim(),
+            }),
+          }
+        : {}),
+    },
     credential,
-    () => fixturePickupClaim(claimId, credential),
+    () => fixturePickupClaim(claimId, credential, req),
+  );
+}
+
+export async function submitPickupPhoto(
+  claimId: string,
+  photo: File,
+  requestId: string,
+  credential: AuthToken,
+): Promise<ApiResult<PickupVerification>> {
+  const form = new FormData();
+  form.append("photo", photo);
+  form.append("request_id", requestId.trim());
+
+  return request<PickupVerification>(
+    `/claims/${encodeURIComponent(claimId)}/pickup-photo`,
+    { method: "POST", body: form },
+    credential,
+    () =>
+      fixtureSubmitPickupPhoto(claimId, requestId, credential, {
+        mimeType: photo.type || undefined,
+        byteSize: typeof photo.size === "number" ? photo.size : undefined,
+      }),
+    65000,
+  );
+}
+
+export async function getPickupVerification(
+  claimId: string,
+  credential: AuthToken,
+): Promise<ApiResult<PickupVerificationResponse>> {
+  return request<PickupVerificationResponse>(
+    `/claims/${encodeURIComponent(claimId)}/pickup-verification`,
+    { method: "GET" },
+    credential,
+    () => fixtureGetPickupVerification(claimId, credential),
+  );
+}
+
+export async function requestPickupReview(
+  claimId: string,
+  verificationId: string,
+  credential: AuthToken,
+): Promise<ApiResult<PickupVerification>> {
+  return request<PickupVerification>(
+    `/claims/${encodeURIComponent(claimId)}/pickup-review`,
+    {
+      method: "POST",
+      body: JSON.stringify({ verification_id: verificationId.trim() }),
+    },
+    credential,
+    () => fixtureRequestPickupReview(claimId, verificationId, credential),
+  );
+}
+
+export async function getHostPickupReviews(
+  dropId: string,
+  credential: AuthToken = "demo-host",
+): Promise<ApiResult<HostPickupReviewsResponse>> {
+  return request<HostPickupReviewsResponse>(
+    `/drops/${encodeURIComponent(dropId)}/pickup-reviews`,
+    { method: "GET" },
+    credential,
+    () => fixtureGetHostPickupReviews(dropId, credential),
+  );
+}
+
+export async function decideHostPickupReview(
+  dropId: string,
+  verificationId: string,
+  decision: HostPickupReviewDecision,
+  credential: AuthToken = "demo-host",
+): Promise<ApiResult<HostPickupReview>> {
+  return request<HostPickupReview>(
+    `/drops/${encodeURIComponent(dropId)}/pickup-reviews/${encodeURIComponent(verificationId)}`,
+    {
+      method: "POST",
+      body: JSON.stringify({ decision }),
+    },
+    credential,
+    () =>
+      fixtureDecideHostPickupReview(
+        dropId,
+        verificationId,
+        decision,
+        credential,
+      ),
   );
 }
 
@@ -427,6 +562,40 @@ export async function registerPushToken(
   );
 }
 
+export async function registerHostPushToken(
+  req: PushTokenRequest,
+  credential: AuthToken = "demo-host",
+): Promise<ApiResult<PushTokenResponse>> {
+  return request<PushTokenResponse>(
+    "/hosts/me/push-token",
+    { method: "POST", body: JSON.stringify(req) },
+    credential,
+    () => fixtureRegisterHostPushToken(credential, req),
+  );
+}
+
+export async function getHostPushTokenStatus(
+  credential: AuthToken = "demo-host",
+): Promise<ApiResult<PushTokenResponse>> {
+  return request<PushTokenResponse>(
+    "/hosts/me/push-token",
+    { method: "GET" },
+    credential,
+    () => fixtureGetHostPushTokenStatus(credential),
+  );
+}
+
+export async function deleteHostPushToken(
+  credential: AuthToken = "demo-host",
+): Promise<ApiResult<PushTokenResponse>> {
+  return request<PushTokenResponse>(
+    "/hosts/me/push-token",
+    { method: "DELETE" },
+    credential,
+    () => fixtureDeleteHostPushToken(credential),
+  );
+}
+
 export async function resetDemoState(
   credential: DemoCredential = "demo-host",
   req?: DemoResetRequest,
@@ -464,4 +633,155 @@ export async function getActiveDrop(
     credential,
     () => ({ drop_id: getActiveFixtureDropId() || null }),
   );
+}
+
+export async function getMyFeed(
+  credential: AuthToken,
+): Promise<ApiResult<FeedResponse>> {
+  return request<FeedResponse>(
+    "/students/me/feed",
+    { method: "GET" },
+    credential,
+    () => fixtureGetMyFeed(credential),
+  );
+}
+
+export async function reserveDrop(
+  dropId: string,
+  credential: AuthToken,
+): Promise<ApiResult<ClaimResponse>> {
+  return request<ClaimResponse>(
+    `/drops/${encodeURIComponent(dropId)}/reserve`,
+    { method: "POST" },
+    credential,
+    () => fixtureReserveDrop(dropId, credential),
+  );
+}
+
+export async function getDistribution(
+  credential: DemoCredential = "demo-projector",
+): Promise<ApiResult<CampusDistributionResponse>> {
+  return request<CampusDistributionResponse>(
+    "/distribution",
+    { method: "GET" },
+    credential,
+    () => fixtureGetDistribution(),
+  );
+}
+
+export async function getHostPantryReferral(
+  dropId: string,
+  credential: AuthToken = "demo-host",
+): Promise<ApiResult<HostPantryReferralResponse>> {
+  return request<HostPantryReferralResponse>(
+    `/drops/${encodeURIComponent(dropId)}/pantry-referral`,
+    { method: "GET" },
+    credential,
+    () => fixtureGetHostPantryReferral(dropId, credential),
+  );
+}
+
+export async function requestHostPantryReferral(
+  dropId: string,
+  req: PantryReferralRequest,
+  credential: AuthToken = "demo-host",
+): Promise<ApiResult<PantryReferral>> {
+  return request<PantryReferral>(
+    `/drops/${encodeURIComponent(dropId)}/pantry-referral`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        servings: req.servings,
+        demo_policy_acknowledged: req.demo_policy_acknowledged,
+      }),
+    },
+    credential,
+    () => fixtureRequestHostPantryReferral(dropId, req, credential),
+  );
+}
+
+export async function confirmHostPantryHandoff(
+  dropId: string,
+  req: PantryHandoffConfirmRequest,
+  credential: AuthToken = "demo-host",
+): Promise<ApiResult<PantryReferral>> {
+  return request<PantryReferral>(
+    `/drops/${encodeURIComponent(dropId)}/pantry-referral/handoff`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        demo_handoff_confirmed: req.demo_handoff_confirmed,
+      }),
+    },
+    credential,
+    () => fixtureConfirmHostPantryHandoff(dropId, req, credential),
+  );
+}
+
+/** Recover the publishing host's own listings without presenter credentials. */
+export async function getHostDrops(
+  credential: AuthToken = "demo-host",
+): Promise<ApiResult<HostDropsResponse>> {
+  return request("/hosts/me/drops", { method: "GET" }, credential, () =>
+    fixtureGetHostDrops(credential),
+  );
+}
+/** Load only the student's active and completed reservation lifecycle. */
+export async function getMyReservations(
+  credential: AuthToken,
+): Promise<ApiResult<StudentReservationsResponse>> {
+  return request(
+    "/students/me/reservations",
+    { method: "GET" },
+    credential,
+    () => fixtureGetMyReservations(credential),
+  );
+}
+/** Fetch an authorized host-listing JPEG; never put credentials in a URL or cache. */
+export async function getDropPhotoBlob(
+  dropId: string,
+  credential: AuthToken,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  if (!credential)
+    throw new ApiContractError(
+      401,
+      "unauthorized",
+      "Sign in to view this photo.",
+    );
+  if (UI_FIXTURE_MODE)
+    throw new ApiContractError(
+      404,
+      "not_found",
+      "No uploaded photo for this sample listing.",
+    );
+  const controller = new AbortController();
+  const relay = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  signal?.addEventListener("abort", relay, { once: true });
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(
+      buildApiUrl(`/drops/${encodeURIComponent(dropId)}/photo`),
+      {
+        headers: { Authorization: `Bearer ${credential}` },
+        cache: "no-store",
+        signal: controller.signal,
+      },
+    );
+    if (!response.ok) throw await parseErrorResponse(response);
+    if (
+      response.headers.get("content-type")?.split(";")[0]?.trim() !==
+      "image/jpeg"
+    )
+      throw new ApiContractError(
+        422,
+        "invalid_photo",
+        "This photo could not be displayed.",
+      );
+    return await response.blob();
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", relay);
+  }
 }

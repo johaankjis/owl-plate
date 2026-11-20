@@ -173,9 +173,11 @@ def test_reset_scenarios_swap_the_matching_pool(backend):
     backend.reset(host, "visitors")
     join(backend, "Riley")
     drop = publish_drop(backend, servings=2)
+    assert drop.distribution_mode == "campus_feed"
     state = backend.dispatch(backend.actor("demo-projector"), str(drop.id))
-    assert state.scenario == "visitors" and state.personas == []
-    assert [v.nickname for v in state.visitors if v.status == "sent"] == ["Riley"]
+    assert state.scenario == "visitors" and state.distribution_mode == "campus_feed"
+    assert state.personas == [] and state.visitors == [] and state.waves == []
+    assert state.next_wave_at is None
     with Session(backend.engine) as session:
         seeded = session.exec(select(Student).where(Student.is_simulated == True)).all()
         assert all(s.data["alerts_paused"] for s in seeded)
@@ -183,6 +185,8 @@ def test_reset_scenarios_swap_the_matching_pool(backend):
     with Session(backend.engine) as session:
         assert session.get(DemoSettings, 1).scenario == "seeded"
     again = publish_drop(backend, servings=2)
+    assert again.distribution_mode == "seeded_waves"
     seeded_state = backend.dispatch(backend.actor("demo-projector"), str(again.id))
     assert seeded_state.scenario == "seeded" and len(seeded_state.personas) == 30
+    assert seeded_state.distribution_mode == "seeded_waves"
     assert {p.label for p in seeded_state.personas if p.status == "sent"} == {"A", "C"}

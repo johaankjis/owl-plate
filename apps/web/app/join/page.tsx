@@ -1,61 +1,34 @@
 "use client";
 
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { DemoHeader } from "../../components/DemoHeader";
+import { ArrowRight, Check } from "lucide-react";
+import { AppShell } from "../../components/ui/AppShell";
+import { ListRowSkeleton } from "../../components/ui/Skeleton";
 import {
   ALLERGENS,
-  ALLERGEN_WARNING_TEXT,
   DIETS,
   type Allergen,
-  type DemoArea,
-  type DemoAreaId,
   type Diet,
 } from "../../lib/types/api";
+import { ApiContractError, joinDemoSession } from "../../lib/api-client";
 import {
-  ApiContractError,
-  getDemoAreas,
-  INITIAL_DATA_SOURCE,
-  joinDemoSession,
-  type DataSourceMode,
-} from "../../lib/api-client";
-import { FIXTURE_DEMO_AREAS } from "../../lib/fixtures/demo-fixtures";
+  completeJoinPushOnboarding,
+  primeJoinNotifications,
+} from "../../lib/push-onboarding";
 import { SESSION_ENDED_MESSAGE, setSessionToken } from "../../lib/session";
 
-function JoinDemoContent() {
+function JoinContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const reason = searchParams.get("reason");
 
-  const [sourceMode, setSourceMode] =
-    useState<DataSourceMode>(INITIAL_DATA_SOURCE);
-  const [areas, setAreas] = useState<DemoArea[]>([...FIXTURE_DEMO_AREAS]);
   const [nickname, setNickname] = useState("");
-  const [selectedArea, setSelectedArea] = useState<DemoAreaId>("demo-venue");
   const [selectedAllergens, setSelectedAllergens] = useState<Allergen[]>([]);
   const [selectedDiets, setSelectedDiets] = useState<Diet[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [nicknameError, setNicknameError] = useState<string | null>(null);
   const [generalError, setGeneralError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    getDemoAreas()
-      .then((res) => {
-        if (!active) return;
-        setSourceMode(res.source);
-        if (res.data.areas.length > 0) {
-          setAreas(res.data.areas);
-          setSelectedArea(res.data.areas[0]!.id);
-        }
-      })
-      .catch(() => {
-        // Keep fallback areas if server is starting up
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const toggleAllergen = (alg: Allergen) => {
     setSelectedAllergens((prev) =>
@@ -78,31 +51,34 @@ function JoinDemoContent() {
 
     const trimmed = nickname.trim();
     if (!trimmed) {
-      setNicknameError("Enter a nickname to join.");
+      setNicknameError("Enter a nickname to get started.");
       return;
     }
 
     setSubmitting(true);
+    // Fire the native notification prompt on this exact tap, before any
+    // await can consume the browser's transient user-activation window.
+    const primedPermission = primeJoinNotifications();
     try {
       const res = await joinDemoSession({
         nickname: trimmed,
-        area: selectedArea,
         allergens: selectedAllergens,
         diets: selectedDiets,
       });
-      setSourceMode(res.source);
       setSessionToken(res.data.token);
+      // Quietly finish notification setup after the session exists. A denied
+      // prompt or an iPhone Home Screen requirement never blocks browsing.
+      void completeJoinPushOnboarding(res.data.token, primedPermission);
       router.push("/student");
     } catch (err) {
       if (err instanceof ApiContractError && err.code === "nickname_taken") {
         setNicknameError(
-          err.message ||
-            "That nickname is already taken. Pick another nickname.",
+          err.message || "That nickname is already in use. Try another one.",
         );
       } else if (err instanceof Error) {
         setGeneralError(err.message);
       } else {
-        setGeneralError("Could not join the demo session. Please try again.");
+        setGeneralError("Could not start your session. Please try again.");
       }
     } finally {
       setSubmitting(false);
@@ -110,56 +86,45 @@ function JoinDemoContent() {
   };
 
   return (
-    <div className="min-h-screen bg-owl-black text-zinc-100">
-      <DemoHeader sourceMode={sourceMode} isDemo={true} />
-
-      <main className="mx-auto max-w-md space-y-5 px-4 pb-10 pt-5 sm:max-w-lg">
+    <AppShell variant="public" maxWidth="md">
+      <div className="space-y-6">
         {reason === "session_ended" && (
           <div
             role="alert"
             data-testid="session-ended-banner"
-            className="rounded-xl border border-amber-500/40 bg-amber-950/30 px-4 py-3 text-sm font-medium text-amber-200"
+            className="rounded-2xl border border-warning/30 bg-warning-tint px-4 py-3 text-sm font-medium text-warning"
           >
             {SESSION_ENDED_MESSAGE}
           </div>
         )}
 
-        <div className="space-y-1.5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h1 className="text-2xl font-extrabold tracking-tight text-white">
-              Find nearby food
-            </h1>
-            <span
-              data-testid="simulated-notification-label"
-              className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-300"
-            >
-              Simulated notifications
-            </span>
-          </div>
-          <p className="text-sm text-zinc-300">
-            No account or phone number needed. Set your campus area and any
-            dietary filters below.
+        <div className="space-y-2">
+          <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
+            Start finding campus food
+          </h1>
+          <p className="text-sm leading-relaxed text-ink-muted">
+            Pick a nickname and any optional dietary filters. You can change
+            your preferences anytime in Profile.
           </p>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-6 rounded-2xl border border-zinc-800 bg-owl-slate p-5 shadow-lg"
-        >
-          {/* 1. Nickname */}
-          <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="consumer-card space-y-6">
+          {/* Nickname */}
+          <div className="space-y-2">
             <label
               htmlFor="join-nickname-input"
-              className="block text-sm font-bold text-white"
+              className="block text-sm font-bold text-ink"
             >
-              1. Your nickname
+              Nickname
             </label>
             <input
               id="join-nickname-input"
               data-testid="join-nickname-input"
               type="text"
               required
+              minLength={1}
               maxLength={24}
+              autoComplete="nickname"
               value={nickname}
               onChange={(e) => {
                 setNickname(e.target.value);
@@ -167,162 +132,109 @@ function JoinDemoContent() {
               }}
               placeholder="e.g. ScrappyOwl"
               aria-invalid={nicknameError ? "true" : "false"}
-              className={`min-h-[48px] w-full rounded-xl border bg-owl-black px-4 py-3 text-base text-white placeholder:text-zinc-500 focus:outline-none ${
+              className={`consumer-input ${
                 nicknameError
-                  ? "border-rose-500 focus:border-rose-400"
-                  : "border-zinc-700 focus:border-owl-gold"
+                  ? "border-danger focus:border-danger"
+                  : "focus:border-owl-gold"
               }`}
             />
+            <div className="flex items-center justify-between gap-2 text-xs text-ink-muted">
+              <span>1–24 characters</span>
+              <span className="tabular-nums">{nickname.trim().length}/24</span>
+            </div>
             {nicknameError && (
               <p
                 role="alert"
                 data-testid="join-nickname-error"
-                className="text-xs font-semibold text-rose-300"
+                className="text-xs font-semibold text-danger"
               >
                 {nicknameError}
               </p>
             )}
           </div>
 
-          {/* 2. Campus Area (Simulated Locations) */}
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-bold text-white">
-              2. Where are you on campus?
+          {/* Allergens to avoid */}
+          <fieldset className="space-y-2.5 border-t border-line pt-5">
+            <legend className="text-sm font-bold text-ink">
+              Allergens to avoid{" "}
+              <span className="font-normal text-ink-muted">(optional)</span>
             </legend>
-            <p className="text-xs text-zinc-400">
-              Simulated campus locations for this demo (no real GPS tracking).
-            </p>
-            <div className="grid gap-2.5 pt-1">
-              {areas.map((area) => {
-                const selected = selectedArea === area.id;
+            <div className="flex flex-wrap gap-2 pt-1">
+              {ALLERGENS.map((alg) => {
+                const active = selectedAllergens.includes(alg);
                 return (
                   <button
-                    key={area.id}
+                    key={alg}
                     type="button"
-                    data-testid={`join-area-${area.id}`}
-                    aria-pressed={selected}
-                    onClick={() => setSelectedArea(area.id)}
-                    className={`flex min-h-[56px] w-full flex-col items-start justify-center rounded-xl border px-4 py-3 text-left transition ${
-                      selected
-                        ? "border-owl-gold bg-owl-gold/15 text-white ring-1 ring-owl-gold/50"
-                        : "border-zinc-700/80 bg-owl-black text-zinc-300 hover:border-zinc-600"
+                    data-testid={`join-allergen-${alg}`}
+                    aria-pressed={active}
+                    onClick={() => toggleAllergen(alg)}
+                    className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold capitalize transition ${
+                      active
+                        ? "border-warning bg-warning-tint text-warning"
+                        : "border-line bg-surface-subtle text-ink hover:border-ink-muted/40"
                     }`}
                   >
-                    <div className="flex w-full items-center justify-between gap-2">
-                      <span className="text-sm font-bold text-white">
-                        {area.label}
-                      </span>
-                      <span className="rounded-md bg-zinc-800 px-2 py-0.5 text-[11px] font-semibold text-owl-gold">
-                        Simulated
-                      </span>
-                    </div>
-                    <span className="mt-0.5 text-xs text-zinc-400">
-                      {area.description}
-                    </span>
+                    {active && <Check size={14} aria-hidden="true" />}
+                    <span>{alg.replaceAll("_", " ")}</span>
                   </button>
                 );
               })}
             </div>
           </fieldset>
 
-          {/* 3. Optional Dietary Restrictions */}
-          <div className="space-y-4 border-t border-zinc-800 pt-4">
-            <fieldset className="space-y-2">
-              <legend className="text-sm font-bold text-white">
-                3. Allergens to avoid{" "}
-                <span className="font-normal text-zinc-400">(optional)</span>
-              </legend>
-              <p className="text-xs text-zinc-400">
-                Filtered before invites are sent. Allergens always say:{" "}
-                <strong className="text-amber-300">
-                  {ALLERGEN_WARNING_TEXT}
-                </strong>
-                .
-              </p>
-              <div className="flex flex-wrap gap-2 pt-1">
-                {ALLERGENS.map((alg) => {
-                  const active = selectedAllergens.includes(alg);
-                  return (
-                    <button
-                      key={alg}
-                      type="button"
-                      data-testid={`join-allergen-${alg}`}
-                      aria-pressed={active}
-                      onClick={() => toggleAllergen(alg)}
-                      className={`min-h-[44px] rounded-xl border px-3.5 py-2 text-xs font-semibold transition ${
-                        active
-                          ? "border-amber-400 bg-amber-500/20 text-amber-100"
-                          : "border-zinc-700 bg-owl-black text-zinc-300 hover:border-zinc-600"
-                      }`}
-                    >
-                      {active ? "✓ " : ""}
-                      {alg.replace("_", " ")}
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
-
-            <fieldset className="space-y-2">
-              <legend className="text-sm font-bold text-white">
-                Dietary requirements{" "}
-                <span className="font-normal text-zinc-400">(optional)</span>
-              </legend>
-              <div className="flex flex-wrap gap-2 pt-1">
-                {DIETS.map((diet) => {
-                  const active = selectedDiets.includes(diet);
-                  return (
-                    <button
-                      key={diet}
-                      type="button"
-                      data-testid={`join-diet-${diet}`}
-                      aria-pressed={active}
-                      onClick={() => toggleDiet(diet)}
-                      className={`min-h-[44px] rounded-xl border px-3.5 py-2 text-xs font-semibold transition ${
-                        active
-                          ? "border-emerald-400 bg-emerald-500/20 text-emerald-100"
-                          : "border-zinc-700 bg-owl-black text-zinc-300 hover:border-zinc-600"
-                      }`}
-                    >
-                      {active ? "✓ " : ""}
-                      {diet.replace("_", " ")}
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
-          </div>
-
-          <p
-            data-testid="join-privacy-notice"
-            className="text-xs leading-relaxed text-zinc-400"
-          >
-            Your restrictions are private and used only to filter out food that
-            doesn&apos;t fit you.
-          </p>
+          {/* Dietary preferences */}
+          <fieldset className="space-y-2.5 border-t border-line pt-5">
+            <legend className="text-sm font-bold text-ink">
+              Dietary preferences{" "}
+              <span className="font-normal text-ink-muted">(optional)</span>
+            </legend>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {DIETS.map((diet) => {
+                const active = selectedDiets.includes(diet);
+                return (
+                  <button
+                    key={diet}
+                    type="button"
+                    data-testid={`join-diet-${diet}`}
+                    aria-pressed={active}
+                    onClick={() => toggleDiet(diet)}
+                    className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold capitalize transition ${
+                      active
+                        ? "border-success bg-success-tint text-success"
+                        : "border-line bg-surface-subtle text-ink hover:border-ink-muted/40"
+                    }`}
+                  >
+                    {active && <Check size={14} aria-hidden="true" />}
+                    <span>{diet.replaceAll("_", " ")}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
 
           {generalError && (
             <div
               role="alert"
               data-testid="join-error-message"
-              className="rounded-xl border border-rose-500/40 bg-rose-950/30 px-4 py-3 text-xs text-rose-200"
+              className="rounded-2xl border border-danger/30 bg-danger-tint px-4 py-3 text-xs font-medium text-danger"
             >
               {generalError}
             </div>
           )}
 
-          {/* Big bottom primary button */}
           <button
             type="submit"
             data-testid="join-submit"
             disabled={submitting}
-            className="min-h-[52px] w-full rounded-xl bg-owl-gold px-5 py-3.5 text-base font-extrabold text-owl-black shadow-md transition hover:bg-owl-goldDark disabled:opacity-50"
+            className="consumer-button w-full"
           >
-            {submitting ? "Joining..." : "Join"}
+            <span>{submitting ? "Starting..." : "Start browsing food"}</span>
+            {!submitting && <ArrowRight size={17} aria-hidden="true" />}
           </button>
         </form>
-      </main>
-    </div>
+      </div>
+    </AppShell>
   );
 }
 
@@ -330,12 +242,15 @@ export default function JoinPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-owl-black p-6 text-sm text-zinc-400">
-          Loading...
-        </div>
+        <AppShell variant="public" maxWidth="md">
+          <div className="space-y-4">
+            <ListRowSkeleton />
+            <ListRowSkeleton />
+          </div>
+        </AppShell>
       }
     >
-      <JoinDemoContent />
+      <JoinContent />
     </Suspense>
   );
 }

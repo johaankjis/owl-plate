@@ -84,3 +84,23 @@ def test_forget_removes_registration(tmp_path) -> None:
     assert vault.has("visitor")
     vault.forget("visitor")
     assert not vault.has("visitor")
+
+
+def test_feed_payload_links_the_drop_with_a_stable_generic_tag() -> None:
+    from services.api.providers.fcm import push_message
+
+    drop_id = "8d0f6a52-6c1e-4f5e-9a59-2f3c6f1e9b10"
+    first = push_message("device", "outbox-1", drop_id, "campus_feed")
+    retry = push_message("device", "outbox-2", drop_id, "campus_feed")
+    assert first == retry, "retries of one drop collapse to the same tag and topic"
+    data = first["data"]
+    assert data["notification_mode"] == "campus_feed" and data["drop_id"] == drop_id
+    assert data["url"] == f"/student?drop={drop_id}" and "invite_id" not in data
+    assert data["tag"] == f"owl-drop-{drop_id}"
+    topic = first["webpush"]["headers"]["Topic"]
+    assert len(topic) <= 32 and topic == drop_id.replace("-", "")
+    for private in ("dairy", "allergen", "room", "priority", "care", "vegetarian"):
+        assert private not in (data["title"] + data["body"]).lower()
+    legacy = push_message("device", "invite-id", drop_id)
+    assert legacy["data"]["notification_mode"] == "seeded_waves"
+    assert legacy["data"]["url"] == "/student?invite=invite-id"

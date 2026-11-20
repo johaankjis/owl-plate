@@ -13,6 +13,10 @@ import { latLngToCell, gridDisk } from "h3-js";
 import type {
   Allergen,
   AuthToken,
+  Building,
+  BuildingDistribution,
+  BuildingsResponse,
+  CampusDistributionResponse,
   ClaimResponse,
   Counts,
   DemoArea,
@@ -26,13 +30,37 @@ import type {
   DemoTick,
   DemoTickResponse,
   DispatchResponse,
+  DistributionMode,
   DropEdit,
   DropResponse,
+  FeedDrop,
+  FeedResponse,
+  FeedUnavailableReason,
+  HostPantryReferralResponse,
+  HostDropsResponse,
+  StudentReservationsResponse,
+  HostPickupReview,
+  HostPickupReviewDecision,
+  HostPickupReviewStatus,
+  HostPickupReviewsResponse,
   InviteResponse,
   InvitesResponse,
   JoinRequest,
   JoinResponse,
+  PantryDecisionRequest,
+  PantryDestination,
+  PantryHandoffConfirmRequest,
+  PantryReferral,
+  PantryReferralRequest,
+  PantryReferralsResponse,
+  PantryStatus,
   PersonaDecision,
+  PickupClaimRequest,
+  PickupMatchStatus,
+  PickupReviewStatus,
+  PickupVerification,
+  PickupVerificationResponse,
+  PickupVerificationStatus,
   Preferences,
   PresenceRequest,
   PresenceResponse,
@@ -47,6 +75,12 @@ import type {
 import {
   ALLERGENS,
   ALLERGEN_WARNING_TEXT,
+  PANTRY_CARE_SOURCE_URL,
+  PANTRY_CATERING_POLICY_URL,
+  PANTRY_COORDINATOR_CREDENTIAL,
+  PANTRY_DEMO_NOTICE_FALLBACK,
+  PICKUP_CONFIRMATION_NOTICE,
+  PICKUP_CONSISTENT_CONFIDENCE_THRESHOLD,
   RELIGIOUS_DIETS,
 } from "../types/api";
 
@@ -152,6 +186,102 @@ interface InternalClaim {
   visitorToken: string | null;
   status: "held" | "picked_up" | "released" | "expired";
   heldUntil: string;
+  createdAt?: string;
+}
+
+interface InternalPickupVerification {
+  id: string;
+  claimId: string;
+  dropId: string;
+  requestId: string;
+  attemptOrder: number;
+  status: PickupVerificationStatus;
+  matchStatus: PickupMatchStatus | null;
+  confidence: number | null;
+  explanation: string;
+  source: "fixture" | "openrouter";
+  createdAt: string;
+  reviewStatus: PickupReviewStatus;
+}
+
+export interface InternalHostOutboxEvent {
+  notification_id: string;
+  notification_mode: "host_pickup";
+  drop_id: string;
+  claim_id: string;
+  title: string;
+  body: string;
+  url: string;
+  tag: string;
+  created_at: string;
+  delivered_to_host: boolean;
+}
+
+interface InternalPantryReferral {
+  id: string;
+  dropId: string;
+  status: PantryStatus;
+  requestedServings: number;
+  acceptedServings: number;
+  transferredServings: number;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
+}
+
+const PANTRY_SUGGESTION_WINDOW_MS = 10 * 60 * 1000;
+
+/**
+ * Verified read-only Marietta campus registry snapshot for Joe Mack Wilson
+ * Student Center (matching data/campus/marietta.json; never invented points).
+ * Used strictly as the read-only PantryDestination in explicit fixture mode.
+ */
+const FIXTURE_PANTRY_BUILDING: Building = {
+  id: "ksu-marietta-joe-mack-wilson-student-center",
+  name: "Joe Mack Wilson Student Center",
+  building_code: "A",
+  building_number: "860",
+  category: "student_life",
+  latitude: 33.940665,
+  longitude: -84.520395,
+  verification_status: "verified",
+  sources: [
+    {
+      url: "https://campus.kennesaw.edu/offices-services/parking/docs/marietta-parking-map.pdf",
+      title:
+        "KSU Marietta Parking Map (updated 08/07/2026) — BUILDINGS AND SERVICES directory: letter code, grid cell, building number",
+    },
+    {
+      url: "https://maps.kennesaw.edu/",
+      title:
+        "Kennesaw State University Interactive Campus Map, Marietta campus — building pin (coordinates and address)",
+    },
+    {
+      url: "https://campus.kennesaw.edu/offices-services/public-safety-police/docs/final-2026-asfr.pdf",
+      title:
+        "KSU Annual Security and Fire Safety Report 2026 — Marietta on-campus Clery geography (official building names and street addresses)",
+    },
+    {
+      url: "https://www.openstreetmap.org/way/225473219",
+      title:
+        "OpenStreetMap way 225473219 — A - Joe Mack Wilson Student Center (independent coordinate cross-check)",
+    },
+  ],
+};
+
+function buildFixturePantryDestination(): PantryDestination {
+  return {
+    name: "KSU CARE Pantry",
+    building: {
+      ...FIXTURE_PANTRY_BUILDING,
+      sources: FIXTURE_PANTRY_BUILDING.sources.map((s) => ({ ...s })),
+    },
+    room: "Room 184",
+    directions_url:
+      "https://www.google.com/maps/dir/?api=1&destination=33.940665,-84.520395&travelmode=walking",
+    care_source_url: PANTRY_CARE_SOURCE_URL,
+    catering_policy_url: PANTRY_CATERING_POLICY_URL,
+  };
 }
 
 interface OfflineFixtureStore {
@@ -160,13 +290,20 @@ interface OfflineFixtureStore {
   scenario: DemoScenario;
   activeDropId: string;
   drops: Record<string, DropResponse>;
+  dropOwnerByDropId: Record<string, string>;
   wavesByDrop: Record<string, WaveResponse[]>;
   invites: Record<string, InternalInvite>;
   claims: Record<string, InternalClaim>;
+  verifications: Record<string, InternalPickupVerification>;
+  attemptCounter: number;
+  pickupFixtureStatusOverride: PickupMatchStatus | null;
   personas: Record<"A" | "B" | "C" | "D" | "E", InternalPersonaConfig>;
   visitorsByToken: Record<string, InternalVisitorSession>;
   presenceUntilByToken: Record<string, string>;
   pushRegisteredByToken: Record<string, boolean>;
+  hostPushRegisteredByHostId: Record<string, boolean>;
+  hostOutboxByClaimId: Record<string, InternalHostOutboxEvent>;
+  pantryReferralsByDropId: Record<string, InternalPantryReferral>;
 }
 
 let memoryStore: OfflineFixtureStore | null = null;
@@ -262,13 +399,20 @@ function createInitialStore(
     scenario,
     activeDropId: "",
     drops: {},
+    dropOwnerByDropId: {},
     wavesByDrop: {},
     invites: {},
     claims: {},
+    verifications: {},
+    attemptCounter: 0,
+    pickupFixtureStatusOverride: null,
     personas: createInitialPersonas(scenario),
     visitorsByToken: {},
     presenceUntilByToken: {},
     pushRegisteredByToken: {},
+    hostPushRegisteredByHostId: {},
+    hostOutboxByClaimId: {},
+    pantryReferralsByDropId: {},
   };
 }
 
@@ -295,6 +439,27 @@ function loadStore(): OfflineFixtureStore {
     }
     if (typeof parsed.clockOffsetSeconds !== "number") {
       parsed.clockOffsetSeconds = 0;
+    }
+    if (!parsed.dropOwnerByDropId) {
+      parsed.dropOwnerByDropId = {};
+    }
+    if (!parsed.verifications) {
+      parsed.verifications = {};
+    }
+    if (typeof parsed.attemptCounter !== "number") {
+      parsed.attemptCounter = 0;
+    }
+    if (parsed.pickupFixtureStatusOverride === undefined) {
+      parsed.pickupFixtureStatusOverride = null;
+    }
+    if (!parsed.hostPushRegisteredByHostId) {
+      parsed.hostPushRegisteredByHostId = {};
+    }
+    if (!parsed.hostOutboxByClaimId) {
+      parsed.hostOutboxByClaimId = {};
+    }
+    if (!parsed.pantryReferralsByDropId) {
+      parsed.pantryReferralsByDropId = {};
     }
     return parsed;
   } catch {
@@ -346,26 +511,40 @@ function resolveStudentIdentity(
 function recomputeCounts(store: OfflineFixtureStore, dropId: string): Counts {
   const drop = store.drops[dropId];
   if (!drop) {
-    return { total: 0, available: 0, held: 0, picked_up: 0 };
+    return {
+      total: 0,
+      available: 0,
+      held: 0,
+      picked_up: 0,
+      pantry_held: 0,
+      pantry_transferred: 0,
+    };
   }
   const claims = Object.values(store.claims).filter((c) => c.dropId === dropId);
   const held = claims.filter((c) => c.status === "held").length;
   const pickedUp = claims.filter((c) => c.status === "picked_up").length;
-  const available = Math.max(0, drop.servings_final - held - pickedUp);
+  const referral = store.pantryReferralsByDropId[dropId];
+  const pantryHeld =
+    referral && referral.status === "accepted" ? referral.acceptedServings : 0;
+  const pantryTransferred =
+    referral && referral.status === "handoff_confirmed"
+      ? referral.transferredServings
+      : 0;
+  const available = Math.max(
+    0,
+    drop.servings_final - held - pickedUp - pantryHeld - pantryTransferred,
+  );
   const counts: Counts = {
     total: drop.servings_final,
     available,
     held,
     picked_up: pickedUp,
+    pantry_held: pantryHeld,
+    pantry_transferred: pantryTransferred,
   };
   drop.counts = counts;
-  if (
-    drop.status === "live" &&
-    available === 0 &&
-    held === 0 &&
-    pickedUp >= drop.servings_final
-  ) {
-    drop.status = "claimed_out";
+  if (drop.status !== "draft" && drop.status !== "expired") {
+    drop.status = available === 0 ? "claimed_out" : "live";
   }
   return counts;
 }
@@ -506,6 +685,118 @@ export function getActiveFixtureDropId(): string {
   return activeCandidates[0]?.id ?? "";
 }
 
+function expireDeadlines(store: OfflineFixtureStore): void {
+  const nowMs = new Date(store.serverTimeIso).getTime();
+  for (const drop of Object.values(store.drops)) {
+    if (
+      (drop.status === "live" || drop.status === "claimed_out") &&
+      drop.expires_at &&
+      nowMs >= new Date(drop.expires_at).getTime()
+    ) {
+      drop.status = "expired";
+    }
+  }
+  for (const inv of Object.values(store.invites)) {
+    if (inv.status === "sent" && nowMs >= new Date(inv.expiresAt).getTime()) {
+      inv.status = "expired";
+    }
+  }
+  for (const claim of Object.values(store.claims)) {
+    if (claim.status === "held") {
+      const drop = store.drops[claim.dropId];
+      if (
+        nowMs >= new Date(claim.heldUntil).getTime() ||
+        (drop?.expires_at && nowMs >= new Date(drop.expires_at).getTime())
+      ) {
+        claim.status = "expired";
+      }
+    }
+    if (claim.status === "expired" || claim.status === "released") {
+      for (const v of Object.values(store.verifications)) {
+        if (v.claimId === claim.id) {
+          if (v.status === "processing") {
+            v.status = "failed";
+          }
+          if (
+            v.reviewStatus === "pending" ||
+            v.reviewStatus === "not_requested"
+          ) {
+            v.reviewStatus = "expired";
+          }
+        }
+      }
+    }
+  }
+  for (const v of Object.values(store.verifications)) {
+    if (v.status === "processing") {
+      const ageMs = nowMs - new Date(v.createdAt).getTime();
+      if (ageMs >= 120 * 1000) {
+        v.status = "failed";
+        v.explanation =
+          "Simulated assessment timed out after 120 seconds. Please retry.";
+      }
+    }
+  }
+  for (const referral of Object.values(store.pantryReferralsByDropId)) {
+    if (
+      referral.status === "suggested" ||
+      referral.status === "requested" ||
+      referral.status === "accepted"
+    ) {
+      const drop = store.drops[referral.dropId];
+      if (
+        !drop ||
+        drop.status === "expired" ||
+        nowMs >= new Date(referral.expiresAt).getTime() ||
+        (drop.expires_at && nowMs >= new Date(drop.expires_at).getTime())
+      ) {
+        referral.status = "expired";
+        referral.updatedAt = store.serverTimeIso;
+      }
+    }
+  }
+  for (const dropId of Object.keys(store.drops)) {
+    recomputeCounts(store, dropId);
+  }
+}
+
+function materializePantrySuggestions(store: OfflineFixtureStore): void {
+  const nowMs = new Date(store.serverTimeIso).getTime();
+  for (const drop of Object.values(store.drops)) {
+    const mode = drop.distribution_mode ?? "seeded_waves";
+    if (mode !== "campus_feed") continue;
+    if (drop.status !== "live" && drop.status !== "claimed_out") continue;
+    if (!drop.expires_at) continue;
+    if (store.pantryReferralsByDropId[drop.id]) continue;
+
+    const remainingMs = new Date(drop.expires_at).getTime() - nowMs;
+    if (remainingMs <= 0 || remainingMs > PANTRY_SUGGESTION_WINDOW_MS) continue;
+
+    const counts = recomputeCounts(store, drop.id);
+    if (counts.available <= 0) continue;
+
+    store.pantryReferralsByDropId[drop.id] = {
+      id: `pantry-ref-${drop.id}`,
+      dropId: drop.id,
+      status: "suggested",
+      requestedServings: 0,
+      acceptedServings: 0,
+      transferredServings: 0,
+      createdAt: store.serverTimeIso,
+      updatedAt: store.serverTimeIso,
+      expiresAt: drop.expires_at,
+    };
+  }
+}
+
+export function fixtureGetBuildings(): BuildingsResponse {
+  // Offline fixture mode is explicitly synthetic and never fabricates verified campus coordinates.
+  return {
+    campus: "marietta",
+    buildings: [],
+  };
+}
+
 export function fixtureGetDemoAreas(): DemoAreasResponse {
   return {
     areas: FIXTURE_DEMO_AREAS.map((a) => ({ ...a })),
@@ -514,6 +805,7 @@ export function fixtureGetDemoAreas(): DemoAreasResponse {
 
 export function fixtureJoinSession(req: JoinRequest): JoinResponse {
   const store = loadStore();
+  expireDeadlines(store);
   const nickname = req.nickname.trim();
   if (!nickname) {
     throw new FixtureContractError(
@@ -543,9 +835,30 @@ export function fixtureJoinSession(req: JoinRequest): JoinResponse {
     );
   }
 
-  const areaInfo =
-    FIXTURE_DEMO_AREAS.find((a) => a.id === req.area) ?? FIXTURE_DEMO_AREAS[0]!;
-  const areaId: DemoAreaId = areaInfo.id;
+  let areaId: DemoAreaId | null = null;
+  let ringDistance = 0;
+
+  if (store.scenario === "seeded") {
+    if (req.area != null && req.area.trim().length > 0) {
+      const areaInfo = FIXTURE_DEMO_AREAS.find((a) => a.id === req.area);
+      if (!areaInfo) {
+        throw new FixtureContractError(
+          422,
+          "invalid_building",
+          `Location "${req.area}" is not available in offline synthetic fixture mode.`,
+        );
+      }
+      areaId = areaInfo.id;
+      ringDistance = areaInfo.ring_distance;
+    } else {
+      areaId = "demo-venue";
+      ringDistance = 0;
+    }
+  } else {
+    // Normal campus_feed mode ignores deprecated optional area without storing/deriving a student cell
+    areaId = null;
+    ringDistance = 0;
+  }
 
   const visitorIndex = existingVisitors.length + 1;
   const randomPart = Math.random().toString(36).slice(2, 12);
@@ -567,22 +880,25 @@ export function fixtureJoinSession(req: JoinRequest): JoinResponse {
   const session: InternalVisitorSession = {
     token,
     student,
-    ringDistance: areaInfo.ring_distance,
-    h3Cell: getCellAtDistance(
-      ORIGIN_CELL,
-      areaInfo.ring_distance,
-      visitorIndex + 3,
-    ),
+    ringDistance,
+    h3Cell:
+      store.scenario === "seeded"
+        ? getCellAtDistance(ORIGIN_CELL, ringDistance, visitorIndex + 3)
+        : "",
     alertsPaused: false,
     joinedAtIso: new Date().toISOString(),
   };
 
   store.visitorsByToken[token] = session;
 
-  // If there is already a live drop in fixture mode and this visitor is eligible in current ring,
-  // create an immediate wave invite so standalone fixture mode feels responsive right after joining.
+  // In explicit seeded rehearsal mode, create an immediate wave invite if there is an active seeded_waves drop.
   const activeDrop = store.drops[store.activeDropId];
-  if (activeDrop && activeDrop.status === "live") {
+  if (
+    store.scenario === "seeded" &&
+    activeDrop &&
+    activeDrop.status === "live" &&
+    (activeDrop.distribution_mode ?? "seeded_waves") === "seeded_waves"
+  ) {
     const waves = store.wavesByDrop[activeDrop.id] ?? [];
     const currentRingK = waves.length > 0 ? waves[waves.length - 1]!.ring_k : 2;
     const counts = recomputeCounts(store, activeDrop.id);
@@ -671,12 +987,14 @@ export function fixtureLeaveSession(
   }
 
   delete store.visitorsByToken[credential];
+  expireDeadlines(store);
   saveStore(store);
   return { status: "left" };
 }
 
 export function fixtureGetDemoStatus(): DemoStatusResponse {
   const store = loadStore();
+  expireDeadlines(store);
   return {
     scenario: store.scenario,
     visitors: Object.keys(store.visitorsByToken).length,
@@ -686,16 +1004,25 @@ export function fixtureGetDemoStatus(): DemoStatusResponse {
   };
 }
 
-export function fixtureCreateDrop(hostNote?: string): DropResponse {
+export function fixtureCreateDrop(
+  hostNote?: string,
+  credential: AuthToken = "demo-host",
+): DropResponse {
   const store = loadStore();
   const now = new Date(store.serverTimeIso);
-  const id = `drop-${now.getTime().toString(16)}-demo`;
+  const existingCount = Object.keys(store.drops).length + 1;
+  const id = `drop-${now.getTime().toString(16)}-${existingCount}-demo`;
   const vision = createDefaultVision(hostNote);
+  const distributionMode: DistributionMode =
+    store.scenario === "visitors" ? "campus_feed" : "seeded_waves";
   const newDrop: DropResponse = {
     id,
     status: "draft",
+    distribution_mode: distributionMode,
     building_code: "DEMO-ORIGIN",
+    building: null,
     room: "214",
+    pickup_instructions: "",
     vision,
     vision_source: "fixture",
     servings_final: vision.servings_estimate,
@@ -713,13 +1040,18 @@ export function fixtureCreateDrop(hostNote?: string): DropResponse {
       available: vision.servings_estimate,
       held: 0,
       picked_up: 0,
+      pantry_held: 0,
+      pantry_transferred: 0,
     },
     created_at: now.toISOString(),
     expires_at: new Date(now.getTime() + 45 * 60 * 1000).toISOString(),
     allergen_notice: ALLERGEN_WARNING_TEXT,
     is_demo: true,
+    has_photo: false,
+    photo_url: null,
   };
   store.drops[id] = newDrop;
+  store.dropOwnerByDropId[id] = credential;
   store.wavesByDrop[id] = [];
   store.activeDropId = id;
   saveStore(store);
@@ -770,7 +1102,9 @@ export function fixtureUpdateDrop(
   drop.allergens_final = [...edit.allergens_final];
   drop.diet_tags_final = [...edit.diet_tags_final];
   drop.building_code = edit.building_code;
+  drop.building = null;
   drop.room = edit.room;
+  drop.pickup_instructions = (edit.pickup_instructions ?? "").trim();
   drop.safety_review = { ...edit.safety_review };
   drop.expires_at = new Date(
     nowMs + edit.expires_in_minutes * 60 * 1000,
@@ -827,8 +1161,13 @@ export function fixturePublishDrop(dropId: string): DropResponse {
   }
 
   if (drop.status === "draft") {
+    const mode: DistributionMode =
+      store.scenario === "visitors" ? "campus_feed" : "seeded_waves";
+    drop.distribution_mode = mode;
     drop.status = "live";
-    planWaveForDrop(store, drop, 2);
+    if (mode === "seeded_waves") {
+      planWaveForDrop(store, drop, 2);
+    }
   }
   recomputeCounts(store, dropId);
   store.activeDropId = dropId;
@@ -836,14 +1175,278 @@ export function fixturePublishDrop(dropId: string): DropResponse {
   return drop;
 }
 
-export function fixtureGetDrop(dropId: string): DropResponse {
+export function fixtureGetDrop(
+  dropId: string,
+  credential?: AuthToken,
+): DropResponse {
   const store = loadStore();
-  const drop = store.drops[dropId] ?? store.drops[store.activeDropId];
+  expireDeadlines(store);
+  const drop = store.drops[dropId];
   if (!drop) {
     throw new FixtureContractError(404, "not_found", "Drop not found");
   }
+  if (credential && credential.startsWith("demo-host")) {
+    const owner = store.dropOwnerByDropId[drop.id] ?? "demo-host";
+    if (owner !== credential) {
+      throw new FixtureContractError(404, "not_found", "Drop not found");
+    }
+  } else if (
+    credential &&
+    credential !== "demo-projector" &&
+    credential !== "demo-pantry-coordinator"
+  ) {
+    resolveStudentIdentity(store, credential);
+    if (drop.status === "draft") {
+      throw new FixtureContractError(404, "not_found", "Drop not found");
+    }
+  }
   recomputeCounts(store, drop.id);
-  return drop;
+  return {
+    ...drop,
+    has_photo: drop.has_photo ?? false,
+    photo_url: drop.photo_url ?? null,
+  };
+}
+
+function getStudentDietaryPrefs(
+  resolved: ReturnType<typeof resolveStudentIdentity>,
+): {
+  allergens: Allergen[];
+  diets: ("vegetarian" | "vegan" | "halal" | "kosher" | "pork_free")[];
+} {
+  if (resolved.kind === "persona") {
+    return {
+      allergens: resolved.persona.preferences.allergens,
+      diets: resolved.persona.preferences.diets,
+    };
+  }
+  return {
+    allergens: resolved.visitor.student.allergens,
+    diets: resolved.visitor.student.diets,
+  };
+}
+
+export function fixtureGetMyFeed(credential: AuthToken): FeedResponse {
+  const store = loadStore();
+  expireDeadlines(store);
+  const resolved = resolveStudentIdentity(store, credential);
+  const prefs = getStudentDietaryPrefs(resolved);
+  const nowMs = new Date(store.serverTimeIso).getTime();
+
+  const myClaims = Object.values(store.claims).filter(
+    (c) => c.recipientKey === resolved.recipientKey,
+  );
+  const hasAnyActiveHold = myClaims.some((c) => c.status === "held");
+
+  const activeCampusDrops = Object.values(store.drops)
+    .filter((d) => {
+      const mode = d.distribution_mode ?? "seeded_waves";
+      if (mode !== "campus_feed") return false;
+      if (d.status !== "live" && d.status !== "claimed_out") return false;
+      return !d.expires_at || nowMs < new Date(d.expires_at).getTime();
+    })
+    .sort((a, b) => {
+      const timeCmp = b.created_at.localeCompare(a.created_at);
+      if (timeCmp !== 0) return timeCmp;
+      return b.id.localeCompare(a.id);
+    });
+
+  const feedDrops: FeedDrop[] = activeCampusDrops.map((drop) => {
+    const counts = recomputeCounts(store, drop.id);
+    const ownClaim = myClaims.find((c) => c.dropId === drop.id) ?? null;
+    const claimResp: ClaimResponse | null = ownClaim
+      ? {
+          id: ownClaim.id,
+          invite_id: ownClaim.inviteId,
+          drop_id: ownClaim.dropId,
+          status: ownClaim.status,
+          held_until: ownClaim.heldUntil,
+        }
+      : null;
+
+    const hasAllergenConflict = prefs.allergens.some((a) =>
+      drop.allergens_final.includes(a),
+    );
+    const hasDietMismatch = prefs.diets.some(
+      (d) => !drop.diet_tags_final.includes(d),
+    );
+
+    let canReserve = true;
+    let unavailableReason: FeedUnavailableReason | null = null;
+
+    if (ownClaim) {
+      canReserve = false;
+      unavailableReason = "already_reserved";
+    } else if (hasAllergenConflict) {
+      canReserve = false;
+      unavailableReason = "allergen_conflict";
+    } else if (hasDietMismatch) {
+      canReserve = false;
+      unavailableReason = "diet_mismatch";
+    } else if (hasAnyActiveHold) {
+      canReserve = false;
+      unavailableReason = "active_claim";
+    } else if (counts.available <= 0) {
+      canReserve = false;
+      unavailableReason = "capacity";
+    }
+
+    return {
+      drop,
+      can_reserve: canReserve,
+      unavailable_reason: unavailableReason,
+      claim: claimResp,
+    };
+  });
+
+  saveStore(store);
+  return {
+    drops: feedDrops,
+    server_time: store.serverTimeIso,
+    is_demo: true,
+  };
+}
+
+export function fixtureReserveDrop(
+  dropId: string,
+  credential: AuthToken,
+): ClaimResponse {
+  const store = loadStore();
+  expireDeadlines(store);
+  const resolved = resolveStudentIdentity(store, credential);
+  const drop = store.drops[dropId];
+  if (!drop || drop.status === "draft") {
+    throw new FixtureContractError(404, "not_found", "Drop not found.");
+  }
+
+  const mode = drop.distribution_mode ?? "seeded_waves";
+  if (mode !== "campus_feed") {
+    throw new FixtureContractError(
+      404,
+      "not_found",
+      "Direct feed reservation is only available for campus feed drops.",
+    );
+  }
+
+  const nowMs = new Date(store.serverTimeIso).getTime();
+  if (
+    drop.status === "expired" ||
+    (drop.expires_at && nowMs >= new Date(drop.expires_at).getTime())
+  ) {
+    drop.status = "expired";
+    saveStore(store);
+    throw new FixtureContractError(
+      409,
+      "drop_expired",
+      "This food drop has expired.",
+    );
+  }
+
+  const myClaims = Object.values(store.claims).filter(
+    (c) => c.recipientKey === resolved.recipientKey,
+  );
+  const existingForDrop = myClaims.find((c) => c.dropId === drop.id);
+
+  // Idempotent retry of own held or picked_up reservation returns same ID, even after preferences change
+  if (
+    existingForDrop &&
+    (existingForDrop.status === "held" ||
+      existingForDrop.status === "picked_up")
+  ) {
+    return {
+      id: existingForDrop.id,
+      invite_id: existingForDrop.inviteId,
+      drop_id: existingForDrop.dropId,
+      status: existingForDrop.status,
+      held_until: existingForDrop.heldUntil,
+    };
+  }
+
+  // One reservation per student/drop lifecycle (released/expired cannot be recreated)
+  if (existingForDrop) {
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      "You already had a reservation for this drop.",
+    );
+  }
+
+  const prefs = getStudentDietaryPrefs(resolved);
+  const hasAllergenConflict = prefs.allergens.some((a) =>
+    drop.allergens_final.includes(a),
+  );
+  if (hasAllergenConflict) {
+    throw new FixtureContractError(
+      409,
+      "allergen_conflict",
+      "This drop conflicts with your declared allergens.",
+    );
+  }
+
+  const hasDietMismatch = prefs.diets.some(
+    (d) => !drop.diet_tags_final.includes(d),
+  );
+  if (hasDietMismatch) {
+    throw new FixtureContractError(
+      409,
+      "diet_mismatch",
+      "This drop does not match your required dietary tags.",
+    );
+  }
+
+  const otherActiveHold = myClaims.find((c) => c.status === "held");
+  if (otherActiveHold) {
+    throw new FixtureContractError(
+      409,
+      "active_claim",
+      "You already have an active hold on another drop.",
+    );
+  }
+
+  const counts = recomputeCounts(store, drop.id);
+  if (counts.available <= 0) {
+    throw new FixtureContractError(
+      409,
+      "capacity",
+      "All servings are currently held or claimed.",
+    );
+  }
+
+  const dropExpiryMs = drop.expires_at
+    ? new Date(drop.expires_at).getTime()
+    : nowMs + 45 * 60 * 1000;
+  const holdExpiryMs = Math.min(nowMs + 10 * 60 * 1000, dropExpiryMs);
+  const heldUntil = new Date(holdExpiryMs).toISOString();
+
+  const suffix =
+    resolved.kind === "persona"
+      ? resolved.persona.label
+      : resolved.visitor.token.slice(-8);
+  const syntheticInviteId = `feed-inv-${drop.id}-${suffix}`;
+  const claimId = `claim-${syntheticInviteId}`;
+
+  const claim: InternalClaim = {
+    id: claimId,
+    inviteId: syntheticInviteId,
+    dropId: drop.id,
+    recipientKey: resolved.recipientKey,
+    personaLabel: resolved.kind === "persona" ? resolved.persona.label : null,
+    visitorToken: resolved.kind === "visitor" ? resolved.visitor.token : null,
+    status: "held",
+    heldUntil,
+    createdAt: store.serverTimeIso,
+  };
+  store.claims[claimId] = claim;
+  recomputeCounts(store, drop.id);
+  saveStore(store);
+
+  return {
+    id: claim.id,
+    invite_id: claim.inviteId,
+    drop_id: claim.dropId,
+    status: claim.status,
+    held_until: claim.heldUntil,
+  };
 }
 
 function buildInviteResponse(
@@ -873,9 +1476,15 @@ function buildInviteResponse(
 
 export function fixtureGetMyInvites(credential: AuthToken): InvitesResponse {
   const store = loadStore();
+  expireDeadlines(store);
   const resolved = resolveStudentIdentity(store, credential);
   const myInvites = Object.values(store.invites)
-    .filter((inv) => inv.recipientKey === resolved.recipientKey)
+    .filter((inv) => {
+      if (inv.recipientKey !== resolved.recipientKey) return false;
+      const drop = store.drops[inv.dropId];
+      if (!drop) return false;
+      return (drop.distribution_mode ?? "seeded_waves") === "seeded_waves";
+    })
     .map((inv) => buildInviteResponse(store, inv));
   return { invites: myInvites };
 }
@@ -885,6 +1494,7 @@ export function fixtureClaimInvite(
   credential: AuthToken,
 ): ClaimResponse {
   const store = loadStore();
+  expireDeadlines(store);
   const resolved = resolveStudentIdentity(store, credential);
   const inv = store.invites[inviteId];
   if (!inv || inv.recipientKey !== resolved.recipientKey) {
@@ -931,6 +1541,7 @@ export function fixtureClaimInvite(
     visitorToken: inv.visitorToken,
     status: "held",
     heldUntil,
+    createdAt: store.serverTimeIso,
   };
   store.claims[claimId] = claim;
   inv.status = "claimed";
@@ -952,6 +1563,7 @@ export function fixtureDeclineInvite(
   credential: AuthToken,
 ): InviteResponse {
   const store = loadStore();
+  expireDeadlines(store);
   const resolved = resolveStudentIdentity(store, credential);
   const inv = store.invites[inviteId];
   if (!inv || inv.recipientKey !== resolved.recipientKey) {
@@ -961,6 +1573,7 @@ export function fixtureDeclineInvite(
   if (inv.claimId && store.claims[inv.claimId]) {
     store.claims[inv.claimId]!.status = "released";
   }
+  expireDeadlines(store);
   recomputeCounts(store, inv.dropId);
   saveStore(store);
   return buildInviteResponse(store, inv);
@@ -971,6 +1584,7 @@ export function fixtureReleaseClaim(
   credential?: AuthToken,
 ): ClaimResponse {
   const store = loadStore();
+  expireDeadlines(store);
   const claim = store.claims[claimId];
   if (!claim) {
     throw new FixtureContractError(404, "not_found", "Claim not found");
@@ -982,6 +1596,7 @@ export function fixtureReleaseClaim(
     }
   }
   claim.status = "released";
+  expireDeadlines(store);
   recomputeCounts(store, claim.dropId);
   saveStore(store);
   return {
@@ -993,11 +1608,109 @@ export function fixtureReleaseClaim(
   };
 }
 
+function recordHostPickupOutboxOnce(
+  store: OfflineFixtureStore,
+  claim: InternalClaim,
+  drop: DropResponse,
+  countsAtCommit: Counts,
+): void {
+  if (store.hostOutboxByClaimId[claim.id]) {
+    return;
+  }
+  const ownerHostId = store.dropOwnerByDropId[drop.id] ?? "demo-host";
+  const isHostOptedIn = Boolean(store.hostPushRegisteredByHostId[ownerHostId]);
+  const firstItemName =
+    drop.vision.items[0]?.name?.trim() || "shared event food";
+  const availLabel =
+    countsAtCommit.available === 1
+      ? "1 serving available."
+      : `${countsAtCommit.available} servings available.`;
+  const shortClaimSuffix = claim.id.replace(/[^a-zA-Z0-9]/g, "").slice(-16);
+  const tag = `owl-hp-${shortClaimSuffix}`.slice(0, 32);
+
+  store.hostOutboxByClaimId[claim.id] = {
+    notification_id: `notif-hp-${claim.id}`,
+    notification_mode: "host_pickup",
+    drop_id: drop.id,
+    claim_id: claim.id,
+    title: "Owl Plate: Pickup update",
+    body: `A serving of ${firstItemName} was marked collected. ${availLabel}`,
+    url: `/host?drop=${encodeURIComponent(drop.id)}`,
+    tag,
+    created_at: store.serverTimeIso,
+    delivered_to_host: isHostOptedIn,
+  };
+}
+
+function getLatestAttemptForClaim(
+  store: OfflineFixtureStore,
+  claimId: string,
+): InternalPickupVerification | null {
+  const attempts = Object.values(store.verifications)
+    .filter((v) => v.claimId === claimId)
+    .sort((a, b) => b.attemptOrder - a.attemptOrder);
+  return attempts[0] ?? null;
+}
+
+function deriveCanConfirm(
+  store: OfflineFixtureStore,
+  v: InternalPickupVerification,
+): boolean {
+  const claim = store.claims[v.claimId];
+  if (!claim || claim.status !== "held") return false;
+  const drop = store.drops[claim.dropId];
+  if (!drop || drop.status === "expired") return false;
+  const nowMs = new Date(store.serverTimeIso).getTime();
+  if (nowMs >= new Date(claim.heldUntil).getTime()) return false;
+  if (drop.expires_at && nowMs >= new Date(drop.expires_at).getTime()) {
+    return false;
+  }
+  const latest = getLatestAttemptForClaim(store, v.claimId);
+  if (!latest || latest.id !== v.id) return false;
+  if (v.status !== "ready" || v.matchStatus !== "consistent") return false;
+  if (
+    v.confidence === null ||
+    !Number.isFinite(v.confidence) ||
+    v.confidence < PICKUP_CONSISTENT_CONFIDENCE_THRESHOLD
+  ) {
+    return false;
+  }
+  if (
+    v.reviewStatus === "rejected" ||
+    v.reviewStatus === "superseded" ||
+    v.reviewStatus === "expired"
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function serializePickupVerification(
+  store: OfflineFixtureStore,
+  v: InternalPickupVerification,
+): PickupVerification {
+  return {
+    id: v.id,
+    claim_id: v.claimId,
+    status: v.status,
+    match_status: v.matchStatus,
+    confidence: v.confidence,
+    explanation: v.explanation,
+    source: v.source,
+    created_at: v.createdAt,
+    review_status: v.reviewStatus,
+    can_confirm: deriveCanConfirm(store, v),
+    notice: PICKUP_CONFIRMATION_NOTICE,
+  };
+}
+
 export function fixturePickupClaim(
   claimId: string,
   credential?: AuthToken,
+  req?: PickupClaimRequest,
 ): ClaimResponse {
   const store = loadStore();
+  expireDeadlines(store);
   const claim = store.claims[claimId];
   if (!claim) {
     throw new FixtureContractError(404, "not_found", "Claim not found");
@@ -1008,8 +1721,74 @@ export function fixturePickupClaim(
       throw new FixtureContractError(404, "not_found", "Claim not found");
     }
   }
+  // Idempotent retry if already picked_up
+  if (claim.status === "picked_up") {
+    return {
+      id: claim.id,
+      invite_id: claim.inviteId,
+      drop_id: claim.dropId,
+      status: claim.status,
+      held_until: claim.heldUntil,
+    };
+  }
+  if (claim.status !== "held") {
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      "This pickup hold is no longer active.",
+    );
+  }
+  const drop = store.drops[claim.dropId];
+  const nowMs = new Date(store.serverTimeIso).getTime();
+  if (
+    !drop ||
+    drop.status === "expired" ||
+    nowMs >= new Date(claim.heldUntil).getTime() ||
+    (drop.expires_at && nowMs >= new Date(drop.expires_at).getTime())
+  ) {
+    claim.status = "expired";
+    expireDeadlines(store);
+    saveStore(store);
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      "Your pickup hold has expired.",
+    );
+  }
+
+  const mode = drop.distribution_mode ?? "seeded_waves";
+  const verificationId = req?.verification_id?.trim() || null;
+
+  if (mode === "campus_feed") {
+    if (!verificationId) {
+      throw new FixtureContractError(
+        409,
+        "pickup_verification_required",
+        "Photo-assisted verification is required before completing a campus feed pickup.",
+      );
+    }
+    const v = store.verifications[verificationId];
+    if (!v || v.claimId !== claim.id || !deriveCanConfirm(store, v)) {
+      throw new FixtureContractError(
+        409,
+        "invalid_state",
+        "The latest photo assessment is not eligible to confirm pickup.",
+      );
+    }
+  } else if (verificationId) {
+    const v = store.verifications[verificationId];
+    if (!v || v.claimId !== claim.id || !deriveCanConfirm(store, v)) {
+      throw new FixtureContractError(
+        409,
+        "invalid_state",
+        "The specified photo verification is not valid for this claim.",
+      );
+    }
+  }
+
   claim.status = "picked_up";
-  recomputeCounts(store, claim.dropId);
+  const countsAtCommit = recomputeCounts(store, claim.dropId);
+  recordHostPickupOutboxOnce(store, claim, drop, countsAtCommit);
   saveStore(store);
   return {
     id: claim.id,
@@ -1020,15 +1799,113 @@ export function fixturePickupClaim(
   };
 }
 
+export function fixtureGetDistribution(): CampusDistributionResponse {
+  const store = loadStore();
+  expireDeadlines(store);
+  const nowMs = new Date(store.serverTimeIso).getTime();
+
+  const activeCampusDrops = Object.values(store.drops).filter((d) => {
+    const mode = d.distribution_mode ?? "seeded_waves";
+    if (mode !== "campus_feed") return false;
+    if (d.status !== "live" && d.status !== "claimed_out") return false;
+    return !d.expires_at || nowMs < new Date(d.expires_at).getTime();
+  });
+
+  const totalCounts: Counts = {
+    total: 0,
+    available: 0,
+    held: 0,
+    picked_up: 0,
+    pantry_held: 0,
+    pantry_transferred: 0,
+  };
+
+  const byBuilding = new Map<string, BuildingDistribution>();
+  let totalAvailableDrops = 0;
+
+  for (const drop of activeCampusDrops) {
+    const c = recomputeCounts(store, drop.id);
+    const hasAvailable = c.available > 0 ? 1 : 0;
+    totalAvailableDrops += hasAvailable;
+    totalCounts.total += c.total;
+    totalCounts.available += c.available;
+    totalCounts.held += c.held;
+    totalCounts.picked_up += c.picked_up;
+    totalCounts.pantry_held =
+      (totalCounts.pantry_held ?? 0) + (c.pantry_held ?? 0);
+    totalCounts.pantry_transferred =
+      (totalCounts.pantry_transferred ?? 0) + (c.pantry_transferred ?? 0);
+
+    const code = drop.building_code || "DEMO-ORIGIN";
+    const existing = byBuilding.get(code);
+    if (existing) {
+      existing.active_drops += 1;
+      existing.available_drops = (existing.available_drops ?? 0) + hasAvailable;
+      existing.counts.total += c.total;
+      existing.counts.available += c.available;
+      existing.counts.held += c.held;
+      existing.counts.picked_up += c.picked_up;
+      existing.counts.pantry_held =
+        (existing.counts.pantry_held ?? 0) + (c.pantry_held ?? 0);
+      existing.counts.pantry_transferred =
+        (existing.counts.pantry_transferred ?? 0) + (c.pantry_transferred ?? 0);
+    } else {
+      byBuilding.set(code, {
+        building_code: code,
+        building: drop.building ?? null,
+        active_drops: 1,
+        available_drops: hasAvailable,
+        counts: { ...c },
+      });
+    }
+  }
+
+  const buildings = Array.from(byBuilding.values()).sort((a, b) =>
+    a.building_code.localeCompare(b.building_code),
+  );
+
+  return {
+    distribution_mode:
+      store.scenario === "visitors" ? "campus_feed" : "seeded_waves",
+    active_drops: activeCampusDrops.length,
+    available_drops: totalAvailableDrops,
+    joined_students: Object.keys(store.visitorsByToken).length,
+    counts: totalCounts,
+    buildings,
+    server_time: store.serverTimeIso,
+    is_demo: true,
+  };
+}
+
 export function fixtureGetDispatch(dropId: string): DispatchResponse {
   const store = loadStore();
+  expireDeadlines(store);
   const drop = store.drops[dropId] ?? store.drops[store.activeDropId];
   if (!drop) {
     throw new FixtureContractError(404, "not_found", "Drop not found");
   }
+  const mode: DistributionMode = drop.distribution_mode ?? "seeded_waves";
   const waves = store.wavesByDrop[drop.id] ?? [];
   const currentRingK = waves.length > 0 ? waves[waves.length - 1]!.ring_k : 2;
   const counts = recomputeCounts(store, drop.id);
+
+  if (mode === "campus_feed") {
+    return {
+      drop_id: drop.id,
+      status: drop.status,
+      distribution_mode: "campus_feed",
+      origin_cell: ORIGIN_CELL,
+      ring_k: 0,
+      counts,
+      waves: [],
+      personas: [],
+      visitors: [],
+      scenario: store.scenario,
+      next_wave_at: null,
+      server_time: store.serverTimeIso,
+      is_demo: true,
+    };
+  }
 
   const personas: PersonaDecision[] =
     store.scenario === "visitors"
@@ -1195,6 +2072,7 @@ export function fixtureGetDispatch(dropId: string): DispatchResponse {
   return {
     drop_id: drop.id,
     status: drop.status,
+    distribution_mode: "seeded_waves",
     origin_cell: ORIGIN_CELL,
     ring_k: currentRingK,
     counts,
@@ -1235,33 +2113,28 @@ export function fixtureDemoTick(tick: DemoTick): DemoTickResponse {
   store.serverTimeIso = new Date(nextTimeMs).toISOString();
   store.clockOffsetSeconds += advanceSec;
 
-  const drop = store.drops[store.activeDropId];
-  if (drop && drop.status === "live") {
-    for (const inv of Object.values(store.invites)) {
-      if (inv.dropId === drop.id && inv.status === "sent") {
-        if (nextTimeMs >= new Date(inv.expiresAt).getTime()) {
-          inv.status = "expired";
-        }
-      }
-    }
-    for (const claim of Object.values(store.claims)) {
-      if (claim.dropId === drop.id && claim.status === "held") {
-        if (nextTimeMs >= new Date(claim.heldUntil).getTime()) {
-          claim.status = "expired";
-        }
-      }
-    }
+  expireDeadlines(store);
+  materializePantrySuggestions(store);
 
-    const counts = recomputeCounts(store, drop.id);
-    const activeSent = Object.values(store.invites).filter(
-      (inv) => inv.dropId === drop.id && inv.status === "sent",
-    );
-    const waves = store.wavesByDrop[drop.id] ?? [];
-    const currentRingK = waves.length > 0 ? waves[waves.length - 1]!.ring_k : 2;
+  for (const drop of Object.values(store.drops)) {
+    const mode = drop.distribution_mode ?? "seeded_waves";
+    if (drop.status === "live" && mode === "seeded_waves") {
+      const counts = recomputeCounts(store, drop.id);
+      const activeSent = Object.values(store.invites).filter(
+        (inv) => inv.dropId === drop.id && inv.status === "sent",
+      );
+      const waves = store.wavesByDrop[drop.id] ?? [];
+      const currentRingK =
+        waves.length > 0 ? waves[waves.length - 1]!.ring_k : 2;
 
-    if (activeSent.length === 0 && counts.available > 0 && currentRingK < 12) {
-      const nextRingK = Math.min(12, currentRingK + 2);
-      planWaveForDrop(store, drop, nextRingK);
+      if (
+        activeSent.length === 0 &&
+        counts.available > 0 &&
+        currentRingK < 12
+      ) {
+        const nextRingK = Math.min(12, currentRingK + 2);
+        planWaveForDrop(store, drop, nextRingK);
+      }
     }
   }
 
@@ -1296,6 +2169,13 @@ export function fixtureUpdatePresence(
 ): PresenceResponse {
   const store = loadStore();
   resolveStudentIdentity(store, credential);
+  if (store.scenario === "visitors") {
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      "Check-ins are not used for the campus feed.",
+    );
+  }
   const validUntil = new Date(
     new Date(store.serverTimeIso).getTime() + 2 * 60 * 60 * 1000,
   ).toISOString();
@@ -1313,4 +2193,1034 @@ export function fixtureRegisterPushToken(
   store.pushRegisteredByToken[credential] = req.token.length > 0;
   saveStore(store);
   return { registered: true };
+}
+
+function assertHostRole(credential: AuthToken): string {
+  if (!credential || !credential.startsWith("demo-host")) {
+    throw new FixtureContractError(
+      403,
+      "forbidden",
+      "Host role is required for this endpoint.",
+    );
+  }
+  return credential;
+}
+
+function assertOwnDropForHost(
+  store: OfflineFixtureStore,
+  dropId: string,
+  credential: AuthToken,
+): DropResponse {
+  const hostId = assertHostRole(credential);
+  const drop = store.drops[dropId];
+  if (!drop) {
+    throw new FixtureContractError(404, "not_found", "Drop not found.");
+  }
+  const owner = store.dropOwnerByDropId[drop.id] ?? "demo-host";
+  if (owner !== hostId) {
+    throw new FixtureContractError(404, "not_found", "Drop not found.");
+  }
+  return drop;
+}
+
+export function fixtureRegisterHostPushToken(
+  credential: AuthToken,
+  req: PushTokenRequest,
+): PushTokenResponse {
+  const store = loadStore();
+  const hostId = assertHostRole(credential);
+  const token = req.token?.trim() ?? "";
+  if (!token) {
+    throw new FixtureContractError(
+      422,
+      "validation_error",
+      "Push token is required.",
+    );
+  }
+  store.hostPushRegisteredByHostId[hostId] = true;
+  saveStore(store);
+  return { registered: true };
+}
+
+export function fixtureGetHostPushTokenStatus(
+  credential: AuthToken,
+): PushTokenResponse {
+  const store = loadStore();
+  const hostId = assertHostRole(credential);
+  const registered = Boolean(store.hostPushRegisteredByHostId[hostId]);
+  return { registered };
+}
+
+export function fixtureDeleteHostPushToken(
+  credential: AuthToken,
+): PushTokenResponse {
+  const store = loadStore();
+  const hostId = assertHostRole(credential);
+  store.hostPushRegisteredByHostId[hostId] = false;
+  saveStore(store);
+  return { registered: false };
+}
+
+export function fixtureSetPickupFixtureStatus(
+  status: PickupMatchStatus | null,
+): void {
+  const store = loadStore();
+  store.pickupFixtureStatusOverride = status;
+  saveStore(store);
+}
+
+function resolveFixtureMatchResult(
+  store: OfflineFixtureStore,
+  drop: DropResponse,
+  rawStatus?: PickupMatchStatus | null,
+  rawConfidence?: number | null,
+): {
+  matchStatus: PickupMatchStatus;
+  confidence: number;
+  explanation: string;
+} {
+  const envStatus =
+    typeof process !== "undefined" &&
+    process.env?.PICKUP_FIXTURE_STATUS &&
+    (process.env.PICKUP_FIXTURE_STATUS === "consistent" ||
+      process.env.PICKUP_FIXTURE_STATUS === "uncertain" ||
+      process.env.PICKUP_FIXTURE_STATUS === "inconsistent")
+      ? (process.env.PICKUP_FIXTURE_STATUS as PickupMatchStatus)
+      : null;
+
+  const targetStatus: PickupMatchStatus =
+    rawStatus ?? store.pickupFixtureStatusOverride ?? envStatus ?? "consistent";
+
+  const itemSummary =
+    drop.vision.items.map((i) => i.name).join(", ") || "shared event trays";
+
+  let defaultConfidence = 0.89;
+  if (targetStatus === "uncertain") {
+    defaultConfidence = 0.64;
+  } else if (targetStatus === "inconsistent") {
+    defaultConfidence = 0.22;
+  }
+
+  const rawConf =
+    typeof rawConfidence === "number" && Number.isFinite(rawConfidence)
+      ? Math.max(0, Math.min(1, rawConfidence))
+      : defaultConfidence;
+
+  // Threshold 0.8: Consistent confidence below 0.8 becomes uncertain
+  const normalizedStatus: PickupMatchStatus =
+    targetStatus === "consistent" &&
+    rawConf < PICKUP_CONSISTENT_CONFIDENCE_THRESHOLD
+      ? "uncertain"
+      : targetStatus;
+
+  let explanation = "";
+  if (normalizedStatus === "consistent") {
+    explanation = `Simulated demo assessment (no image pixels retained or analyzed): matches host listing (${itemSummary}).`;
+  } else if (normalizedStatus === "uncertain") {
+    explanation = `Simulated demo assessment (no image pixels retained or analyzed): comparison with host listing (${itemSummary}) is uncertain (confidence ${Math.round(rawConf * 100)}% < 80% threshold). You can retry with a clearer photo or request host review.`;
+  } else {
+    explanation = `Simulated demo assessment (no image pixels retained or analyzed): does not match host listing (${itemSummary}). Retry with a photo of the listed food or request host review.`;
+  }
+
+  return {
+    matchStatus: normalizedStatus,
+    confidence: rawConf,
+    explanation: explanation.slice(0, 500),
+  };
+}
+
+export interface FixturePhotoOptions {
+  /** Metadata only; image bytes are never read or retained. */
+  mimeType?: string;
+  byteSize?: number;
+  /** Simulate an in-flight processing state before resolving. */
+  keepProcessing?: boolean;
+  /** Optional explicit confidence override to test threshold 0.8 normalization. */
+  confidence?: number;
+  /** Optional explicit match status override for unit tests. */
+  matchStatus?: PickupMatchStatus;
+}
+
+export function fixtureSubmitPickupPhoto(
+  claimId: string,
+  requestId: string,
+  credential: AuthToken,
+  options?: FixturePhotoOptions,
+): PickupVerification {
+  const store = loadStore();
+  expireDeadlines(store);
+  const resolved = resolveStudentIdentity(store, credential);
+
+  const cleanReqId = requestId?.trim() ?? "";
+  if (!cleanReqId) {
+    throw new FixtureContractError(
+      422,
+      "validation_error",
+      "request_id UUID is required.",
+    );
+  }
+
+  // Validate active/unexpired own held claim and unexpired drop BEFORE any model/assessment call
+  const claim = store.claims[claimId];
+  if (!claim || claim.recipientKey !== resolved.recipientKey) {
+    throw new FixtureContractError(404, "not_found", "Claim not found.");
+  }
+  if (claim.status !== "held") {
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      "Pickup photo verification requires an active held spot.",
+    );
+  }
+  const drop = store.drops[claim.dropId];
+  const nowMs = new Date(store.serverTimeIso).getTime();
+  if (
+    !drop ||
+    drop.status === "expired" ||
+    nowMs >= new Date(claim.heldUntil).getTime() ||
+    (drop.expires_at && nowMs >= new Date(drop.expires_at).getTime())
+  ) {
+    claim.status = "expired";
+    expireDeadlines(store);
+    saveStore(store);
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      "Your pickup hold or the drop has expired.",
+    );
+  }
+
+  // Validate file metadata bounds (JPEG/PNG only, 10 MiB max) without retaining bytes
+  if (options?.mimeType) {
+    const mime = options.mimeType.toLowerCase();
+    if (mime !== "image/jpeg" && mime !== "image/png" && mime !== "image/jpg") {
+      throw new FixtureContractError(
+        422,
+        "unsupported_image",
+        "Only JPEG and PNG food photos are supported.",
+      );
+    }
+  }
+  if (
+    typeof options?.byteSize === "number" &&
+    options.byteSize > 10 * 1024 * 1024
+  ) {
+    throw new FixtureContractError(
+      422,
+      "image_too_large",
+      "Photo exceeds the 10 MiB limit.",
+    );
+  }
+  if (typeof options?.byteSize === "number" && options.byteSize <= 0) {
+    throw new FixtureContractError(
+      422,
+      "invalid_image",
+      "Selected photo file is empty.",
+    );
+  }
+
+  // Check existing attempts for this claim
+  const claimAttempts = Object.values(store.verifications)
+    .filter((v) => v.claimId === claim.id)
+    .sort((a, b) => b.attemptOrder - a.attemptOrder);
+
+  const sameKeyAttempt = claimAttempts.find((v) => v.requestId === cleanReqId);
+  if (sameKeyAttempt) {
+    saveStore(store);
+    return serializePickupVerification(store, sameKeyAttempt);
+  }
+
+  const activeProcessing = claimAttempts.find((v) => v.status === "processing");
+  if (activeProcessing) {
+    throw new FixtureContractError(
+      409,
+      "verification_in_progress",
+      "A photo verification attempt is already in progress for this hold.",
+    );
+  }
+
+  // Supersede any older pending review or previous ready attempts
+  for (const prev of claimAttempts) {
+    if (
+      prev.reviewStatus === "pending" ||
+      prev.reviewStatus === "not_requested"
+    ) {
+      prev.reviewStatus = "superseded";
+    }
+  }
+
+  store.attemptCounter += 1;
+  const attemptOrder = store.attemptCounter;
+  const verificationId = `ver-${claim.id.slice(0, 12)}-${attemptOrder}`;
+
+  if (options?.keepProcessing) {
+    const processingAttempt: InternalPickupVerification = {
+      id: verificationId,
+      claimId: claim.id,
+      dropId: drop.id,
+      requestId: cleanReqId,
+      attemptOrder,
+      status: "processing",
+      matchStatus: null,
+      confidence: null,
+      explanation: "Comparing photo against host listing items...",
+      source: "fixture",
+      createdAt: store.serverTimeIso,
+      reviewStatus: "not_requested",
+    };
+    store.verifications[verificationId] = processingAttempt;
+    saveStore(store);
+    return serializePickupVerification(store, processingAttempt);
+  }
+
+  const resolvedMatch = resolveFixtureMatchResult(
+    store,
+    drop,
+    options?.matchStatus,
+    options?.confidence,
+  );
+
+  const readyAttempt: InternalPickupVerification = {
+    id: verificationId,
+    claimId: claim.id,
+    dropId: drop.id,
+    requestId: cleanReqId,
+    attemptOrder,
+    status: "ready",
+    matchStatus: resolvedMatch.matchStatus,
+    confidence: resolvedMatch.confidence,
+    explanation: resolvedMatch.explanation,
+    source: "fixture",
+    createdAt: store.serverTimeIso,
+    reviewStatus: "not_requested",
+  };
+  store.verifications[verificationId] = readyAttempt;
+  saveStore(store);
+  return serializePickupVerification(store, readyAttempt);
+}
+
+export function fixtureCompleteProcessingVerification(
+  verificationId: string,
+  options?: {
+    matchStatus?: PickupMatchStatus;
+    confidence?: number;
+    fail?: boolean;
+  },
+): PickupVerification {
+  const store = loadStore();
+  expireDeadlines(store);
+  const v = store.verifications[verificationId];
+  if (!v) {
+    throw new FixtureContractError(
+      404,
+      "not_found",
+      "Verification attempt not found.",
+    );
+  }
+  const latest = getLatestAttemptForClaim(store, v.claimId);
+  if (!latest || latest.id !== v.id) {
+    // Late result cannot overwrite a newer attempt
+    return serializePickupVerification(store, v);
+  }
+  const claim = store.claims[v.claimId];
+  const drop = store.drops[v.dropId];
+  if (!claim || claim.status !== "held" || !drop || drop.status === "expired") {
+    v.status = "failed";
+    v.reviewStatus = "expired";
+    saveStore(store);
+    return serializePickupVerification(store, v);
+  }
+  if (options?.fail) {
+    v.status = "failed";
+    v.matchStatus = null;
+    v.confidence = null;
+    v.explanation =
+      "Photo verification could not be completed. Please try again.";
+    saveStore(store);
+    return serializePickupVerification(store, v);
+  }
+  const resolvedMatch = resolveFixtureMatchResult(
+    store,
+    drop,
+    options?.matchStatus,
+    options?.confidence,
+  );
+  v.status = "ready";
+  v.matchStatus = resolvedMatch.matchStatus;
+  v.confidence = resolvedMatch.confidence;
+  v.explanation = resolvedMatch.explanation;
+  saveStore(store);
+  return serializePickupVerification(store, v);
+}
+
+export function fixtureGetPickupVerification(
+  claimId: string,
+  credential: AuthToken,
+): PickupVerificationResponse {
+  const store = loadStore();
+  expireDeadlines(store);
+  const resolved = resolveStudentIdentity(store, credential);
+  const claim = store.claims[claimId];
+  if (!claim || claim.recipientKey !== resolved.recipientKey) {
+    throw new FixtureContractError(404, "not_found", "Claim not found.");
+  }
+  const latest = getLatestAttemptForClaim(store, claim.id);
+  saveStore(store);
+  return {
+    verification: latest ? serializePickupVerification(store, latest) : null,
+  };
+}
+
+export function fixtureRequestPickupReview(
+  claimId: string,
+  verificationId: string,
+  credential: AuthToken,
+): PickupVerification {
+  const store = loadStore();
+  expireDeadlines(store);
+  const resolved = resolveStudentIdentity(store, credential);
+  const claim = store.claims[claimId];
+  if (!claim || claim.recipientKey !== resolved.recipientKey) {
+    throw new FixtureContractError(404, "not_found", "Claim not found.");
+  }
+  if (claim.status !== "held") {
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      "Host review requires an active held spot.",
+    );
+  }
+  const latest = getLatestAttemptForClaim(store, claim.id);
+  if (!latest || latest.id !== verificationId || latest.status !== "ready") {
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      "Only the latest ready verification attempt can be sent for host review.",
+    );
+  }
+  if (
+    latest.matchStatus !== "uncertain" &&
+    latest.matchStatus !== "inconsistent"
+  ) {
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      "Only uncertain or inconsistent photo assessments can request host review.",
+    );
+  }
+  if (
+    latest.reviewStatus === "rejected" ||
+    latest.reviewStatus === "expired" ||
+    latest.reviewStatus === "superseded"
+  ) {
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      "This verification attempt can no longer request host review. Take a new photo first.",
+    );
+  }
+  // Idempotent if already pending or approved
+  if (latest.reviewStatus === "not_requested") {
+    latest.reviewStatus = "pending";
+  }
+  saveStore(store);
+  return serializePickupVerification(store, latest);
+}
+
+function serializeHostPickupReview(
+  v: InternalPickupVerification,
+  claim: InternalClaim,
+): HostPickupReview {
+  const status: HostPickupReviewStatus =
+    v.reviewStatus === "not_requested" ? "pending" : v.reviewStatus;
+  return {
+    id: v.id,
+    drop_id: v.dropId,
+    match_status: v.matchStatus ?? "uncertain",
+    confidence: v.confidence ?? 0,
+    explanation: v.explanation,
+    source: v.source,
+    created_at: v.createdAt,
+    held_until: claim.heldUntil,
+    review_status: status,
+    notice: PICKUP_CONFIRMATION_NOTICE,
+  };
+}
+
+export function fixtureGetHostPickupReviews(
+  dropId: string,
+  credential: AuthToken = "demo-host",
+): HostPickupReviewsResponse {
+  const store = loadStore();
+  expireDeadlines(store);
+  const drop = assertOwnDropForHost(store, dropId, credential);
+
+  const pendingReviews: HostPickupReview[] = [];
+  for (const v of Object.values(store.verifications)) {
+    if (v.dropId !== drop.id) continue;
+    if (v.status !== "ready" || v.reviewStatus !== "pending") continue;
+    const latest = getLatestAttemptForClaim(store, v.claimId);
+    if (!latest || latest.id !== v.id) continue;
+    const claim = store.claims[v.claimId];
+    if (!claim || claim.status !== "held") continue;
+    pendingReviews.push(serializeHostPickupReview(v, claim));
+  }
+
+  pendingReviews.sort((a, b) => a.created_at.localeCompare(b.created_at));
+  saveStore(store);
+  return {
+    reviews: pendingReviews,
+    server_time: store.serverTimeIso,
+  };
+}
+
+export function fixtureDecideHostPickupReview(
+  dropId: string,
+  verificationId: string,
+  decision: HostPickupReviewDecision,
+  credential: AuthToken = "demo-host",
+): HostPickupReview {
+  const store = loadStore();
+  expireDeadlines(store);
+  const drop = assertOwnDropForHost(store, dropId, credential);
+
+  const v = store.verifications[verificationId];
+  if (!v || v.dropId !== drop.id) {
+    throw new FixtureContractError(
+      404,
+      "not_found",
+      "Pickup review not found for this drop.",
+    );
+  }
+  const claim = store.claims[v.claimId];
+  if (!claim) {
+    throw new FixtureContractError(
+      404,
+      "not_found",
+      "Pickup review not found.",
+    );
+  }
+
+  // Idempotent retry of the same decision
+  if (decision === "approve" && v.reviewStatus === "approved") {
+    return serializeHostPickupReview(v, claim);
+  }
+  if (decision === "reject" && v.reviewStatus === "rejected") {
+    return serializeHostPickupReview(v, claim);
+  }
+
+  // Contradictory decision or stale/expired/superseded review -> 409
+  if (v.reviewStatus !== "pending") {
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      `Review is already ${v.reviewStatus} and cannot be changed.`,
+    );
+  }
+
+  const latest = getLatestAttemptForClaim(store, v.claimId);
+  if (!latest || latest.id !== v.id) {
+    v.reviewStatus = "superseded";
+    saveStore(store);
+    throw new FixtureContractError(
+      409,
+      "review_superseded",
+      "A newer photo verification attempt superseded this review.",
+    );
+  }
+
+  const nowMs = new Date(store.serverTimeIso).getTime();
+  if (
+    claim.status !== "held" ||
+    drop.status === "expired" ||
+    nowMs >= new Date(claim.heldUntil).getTime() ||
+    (drop.expires_at && nowMs >= new Date(drop.expires_at).getTime())
+  ) {
+    v.reviewStatus = "expired";
+    expireDeadlines(store);
+    saveStore(store);
+    throw new FixtureContractError(
+      409,
+      "hold_expired",
+      "The student's hold expired or was released before this review could be completed.",
+    );
+  }
+
+  if (decision === "approve") {
+    // Explicit human override consumes active unexpired hold transactionally, preserving AI match_status
+    v.reviewStatus = "approved";
+    claim.status = "picked_up";
+    const countsAtCommit = recomputeCounts(store, drop.id);
+    recordHostPickupOutboxOnce(store, claim, drop, countsAtCommit);
+  } else {
+    // Rejection leaves hold active until existing expiry and allows a new photo
+    v.reviewStatus = "rejected";
+  }
+
+  saveStore(store);
+  return serializeHostPickupReview(v, claim);
+}
+
+export function fixtureGetHostOutboxEvents(): InternalHostOutboxEvent[] {
+  const store = loadStore();
+  return Object.values(store.hostOutboxByClaimId);
+}
+
+function assertPantryCoordinatorRole(credential: AuthToken): void {
+  if (credential !== PANTRY_COORDINATOR_CREDENTIAL) {
+    throw new FixtureContractError(
+      403,
+      "forbidden",
+      "Demo pantry coordinator role is required for this endpoint.",
+    );
+  }
+}
+
+function assertValidServingsCount(servings: unknown): number {
+  if (
+    typeof servings !== "number" ||
+    !Number.isInteger(servings) ||
+    servings < 1 ||
+    servings > 500
+  ) {
+    throw new FixtureContractError(
+      422,
+      "validation_error",
+      "Servings must be an integer between 1 and 500.",
+    );
+  }
+  return servings;
+}
+
+function serializePantryReferral(
+  store: OfflineFixtureStore,
+  referral: InternalPantryReferral,
+): PantryReferral {
+  const drop = store.drops[referral.dropId]!;
+  const counts = recomputeCounts(store, drop.id);
+  const eligibleServings =
+    drop.status === "expired" || referral.status === "expired"
+      ? 0
+      : counts.available;
+
+  return {
+    id: referral.id,
+    drop_id: referral.dropId,
+    status: referral.status,
+    requested_servings: referral.requestedServings,
+    accepted_servings: referral.acceptedServings,
+    transferred_servings: referral.transferredServings,
+    eligible_servings: eligibleServings,
+    created_at: referral.createdAt,
+    updated_at: referral.updatedAt,
+    expires_at: referral.expiresAt,
+    destination: buildFixturePantryDestination(),
+    drop: {
+      ...drop,
+      counts: { ...counts },
+    },
+    notice: PANTRY_DEMO_NOTICE_FALLBACK,
+    is_demo: true,
+  };
+}
+
+export function fixtureGetHostPantryReferral(
+  dropId: string,
+  credential: AuthToken = "demo-host",
+): HostPantryReferralResponse {
+  const store = loadStore();
+  expireDeadlines(store);
+  const drop = assertOwnDropForHost(store, dropId, credential);
+
+  const mode = drop.distribution_mode ?? "seeded_waves";
+  if (drop.status === "draft" || mode !== "campus_feed") {
+    saveStore(store);
+    return {
+      referral: null,
+      destination: buildFixturePantryDestination(),
+      notice: PANTRY_DEMO_NOTICE_FALLBACK,
+      is_demo: true,
+    };
+  }
+
+  materializePantrySuggestions(store);
+  const existing = store.pantryReferralsByDropId[drop.id] ?? null;
+  saveStore(store);
+
+  return {
+    referral: existing ? serializePantryReferral(store, existing) : null,
+    destination: buildFixturePantryDestination(),
+    notice: PANTRY_DEMO_NOTICE_FALLBACK,
+    is_demo: true,
+  };
+}
+
+export function fixtureRequestHostPantryReferral(
+  dropId: string,
+  req: PantryReferralRequest,
+  credential: AuthToken = "demo-host",
+): PantryReferral {
+  const store = loadStore();
+  expireDeadlines(store);
+  const drop = assertOwnDropForHost(store, dropId, credential);
+
+  if (req?.demo_policy_acknowledged !== true) {
+    throw new FixtureContractError(
+      422,
+      "validation_error",
+      "Explicit demo policy acknowledgment is required before requesting a simulated referral.",
+    );
+  }
+  const servings = assertValidServingsCount(req.servings);
+
+  const mode = drop.distribution_mode ?? "seeded_waves";
+  if (drop.status === "draft" || mode !== "campus_feed") {
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      "Demo pantry referrals are only available for published campus-feed drops.",
+    );
+  }
+
+  materializePantrySuggestions(store);
+  const existing = store.pantryReferralsByDropId[drop.id];
+  if (existing && existing.status !== "suggested") {
+    // Idempotent retry returns existing requested/accepted/final record without mutating quantity or terminal state
+    saveStore(store);
+    return serializePantryReferral(store, existing);
+  }
+
+  const nowMs = new Date(store.serverTimeIso).getTime();
+  if (
+    drop.status === "expired" ||
+    (drop.expires_at && nowMs >= new Date(drop.expires_at).getTime())
+  ) {
+    drop.status = "expired";
+    expireDeadlines(store);
+    saveStore(store);
+    throw new FixtureContractError(
+      409,
+      "drop_expired",
+      "This food drop has expired.",
+    );
+  }
+
+  const counts = recomputeCounts(store, drop.id);
+  if (servings > counts.available) {
+    throw new FixtureContractError(
+      409,
+      "capacity",
+      `Requested ${servings} servings exceeds current available stock (${counts.available}).`,
+    );
+  }
+
+  if (existing && existing.status === "suggested") {
+    existing.status = "requested";
+    existing.requestedServings = servings;
+    existing.updatedAt = store.serverTimeIso;
+    saveStore(store);
+    return serializePantryReferral(store, existing);
+  }
+
+  const created: InternalPantryReferral = {
+    id: `pantry-ref-${drop.id}`,
+    dropId: drop.id,
+    status: "requested",
+    requestedServings: servings,
+    acceptedServings: 0,
+    transferredServings: 0,
+    createdAt: store.serverTimeIso,
+    updatedAt: store.serverTimeIso,
+    expiresAt: drop.expires_at ?? store.serverTimeIso,
+  };
+  store.pantryReferralsByDropId[drop.id] = created;
+  saveStore(store);
+  return serializePantryReferral(store, created);
+}
+
+export function fixtureConfirmHostPantryHandoff(
+  dropId: string,
+  req: PantryHandoffConfirmRequest,
+  credential: AuthToken = "demo-host",
+): PantryReferral {
+  const store = loadStore();
+  expireDeadlines(store);
+  const drop = assertOwnDropForHost(store, dropId, credential);
+
+  if (req?.demo_handoff_confirmed !== true) {
+    throw new FixtureContractError(
+      422,
+      "validation_error",
+      "Explicit simulated handoff confirmation is required.",
+    );
+  }
+
+  const referral = store.pantryReferralsByDropId[drop.id];
+  if (!referral) {
+    throw new FixtureContractError(
+      404,
+      "not_found",
+      "No pantry referral found for this drop.",
+    );
+  }
+
+  if (referral.status === "handoff_confirmed") {
+    return serializePantryReferral(store, referral);
+  }
+
+  const nowMs = new Date(store.serverTimeIso).getTime();
+  if (
+    drop.status === "expired" ||
+    (drop.expires_at && nowMs >= new Date(drop.expires_at).getTime())
+  ) {
+    drop.status = "expired";
+    expireDeadlines(store);
+    saveStore(store);
+    throw new FixtureContractError(
+      409,
+      "drop_expired",
+      "This food drop has expired; handoff can no longer be confirmed.",
+    );
+  }
+
+  if (referral.status !== "accepted") {
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      `Handoff can only be confirmed for an accepted referral (current status: ${referral.status}).`,
+    );
+  }
+
+  referral.status = "handoff_confirmed";
+  referral.transferredServings = referral.acceptedServings;
+  referral.updatedAt = store.serverTimeIso;
+  recomputeCounts(store, drop.id);
+  saveStore(store);
+  return serializePantryReferral(store, referral);
+}
+
+export function fixtureGetPantryReferrals(
+  credential: AuthToken = PANTRY_COORDINATOR_CREDENTIAL,
+): PantryReferralsResponse {
+  const store = loadStore();
+  assertPantryCoordinatorRole(credential);
+  expireDeadlines(store);
+  materializePantrySuggestions(store);
+
+  const referrals = Object.values(store.pantryReferralsByDropId)
+    .filter((ref) => Boolean(store.drops[ref.dropId]))
+    .sort((a, b) => {
+      const timeCmp = b.createdAt.localeCompare(a.createdAt);
+      if (timeCmp !== 0) return timeCmp;
+      return b.id.localeCompare(a.id);
+    })
+    .map((ref) => serializePantryReferral(store, ref));
+
+  saveStore(store);
+  return {
+    referrals,
+    server_time: store.serverTimeIso,
+    is_demo: true,
+  };
+}
+
+export function fixtureDecidePantryReferral(
+  referralId: string,
+  req: PantryDecisionRequest,
+  credential: AuthToken = PANTRY_COORDINATOR_CREDENTIAL,
+): PantryReferral {
+  const store = loadStore();
+  assertPantryCoordinatorRole(credential);
+  expireDeadlines(store);
+
+  if (req?.demo_policy_acknowledged !== true) {
+    throw new FixtureContractError(
+      422,
+      "validation_error",
+      "Explicit demo policy acknowledgment is required before making a coordinator decision.",
+    );
+  }
+  if (req.decision !== "accept" && req.decision !== "reject") {
+    throw new FixtureContractError(
+      422,
+      "validation_error",
+      "Decision must be 'accept' or 'reject'.",
+    );
+  }
+
+  const referral = Object.values(store.pantryReferralsByDropId).find(
+    (r) => r.id === referralId,
+  );
+  if (!referral) {
+    throw new FixtureContractError(
+      404,
+      "not_found",
+      "Pantry referral not found.",
+    );
+  }
+  const drop = store.drops[referral.dropId];
+  if (!drop) {
+    throw new FixtureContractError(404, "not_found", "Drop not found.");
+  }
+
+  if (req.decision === "accept") {
+    const servings = assertValidServingsCount(req.servings);
+
+    if (referral.status === "accepted") {
+      if (referral.acceptedServings === servings) {
+        return serializePantryReferral(store, referral);
+      }
+      throw new FixtureContractError(
+        409,
+        "invalid_state",
+        `Referral was already accepted for ${referral.acceptedServings} servings.`,
+      );
+    }
+
+    if (referral.status !== "requested") {
+      throw new FixtureContractError(
+        409,
+        "invalid_state",
+        `Only requested referrals can be accepted (current status: ${referral.status}).`,
+      );
+    }
+
+    const nowMs = new Date(store.serverTimeIso).getTime();
+    if (
+      drop.status === "expired" ||
+      (drop.expires_at && nowMs >= new Date(drop.expires_at).getTime())
+    ) {
+      drop.status = "expired";
+      expireDeadlines(store);
+      saveStore(store);
+      throw new FixtureContractError(
+        409,
+        "drop_expired",
+        "This food drop has expired.",
+      );
+    }
+
+    const counts = recomputeCounts(store, drop.id);
+    if (servings > referral.requestedServings || servings > counts.available) {
+      throw new FixtureContractError(
+        409,
+        "capacity",
+        `Cannot accept ${servings} servings: requested=${referral.requestedServings}, currently available=${counts.available}.`,
+      );
+    }
+
+    referral.status = "accepted";
+    referral.acceptedServings = servings;
+    referral.updatedAt = store.serverTimeIso;
+    recomputeCounts(store, drop.id);
+    saveStore(store);
+    return serializePantryReferral(store, referral);
+  }
+
+  // decision === "reject"
+  if (referral.status === "rejected") {
+    return serializePantryReferral(store, referral);
+  }
+  if (referral.status !== "requested") {
+    throw new FixtureContractError(
+      409,
+      "invalid_state",
+      `Only requested referrals can be rejected (current status: ${referral.status}).`,
+    );
+  }
+
+  const nowMs = new Date(store.serverTimeIso).getTime();
+  if (
+    drop.status === "expired" ||
+    (drop.expires_at && nowMs >= new Date(drop.expires_at).getTime())
+  ) {
+    drop.status = "expired";
+    expireDeadlines(store);
+    saveStore(store);
+    throw new FixtureContractError(
+      409,
+      "drop_expired",
+      "This food drop has expired.",
+    );
+  }
+
+  referral.status = "rejected";
+  referral.updatedAt = store.serverTimeIso;
+  recomputeCounts(store, drop.id);
+  saveStore(store);
+  return serializePantryReferral(store, referral);
+}
+
+/** Recover only the current host's listings, including completed and draft listings. */
+export function fixtureGetHostDrops(credential: AuthToken): HostDropsResponse {
+  const store = loadStore();
+  expireDeadlines(store);
+  if (!credential.startsWith("demo-host"))
+    throw new FixtureContractError(403, "forbidden", "Host access required.");
+  const drops = Object.values(store.drops)
+    .filter(
+      (drop) =>
+        (store.dropOwnerByDropId[drop.id] ?? "demo-host") === credential,
+    )
+    .sort(
+      (a, b) =>
+        b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id),
+    );
+  for (const drop of drops) recomputeCounts(store, drop.id);
+  saveStore(store);
+  return { drops, server_time: store.serverTimeIso, is_demo: true };
+}
+/** Keep completed reservations visible without leaking another student's history. */
+export function fixtureGetMyReservations(
+  credential: AuthToken,
+): StudentReservationsResponse {
+  const store = loadStore();
+  expireDeadlines(store);
+  if (
+    credential.startsWith("demo-host") ||
+    credential === "demo-projector" ||
+    credential === "demo-pantry-coordinator"
+  ) {
+    throw new FixtureContractError(
+      403,
+      "forbidden",
+      "Student access required.",
+    );
+  }
+  const student = resolveStudentIdentity(store, credential);
+  const reservations = Object.values(store.claims)
+    .filter(
+      (claim) =>
+        claim.recipientKey === student.recipientKey &&
+        Boolean(store.drops[claim.dropId]),
+    )
+    .sort((a, b) => {
+      const timeCmp = (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
+      if (timeCmp !== 0) return timeCmp;
+      return b.id.localeCompare(a.id);
+    })
+    .map((claim) => {
+      const drop = store.drops[claim.dropId]!;
+      recomputeCounts(store, drop.id);
+      const latest = getLatestAttemptForClaim(store, claim.id);
+      return {
+        claim: {
+          id: claim.id,
+          invite_id: claim.inviteId,
+          drop_id: claim.dropId,
+          status: claim.status,
+          held_until: claim.heldUntil,
+        },
+        drop: {
+          ...drop,
+          has_photo: drop.has_photo ?? false,
+          photo_url: drop.photo_url ?? null,
+        },
+        pickup_verification: latest
+          ? serializePickupVerification(store, latest)
+          : null,
+      };
+    });
+  saveStore(store);
+  return { reservations, server_time: store.serverTimeIso, is_demo: true };
 }

@@ -68,6 +68,66 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/drops/{drop_id}/photo": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Drop Photo
+     * @description Sanitized listing photo for in-scope callers; Bearer header only, never cached.
+     */
+    get: operations["drop_photo_drops__drop_id__photo_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/hosts/me/drops": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Host Drops
+     * @description The calling host's own listings in every status, newest first.
+     */
+    get: operations["host_drops_hosts_me_drops_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/students/me/reservations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * My Reservations
+     * @description The calling student's own holds in every status, newest first.
+     */
+    get: operations["my_reservations_students_me_reservations_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/drops/{drop_id}/dispatch": {
     parameters: {
       query?: never;
@@ -80,6 +140,66 @@ export interface paths {
      * @description Restrict synthetic map output to the demo projector.
      */
     get: operations["dispatch_drops__drop_id__dispatch_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/students/me/feed": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Feed
+     * @description List every active campus drop for the caller; no location is involved.
+     */
+    get: operations["feed_students_me_feed_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/drops/{drop_id}/reserve": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Reserve
+     * @description Hold a serving straight from the feed through the atomic service boundary.
+     */
+    post: operations["reserve_drops__drop_id__reserve_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/distribution": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Distribution
+     * @description Projector aggregate by host building; never student positions.
+     */
+    get: operations["distribution_distribution_get"];
     put?: never;
     post?: never;
     delete?: never;
@@ -179,9 +299,193 @@ export interface paths {
     put?: never;
     /**
      * Pickup
-     * @description Keep unverified pickup strictly inside explicit demo mode.
+     * @description Feed pickups need a consistent photo check; seeded rehearsal keeps no-body pickup.
      */
     post: operations["pickup_claims__claim_id__pickup_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/claims/{claim_id}/pickup-photo": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Pickup Photo
+     * @description Bound the upload, then let the service check it in memory; 202 while processing.
+     */
+    post: operations["pickup_photo_claims__claim_id__pickup_photo_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/claims/{claim_id}/pickup-verification": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Pickup Verification
+     * @description Latest photo check on the caller's own claim.
+     */
+    get: operations["pickup_verification_claims__claim_id__pickup_verification_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/claims/{claim_id}/pickup-review": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Pickup Review
+     * @description Explicitly ask the host to review the latest check.
+     */
+    post: operations["pickup_review_claims__claim_id__pickup_review_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/drops/{drop_id}/pickup-reviews": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Pickup Reviews
+     * @description De-identified review queue for the publishing host's own drop.
+     */
+    get: operations["pickup_reviews_drops__drop_id__pickup_reviews_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/drops/{drop_id}/pickup-reviews/{verification_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Decide Pickup Review
+     * @description Record the host's explicit approve or reject decision.
+     */
+    post: operations["decide_pickup_review_drops__drop_id__pickup_reviews__verification_id__post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/drops/{drop_id}/pantry-referral": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Pantry Referral
+     * @description Simulated pantry referral for the publishing host's own drop; demo only.
+     */
+    get: operations["pantry_referral_drops__drop_id__pantry_referral_get"];
+    put?: never;
+    /**
+     * Request Pantry Referral
+     * @description Explicit simulated request; nothing is sent to KSU and no stock is reserved.
+     */
+    post: operations["request_pantry_referral_drops__drop_id__pantry_referral_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/drops/{drop_id}/pantry-referral/handoff": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Pantry Handoff
+     * @description Simulated handoff confirmation by the publishing host; not a verified transfer.
+     */
+    post: operations["pantry_handoff_drops__drop_id__pantry_referral_handoff_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/pantry/referrals": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Pantry Referrals
+     * @description De-identified referral queue for the synthetic demo coordinator only.
+     */
+    get: operations["pantry_referrals_pantry_referrals_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/pantry/referrals/{referral_id}/decision": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Decide Pantry Referral
+     * @description Simulated coordinator accept or reject under the shared inventory lock.
+     */
+    post: operations["decide_pantry_referral_pantry_referrals__referral_id__decision_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -248,6 +552,34 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/hosts/me/push-token": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Host Push Status
+     * @description Report the authenticated host's current backend registration.
+     */
+    get: operations["host_push_status_hosts_me_push_token_get"];
+    put?: never;
+    /**
+     * Host Push Register
+     * @description Opt the authenticated host in to their own pickup updates.
+     */
+    post: operations["host_push_register_hosts_me_push_token_post"];
+    /**
+     * Host Push Forget
+     * @description Opt the authenticated host out; deferred sends recheck this.
+     */
+    delete: operations["host_push_forget_hosts_me_push_token_delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/demo/active-drop": {
     parameters: {
       query?: never;
@@ -308,6 +640,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/analytics/operations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Operations
+     * @description Projector-only aggregate analytics from persisted rows; never identities.
+     */
+    get: operations["operations_analytics_operations_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/demo/recording-dataset": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Recording Dataset
+     * @description Explicitly confirmed replacement of demo data with the simulated recording set.
+     */
+    post: operations["recording_dataset_demo_recording_dataset_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/demo/status": {
     parameters: {
       query?: never;
@@ -320,6 +692,26 @@ export interface paths {
      * @description Give presenter controls a projector-safe overview.
      */
     get: operations["status_demo_status_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/buildings": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Buildings
+     * @description List verified campus buildings; public map data needing no location permission.
+     */
+    get: operations["buildings_buildings_get"];
     put?: never;
     post?: never;
     delete?: never;
@@ -466,6 +858,103 @@ export interface components {
        */
       host_note: string;
     };
+    /** Body_pickup_photo_claims__claim_id__pickup_photo_post */
+    Body_pickup_photo_claims__claim_id__pickup_photo_post: {
+      /** Photo */
+      photo: string;
+      /**
+       * Request Id
+       * Format: uuid
+       */
+      request_id: string;
+    };
+    /**
+     * Building
+     * @description A verified campus building; public map data, never a student's location.
+     */
+    Building: {
+      /** Id */
+      id: string;
+      /** Name */
+      name: string;
+      /** Building Code */
+      building_code?: string | null;
+      /** Building Number */
+      building_number?: string | null;
+      /**
+       * Category
+       * @enum {string}
+       */
+      category: "academic" | "student_life" | "housing" | "other";
+      /** Latitude */
+      latitude: number;
+      /** Longitude */
+      longitude: number;
+      /**
+       * Verification Status
+       * @default verified
+       * @constant
+       */
+      verification_status: "verified";
+      /** Sources */
+      sources: components["schemas"]["BuildingSource"][];
+    };
+    /**
+     * BuildingDistribution
+     * @description Host pickup aggregate per building; never a student position.
+     */
+    BuildingDistribution: {
+      /** Building Code */
+      building_code: string;
+      building: components["schemas"]["Building"] | null;
+      /** Active Drops */
+      active_drops: number;
+      /** Available Drops */
+      available_drops: number;
+      counts: components["schemas"]["Counts"];
+    };
+    /** BuildingSource */
+    BuildingSource: {
+      /** Url */
+      url: string;
+      /** Title */
+      title: string;
+    };
+    /** BuildingsResponse */
+    BuildingsResponse: {
+      /**
+       * Campus
+       * @default marietta
+       * @constant
+       */
+      campus: "marietta";
+      /** Buildings */
+      buildings: components["schemas"]["Building"][];
+    };
+    /** CampusDistributionResponse */
+    CampusDistributionResponse: {
+      /**
+       * Distribution Mode
+       * @enum {string}
+       */
+      distribution_mode: "campus_feed" | "seeded_waves";
+      /** Active Drops */
+      active_drops: number;
+      /** Available Drops */
+      available_drops: number;
+      /** Joined Students */
+      joined_students: number;
+      counts: components["schemas"]["Counts"];
+      /** Buildings */
+      buildings: components["schemas"]["BuildingDistribution"][];
+      /**
+       * Server Time
+       * Format: date-time
+       */
+      server_time: string;
+      /** Is Demo */
+      is_demo: boolean;
+    };
     /** ClaimResponse */
     ClaimResponse: {
       /**
@@ -494,7 +983,13 @@ export interface components {
        */
       held_until: string;
     };
-    /** Counts */
+    /**
+     * Counts
+     * @description Per-drop inventory: total = available + held + picked_up + pantry_held + pantry_transferred.
+     *
+     *     ``held`` and ``picked_up`` are student holds and pickups only; simulated pantry
+     *     allocations are reported separately and never folded into student pickups.
+     */
     Counts: {
       /** Total */
       total: number;
@@ -504,6 +999,16 @@ export interface components {
       held: number;
       /** Picked Up */
       picked_up: number;
+      /**
+       * Pantry Held
+       * @default 0
+       */
+      pantry_held: number;
+      /**
+       * Pantry Transferred
+       * @default 0
+       */
+      pantry_transferred: number;
     };
     /**
      * DemoActiveDropResponse
@@ -630,6 +1135,12 @@ export interface components {
        * @enum {string}
        */
       scenario: "visitors" | "seeded";
+      /**
+       * Distribution Mode
+       * @default seeded_waves
+       * @enum {string}
+       */
+      distribution_mode: "campus_feed" | "seeded_waves";
       /** Next Wave At */
       next_wave_at: string | null;
       /**
@@ -668,6 +1179,11 @@ export interface components {
        */
       room: string;
       /**
+       * Pickup Instructions
+       * @default
+       */
+      pickup_instructions: string;
+      /**
        * Expires In Minutes
        * @default 45
        */
@@ -690,6 +1206,12 @@ export interface components {
       building_code: string;
       /** Room */
       room: string;
+      /**
+       * Pickup Instructions
+       * @default
+       */
+      pickup_instructions: string;
+      building?: components["schemas"]["Building"] | null;
       vision: components["schemas"]["VisionEstimate"];
       /**
        * Vision Source
@@ -728,8 +1250,21 @@ export interface components {
        * @default may contain, confirm with host
        */
       allergen_notice: string;
+      /**
+       * Distribution Mode
+       * @default seeded_waves
+       * @enum {string}
+       */
+      distribution_mode: "campus_feed" | "seeded_waves";
       /** Is Demo */
       is_demo: boolean;
+      /**
+       * Has Photo
+       * @default false
+       */
+      has_photo: boolean;
+      /** Photo Url */
+      photo_url?: string | null;
     };
     /** ErrorDetail */
     ErrorDetail: {
@@ -741,6 +1276,38 @@ export interface components {
     /** ErrorResponse */
     ErrorResponse: {
       detail: components["schemas"]["ErrorDetail"];
+    };
+    /**
+     * FeedDrop
+     * @description One campus-wide listing judged only against the caller's own preferences.
+     */
+    FeedDrop: {
+      drop: components["schemas"]["DropResponse"];
+      /** Can Reserve */
+      can_reserve: boolean;
+      /** Unavailable Reason */
+      unavailable_reason:
+        | (
+            | "allergen_conflict"
+            | "diet_mismatch"
+            | "active_claim"
+            | "capacity"
+            | "already_reserved"
+          )
+        | null;
+      claim: components["schemas"]["ClaimResponse"] | null;
+    };
+    /** FeedResponse */
+    FeedResponse: {
+      /** Drops */
+      drops: components["schemas"]["FeedDrop"][];
+      /**
+       * Server Time
+       * Format: date-time
+       */
+      server_time: string;
+      /** Is Demo */
+      is_demo: boolean;
     };
     /** FoodItem */
     FoodItem: {
@@ -755,6 +1322,111 @@ export interface components {
     HTTPValidationError: {
       /** Detail */
       detail?: components["schemas"]["ValidationError"][];
+    };
+    /**
+     * HostDropsResponse
+     * @description The calling host's own listings in every status, newest first.
+     */
+    HostDropsResponse: {
+      /** Drops */
+      drops: components["schemas"]["DropResponse"][];
+      /**
+       * Server Time
+       * Format: date-time
+       */
+      server_time: string;
+      /** Is Demo */
+      is_demo: boolean;
+    };
+    /** HostPantryReferralResponse */
+    HostPantryReferralResponse: {
+      referral: components["schemas"]["PantryReferral"] | null;
+      destination: components["schemas"]["PantryDestination"];
+      /**
+       * Notice
+       * @default Demo only — no request is sent to KSU CARE. KSU catering policy prohibits removing leftovers from event spaces. This simulation does not authorize redistribution or establish food safety.
+       */
+      notice: string;
+      /**
+       * Is Demo
+       * @default true
+       * @constant
+       */
+      is_demo: true;
+    };
+    /**
+     * HostPickupReview
+     * @description De-identified assessment metadata; the opaque ID is neither a student nor a claim ID.
+     */
+    HostPickupReview: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Drop Id
+       * Format: uuid
+       */
+      drop_id: string;
+      /**
+       * Match Status
+       * @enum {string}
+       */
+      match_status: "consistent" | "uncertain" | "inconsistent";
+      /** Confidence */
+      confidence: number;
+      /** Explanation */
+      explanation: string;
+      /**
+       * Source
+       * @enum {string}
+       */
+      source: "fixture" | "openrouter";
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Held Until
+       * Format: date-time
+       */
+      held_until: string;
+      /**
+       * Review Status
+       * @enum {string}
+       */
+      review_status:
+        | "not_requested"
+        | "pending"
+        | "approved"
+        | "rejected"
+        | "expired"
+        | "superseded";
+      /**
+       * Notice
+       * @default Photo-assisted confirmation. A photo cannot independently establish physical pickup or food safety.
+       */
+      notice: string;
+    };
+    /** HostPickupReviewsResponse */
+    HostPickupReviewsResponse: {
+      /** Reviews */
+      reviews: components["schemas"]["HostPickupReview"][];
+      /**
+       * Server Time
+       * Format: date-time
+       */
+      server_time: string;
+    };
+    /** HostReviewDecision */
+    HostReviewDecision: {
+      /**
+       * Decision
+       * @enum {string}
+       */
+      decision: "approve" | "reject";
     };
     /** InviteResponse */
     InviteResponse: {
@@ -783,17 +1455,16 @@ export interface components {
     };
     /**
      * JoinRequest
-     * @description Everything a visitor shares to join; no contact details or real identity.
+     * @description Everything a visitor shares to join; no contact details, identity or location.
+     *
+     *     ``area`` is deprecated: honored only for explicit seeded rehearsal callers and ignored
+     *     (never stored) in the campus-feed scenario.
      */
     JoinRequest: {
       /** Nickname */
       nickname: string;
-      /**
-       * Area
-       * @enum {string}
-       */
-      area:
-        "demo-venue" | "demo-next-door" | "demo-across-quad" | "demo-far-side";
+      /** Area */
+      area?: string | null;
       /** Allergens */
       allergens?: (
         | "dairy"
@@ -818,6 +1489,419 @@ export interface components {
       token: string;
       student: components["schemas"]["SessionStudent"];
     };
+    /** OperationsActivity */
+    OperationsActivity: {
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind:
+        | "listing_published"
+        | "reservation_opened"
+        | "student_pickup"
+        | "pantry_requested"
+        | "pantry_accepted"
+        | "pantry_rejected"
+        | "pantry_handoff"
+        | "pantry_expired";
+      /**
+       * Occurred At
+       * Format: date-time
+       */
+      occurred_at: string;
+      /**
+       * Drop Id
+       * Format: uuid
+       */
+      drop_id: string;
+      /** Food */
+      food: string;
+      /** Building Name */
+      building_name: string;
+      /** Servings */
+      servings: number;
+      /** Is Simulated */
+      is_simulated: boolean;
+    };
+    /** OperationsBuilding */
+    OperationsBuilding: {
+      building: components["schemas"]["Building"];
+      /** Published Listings */
+      published_listings: number;
+      /** Active Listings */
+      active_listings: number;
+      /** Available Servings */
+      available_servings: number;
+      /** Student Reserved Servings */
+      student_reserved_servings: number;
+      /** Student Pickups */
+      student_pickups: number;
+      /** Pantry Reserved Servings */
+      pantry_reserved_servings: number;
+      /** Pantry Transfers */
+      pantry_transfers: number;
+      /** Total Servings Offered */
+      total_servings_offered: number;
+      /** Expired Unclaimed Servings */
+      expired_unclaimed_servings: number;
+    };
+    /** OperationsCategory */
+    OperationsCategory: {
+      /** Category */
+      category: string;
+      /** Published Listings */
+      published_listings: number;
+      /** Total Servings Offered */
+      total_servings_offered: number;
+      /** Student Pickups */
+      student_pickups: number;
+      /** Pantry Transfers */
+      pantry_transfers: number;
+    };
+    /**
+     * OperationsDataset
+     * @description Provenance of the rows being shown; ``recording`` is always simulated data.
+     */
+    OperationsDataset: {
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind: "current" | "recording";
+      /** Label */
+      label: string;
+      /** Is Simulated */
+      is_simulated: boolean;
+      /** Seed Version */
+      seed_version: string | null;
+      /** Anchor Time */
+      anchor_time: string | null;
+    };
+    /**
+     * OperationsEstimates
+     * @description Illustrative, server-configured per-serving assumptions; never measured impact.
+     */
+    OperationsEstimates: {
+      /**
+       * Currency
+       * @default USD
+       * @constant
+       */
+      currency: "USD";
+      /** Meal Value Per Serving */
+      meal_value_per_serving: number;
+      /** Food Kg Per Serving */
+      food_kg_per_serving: number;
+      /** Recovered Servings */
+      recovered_servings: number;
+      /** Equivalent Meal Value */
+      equivalent_meal_value: number;
+      /** Recovered Food Kg */
+      recovered_food_kg: number;
+      /** Assumptions */
+      assumptions: string[];
+    };
+    /**
+     * OperationsListing
+     * @description One unexpired selected listing; the photo is the bearer-scoped relative path only.
+     */
+    OperationsListing: {
+      /**
+       * Drop Id
+       * Format: uuid
+       */
+      drop_id: string;
+      /** Food */
+      food: string;
+      /** Category */
+      category: string;
+      building: components["schemas"]["Building"];
+      /** Room */
+      room: string;
+      /**
+       * Published At
+       * Format: date-time
+       */
+      published_at: string;
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string;
+      /**
+       * Status
+       * @enum {string}
+       */
+      status: "live" | "claimed_out";
+      /** Has Photo */
+      has_photo: boolean;
+      /** Photo Url */
+      photo_url: string | null;
+      /** Total Servings */
+      total_servings: number;
+      /** Available */
+      available: number;
+      /** Held */
+      held: number;
+      /** Picked Up */
+      picked_up: number;
+      /** Pantry Held */
+      pantry_held: number;
+      /** Pantry Transferred */
+      pantry_transferred: number;
+    };
+    /**
+     * OperationsOutcomes
+     * @description Six mutually exclusive buckets that always sum to servings offered.
+     */
+    OperationsOutcomes: {
+      /** Available */
+      available: number;
+      /** Student Reserved */
+      student_reserved: number;
+      /** Student Pickups */
+      student_pickups: number;
+      /** Pantry Reserved */
+      pantry_reserved: number;
+      /** Pantry Transfers */
+      pantry_transfers: number;
+      /** Expired Unclaimed */
+      expired_unclaimed: number;
+    };
+    /** OperationsResponse */
+    OperationsResponse: {
+      /**
+       * Schema Version
+       * @default 1
+       * @constant
+       */
+      schema_version: 1;
+      dataset: components["schemas"]["OperationsDataset"];
+      /** Recording Available */
+      recording_available: boolean;
+      /**
+       * Period
+       * @enum {string}
+       */
+      period: "today" | "7d" | "30d" | "all";
+      /**
+       * Timezone
+       * @default America/New_York
+       * @constant
+       */
+      timezone: "America/New_York";
+      /** Window Start */
+      window_start: string | null;
+      /**
+       * Server Time
+       * Format: date-time
+       */
+      server_time: string;
+      summary: components["schemas"]["OperationsSummary"];
+      outcomes: components["schemas"]["OperationsOutcomes"];
+      /** Series */
+      series: components["schemas"]["OperationsSeriesPoint"][];
+      /** Buildings */
+      buildings: components["schemas"]["OperationsBuilding"][];
+      /** Activity */
+      activity: components["schemas"]["OperationsActivity"][];
+      /** Categories */
+      categories: components["schemas"]["OperationsCategory"][];
+      /** Active Listings */
+      active_listings: components["schemas"]["OperationsListing"][];
+      estimates: components["schemas"]["OperationsEstimates"];
+      /** Notes */
+      notes: string[];
+    };
+    /**
+     * OperationsSeriesPoint
+     * @description One New York day; every count is dated by its own durable event timestamp.
+     */
+    OperationsSeriesPoint: {
+      /** Date */
+      date: string;
+      /** Published Listings */
+      published_listings: number;
+      /** Servings Offered */
+      servings_offered: number;
+      /** Student Pickups */
+      student_pickups: number;
+      /** Pantry Transfers */
+      pantry_transfers: number;
+      /** Expired Unclaimed */
+      expired_unclaimed: number;
+    };
+    /** OperationsSummary */
+    OperationsSummary: {
+      /** Published Listings */
+      published_listings: number;
+      /** Active Listings */
+      active_listings: number;
+      /** Total Servings Offered */
+      total_servings_offered: number;
+      /** Available Servings */
+      available_servings: number;
+      /** Student Reserved Servings */
+      student_reserved_servings: number;
+      /** Student Pickups */
+      student_pickups: number;
+      /** Pantry Reserved Servings */
+      pantry_reserved_servings: number;
+      /** Pantry Transfers */
+      pantry_transfers: number;
+      /** Expired Unclaimed Servings */
+      expired_unclaimed_servings: number;
+      /** Pending Pickup Reviews */
+      pending_pickup_reviews: number;
+      /** Pending Pantry Requests */
+      pending_pantry_requests: number;
+      /** Buildings Served */
+      buildings_served: number;
+      /** Joined Sessions */
+      joined_sessions: number;
+      /** Student Pickup Rate Percent */
+      student_pickup_rate_percent: number;
+      /** Combined Recovery Rate Percent */
+      combined_recovery_rate_percent: number;
+      /** Average Reservation Seconds */
+      average_reservation_seconds: number | null;
+      /** Participating Hosts */
+      participating_hosts: number;
+      /** Participating Students */
+      participating_students: number;
+    };
+    /** PantryDecisionRequest */
+    PantryDecisionRequest: {
+      /**
+       * Decision
+       * @enum {string}
+       */
+      decision: "accept" | "reject";
+      /** Servings */
+      servings?: number | null;
+      /**
+       * Demo Policy Acknowledged
+       * @constant
+       */
+      demo_policy_acknowledged: true;
+    };
+    /**
+     * PantryDestination
+     * @description The verified demo pantry destination; directions target the building point only.
+     */
+    PantryDestination: {
+      /** Name */
+      name: string;
+      building: components["schemas"]["Building"];
+      /** Room */
+      room: string;
+      /** Directions Url */
+      directions_url: string;
+      /** Care Source Url */
+      care_source_url: string;
+      /** Catering Policy Url */
+      catering_policy_url: string;
+    };
+    /** PantryHandoffRequest */
+    PantryHandoffRequest: {
+      /**
+       * Demo Handoff Confirmed
+       * @constant
+       */
+      demo_handoff_confirmed: true;
+    };
+    /**
+     * PantryReferral
+     * @description A simulated pantry referral; never a real request, approval or food-safety claim.
+     */
+    PantryReferral: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Drop Id
+       * Format: uuid
+       */
+      drop_id: string;
+      /**
+       * Status
+       * @enum {string}
+       */
+      status:
+        | "suggested"
+        | "requested"
+        | "accepted"
+        | "handoff_confirmed"
+        | "rejected"
+        | "expired";
+      /** Requested Servings */
+      requested_servings: number;
+      /** Accepted Servings */
+      accepted_servings: number;
+      /** Transferred Servings */
+      transferred_servings: number;
+      /** Eligible Servings */
+      eligible_servings: number;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string;
+      destination: components["schemas"]["PantryDestination"];
+      drop: components["schemas"]["DropResponse"];
+      /**
+       * Notice
+       * @default Demo only — no request is sent to KSU CARE. KSU catering policy prohibits removing leftovers from event spaces. This simulation does not authorize redistribution or establish food safety.
+       */
+      notice: string;
+      /**
+       * Is Demo
+       * @default true
+       * @constant
+       */
+      is_demo: true;
+    };
+    /**
+     * PantryReferralRequest
+     * @description Acknowledging the demo notice never waives KSU catering policy.
+     */
+    PantryReferralRequest: {
+      /** Servings */
+      servings: number;
+      /**
+       * Demo Policy Acknowledged
+       * @constant
+       */
+      demo_policy_acknowledged: true;
+    };
+    /** PantryReferralsResponse */
+    PantryReferralsResponse: {
+      /** Referrals */
+      referrals: components["schemas"]["PantryReferral"][];
+      /**
+       * Server Time
+       * Format: date-time
+       */
+      server_time: string;
+      /**
+       * Is Demo
+       * @default true
+       * @constant
+       */
+      is_demo: true;
+    };
     /** PersonaDecision */
     PersonaDecision: {
       /** Label */
@@ -838,6 +1922,81 @@ export interface components {
       h3_cell: string | null;
       /** Wave Number */
       wave_number?: number | null;
+    };
+    /**
+     * PickupRequest
+     * @description Optional for legacy seeded rehearsal; required for campus-feed pickups.
+     */
+    PickupRequest: {
+      /** Verification Id */
+      verification_id?: string | null;
+    };
+    /** PickupReviewRequest */
+    PickupReviewRequest: {
+      /**
+       * Verification Id
+       * Format: uuid
+       */
+      verification_id: string;
+    };
+    /**
+     * PickupVerification
+     * @description A student's own photo-assisted check; never proof of pickup or food safety.
+     */
+    PickupVerification: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Claim Id
+       * Format: uuid
+       */
+      claim_id: string;
+      /**
+       * Status
+       * @enum {string}
+       */
+      status: "processing" | "ready" | "failed";
+      /** Match Status */
+      match_status: ("consistent" | "uncertain" | "inconsistent") | null;
+      /** Confidence */
+      confidence: number | null;
+      /** Explanation */
+      explanation: string;
+      /**
+       * Source
+       * @enum {string}
+       */
+      source: "fixture" | "openrouter";
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Review Status
+       * @enum {string}
+       */
+      review_status:
+        | "not_requested"
+        | "pending"
+        | "approved"
+        | "rejected"
+        | "expired"
+        | "superseded";
+      /** Can Confirm */
+      can_confirm: boolean;
+      /**
+       * Notice
+       * @default Photo-assisted confirmation. A photo cannot independently establish physical pickup or food safety.
+       */
+      notice: string;
+    };
+    /** PickupVerificationResponse */
+    PickupVerificationResponse: {
+      verification: components["schemas"]["PickupVerification"] | null;
     };
     /** Preferences */
     Preferences: {
@@ -884,6 +2043,17 @@ export interface components {
       /** Registered */
       registered: boolean;
     };
+    /**
+     * RecordingDatasetRequest
+     * @description Loading replaces all demo app data, so the caller must confirm explicitly.
+     */
+    RecordingDatasetRequest: {
+      /**
+       * Confirm Reset
+       * @constant
+       */
+      confirm_reset: true;
+    };
     /** SafetyReview */
     SafetyReview: {
       /** Covered And Temperature Safe */
@@ -921,12 +2091,8 @@ export interface components {
       id: string;
       /** Nickname */
       nickname: string;
-      /**
-       * Area
-       * @enum {string}
-       */
-      area:
-        "demo-venue" | "demo-next-door" | "demo-across-quad" | "demo-far-side";
+      /** Area */
+      area?: string | null;
       /** Allergens */
       allergens: (
         | "dairy"
@@ -952,6 +2118,27 @@ export interface components {
        * Format: date-time
        */
       valid_until: string;
+    };
+    /**
+     * StudentReservation
+     * @description One of the caller's own holds with its listing; nothing about other students.
+     */
+    StudentReservation: {
+      claim: components["schemas"]["ClaimResponse"];
+      drop: components["schemas"]["DropResponse"];
+      pickup_verification: components["schemas"]["PickupVerification"] | null;
+    };
+    /** StudentReservationsResponse */
+    StudentReservationsResponse: {
+      /** Reservations */
+      reservations: components["schemas"]["StudentReservation"][];
+      /**
+       * Server Time
+       * Format: date-time
+       */
+      server_time: string;
+      /** Is Demo */
+      is_demo: boolean;
     };
     /**
      * SurveyAnswers
@@ -1083,12 +2270,8 @@ export interface components {
     VisitorDecision: {
       /** Nickname */
       nickname: string;
-      /**
-       * Area
-       * @enum {string}
-       */
-      area:
-        "demo-venue" | "demo-next-door" | "demo-across-quad" | "demo-far-side";
+      /** Area */
+      area?: string | null;
       /** Ring Distance */
       ring_distance: number | null;
       /** Status */
@@ -1477,6 +2660,263 @@ export interface operations {
       };
     };
   };
+  drop_photo_drops__drop_id__photo_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        drop_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Sanitized JPEG */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "image/jpeg": unknown;
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  host_drops_hosts_me_drops_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HostDropsResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  my_reservations_students_me_reservations_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["StudentReservationsResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
   dispatch_drops__drop_id__dispatch_get: {
     parameters: {
       query?: never;
@@ -1497,6 +2937,263 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["DispatchResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  feed_students_me_feed_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["FeedResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  reserve_drops__drop_id__reserve_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        drop_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ClaimResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  distribution_distribution_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CampusDistributionResponse"];
         };
       };
       /** @description Unauthorized */
@@ -1921,7 +3618,11 @@ export interface operations {
       };
       cookie?: never;
     };
-    requestBody?: never;
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["PickupRequest"] | null;
+      };
+    };
     responses: {
       /** @description Successful Response */
       200: {
@@ -1930,6 +3631,908 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ClaimResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  pickup_photo_claims__claim_id__pickup_photo_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        claim_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "multipart/form-data": components["schemas"]["Body_pickup_photo_claims__claim_id__pickup_photo_post"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PickupVerification"];
+        };
+      };
+      /** @description Accepted */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PickupVerification"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  pickup_verification_claims__claim_id__pickup_verification_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        claim_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PickupVerificationResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  pickup_review_claims__claim_id__pickup_review_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        claim_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PickupReviewRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PickupVerification"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  pickup_reviews_drops__drop_id__pickup_reviews_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        drop_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HostPickupReviewsResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  decide_pickup_review_drops__drop_id__pickup_reviews__verification_id__post: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        drop_id: string;
+        verification_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["HostReviewDecision"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HostPickupReview"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  pantry_referral_drops__drop_id__pantry_referral_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        drop_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HostPantryReferralResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  request_pantry_referral_drops__drop_id__pantry_referral_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        drop_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PantryReferralRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PantryReferral"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  pantry_handoff_drops__drop_id__pantry_referral_handoff_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        drop_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PantryHandoffRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PantryReferral"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  pantry_referrals_pantry_referrals_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PantryReferralsResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  decide_pantry_referral_pantry_referrals__referral_id__decision_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        referral_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PantryDecisionRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PantryReferral"];
         };
       };
       /** @description Unauthorized */
@@ -2189,6 +4792,265 @@ export interface operations {
         "application/json": components["schemas"]["PushTokenRequest"];
       };
     };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PushTokenResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  host_push_status_hosts_me_push_token_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PushTokenResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  host_push_register_hosts_me_push_token_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PushTokenRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PushTokenResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  host_push_forget_hosts_me_push_token_delete: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
     responses: {
       /** @description Successful Response */
       200: {
@@ -2527,6 +5389,182 @@ export interface operations {
       };
     };
   };
+  operations_analytics_operations_get: {
+    parameters: {
+      query?: {
+        period?: "today" | "7d" | "30d" | "all";
+      };
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OperationsResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  recording_dataset_demo_recording_dataset_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RecordingDatasetRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OperationsResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
   status_demo_status_get: {
     parameters: {
       query?: never;
@@ -2599,6 +5637,80 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  buildings_buildings_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BuildingsResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
         };
       };
       /** @description Service Unavailable */

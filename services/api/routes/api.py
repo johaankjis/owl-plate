@@ -4,11 +4,14 @@ from collections.abc import Callable
 from typing import Annotated, ParamSpec, TypeVar
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Response, UploadFile
 from sqlalchemy.exc import SQLAlchemyError
 
 from services.api.application import Actor, Backend, DomainError
+from services.api.routes.uploads import MemoryPhotoRoute
 from services.api.schemas.api import (
+    BuildingsResponse,
+    CampusDistributionResponse,
     ClaimResponse,
     DemoActiveDropResponse,
     DemoAreasResponse,
@@ -21,10 +24,25 @@ from services.api.schemas.api import (
     DropEdit,
     DropResponse,
     ErrorResponse,
+    FeedResponse,
+    HostDropsResponse,
+    HostPantryReferralResponse,
+    HostPickupReview,
+    HostPickupReviewsResponse,
+    HostReviewDecision,
     InviteResponse,
     InvitesResponse,
     JoinRequest,
     JoinResponse,
+    PantryDecisionRequest,
+    PantryHandoffRequest,
+    PantryReferral,
+    PantryReferralRequest,
+    PantryReferralsResponse,
+    PickupRequest,
+    PickupReviewRequest,
+    PickupVerification,
+    PickupVerificationResponse,
     Preferences,
     PresenceRequest,
     PresenceResponse,
@@ -32,6 +50,12 @@ from services.api.schemas.api import (
     PushTokenResponse,
     SessionLeftResponse,
     SessionStudent,
+    StudentReservationsResponse,
+)
+from services.api.schemas.operations import (
+    OperationsPeriod,
+    OperationsResponse,
+    RecordingDatasetRequest,
 )
 
 P = ParamSpec("P")
@@ -43,7 +67,8 @@ def build_router(
 ) -> APIRouter:
     """Bind manager-owned adapters without relying on global app state."""
     router = APIRouter(
-        responses={code: {"model": ErrorResponse} for code in [401, 403, 404, 409, 413, 503]}
+        route_class=MemoryPhotoRoute,
+        responses={code: {"model": ErrorResponse} for code in [401, 403, 404, 409, 413, 503]},
     )
 
     def invoke(method: Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> R:
@@ -95,10 +120,53 @@ def build_router(
         """Scope food details through the service's ownership check."""
         return invoke(backend.get_drop, actor, str(drop_id))
 
+    @router.get(
+        "/drops/{drop_id}/photo",
+        response_class=Response,
+        responses={200: {"content": {"image/jpeg": {}}, "description": "Sanitized JPEG"}},
+    )
+    def drop_photo(drop_id: UUID, actor: Identity) -> Response:
+        """Sanitized listing photo for in-scope callers; Bearer header only, never cached."""
+        content = invoke(backend.drop_photo, actor, str(drop_id))
+        return Response(
+            content=content,
+            media_type="image/jpeg",
+            headers={
+                "Cache-Control": "private, no-store",
+                "X-Content-Type-Options": "nosniff",
+                "Content-Disposition": 'inline; filename="drop-photo.jpg"',
+            },
+        )
+
+    @router.get("/hosts/me/drops", response_model=HostDropsResponse)
+    def host_drops(actor: Identity) -> HostDropsResponse:
+        """The calling host's own listings in every status, newest first."""
+        return invoke(backend.host_drops, actor)
+
+    @router.get("/students/me/reservations", response_model=StudentReservationsResponse)
+    def my_reservations(actor: Identity) -> StudentReservationsResponse:
+        """The calling student's own holds in every status, newest first."""
+        return invoke(backend.my_reservations, actor)
+
     @router.get("/drops/{drop_id}/dispatch", response_model=DispatchResponse)
     def dispatch(drop_id: UUID, actor: Identity) -> DispatchResponse:
         """Restrict synthetic map output to the demo projector."""
         return invoke(backend.dispatch, actor, str(drop_id))
+
+    @router.get("/students/me/feed", response_model=FeedResponse)
+    def feed(actor: Identity) -> FeedResponse:
+        """List every active campus drop for the caller; no location is involved."""
+        return invoke(backend.feed, actor)
+
+    @router.post("/drops/{drop_id}/reserve", response_model=ClaimResponse)
+    def reserve(drop_id: UUID, actor: Identity) -> ClaimResponse:
+        """Hold a serving straight from the feed through the atomic service boundary."""
+        return invoke(backend.reserve, actor, str(drop_id))
+
+    @router.get("/distribution", response_model=CampusDistributionResponse)
+    def distribution(actor: Identity) -> CampusDistributionResponse:
+        """Projector aggregate by host building; never student positions."""
+        return invoke(backend.distribution, actor)
 
     @router.get("/students/me/invites", response_model=InvitesResponse)
     def invites(actor: Identity) -> InvitesResponse:
@@ -121,9 +189,110 @@ def build_router(
         return invoke(backend.update_claim, actor, str(claim_id))
 
     @router.post("/claims/{claim_id}/pickup", response_model=ClaimResponse)
-    def pickup(claim_id: UUID, actor: Identity) -> ClaimResponse:
-        """Keep unverified pickup strictly inside explicit demo mode."""
-        return invoke(backend.update_claim, actor, str(claim_id), pickup=True)
+    def pickup(
+        claim_id: UUID, actor: Identity, request: PickupRequest | None = None
+    ) -> ClaimResponse:
+        """Feed pickups need a consistent photo check; seeded rehearsal keeps no-body pickup."""
+        return invoke(
+            backend.update_claim,
+            actor,
+            str(claim_id),
+            pickup=True,
+            verification_id=request.verification_id if request else None,
+        )
+
+    @router.post(
+        "/claims/{claim_id}/pickup-photo",
+        response_model=PickupVerification,
+        responses={202: {"model": PickupVerification}, 422: {"model": ErrorResponse}},
+    )
+    def pickup_photo(
+        claim_id: UUID,
+        actor: Identity,
+        response: Response,
+        photo: Annotated[UploadFile, File()],
+        request_id: Annotated[UUID, Form()],
+    ) -> PickupVerification:
+        """Bound the upload, then let the service check it in memory; 202 while processing."""
+        invoke(backend.require, actor, "student")
+        if photo.content_type not in {"image/jpeg", "image/png"}:
+            raise HTTPException(
+                422, detail={"code": "invalid_photo", "message": "Use JPEG or PNG."}
+            )
+        content = photo.file.read(10 * 1024 * 1024 + 1)
+        result = invoke(backend.submit_pickup_photo, actor, str(claim_id), content, request_id)
+        if result.status == "processing":
+            response.status_code = 202
+        return result
+
+    @router.get("/claims/{claim_id}/pickup-verification", response_model=PickupVerificationResponse)
+    def pickup_verification(claim_id: UUID, actor: Identity) -> PickupVerificationResponse:
+        """Latest photo check on the caller's own claim."""
+        return invoke(backend.pickup_verification, actor, str(claim_id))
+
+    @router.post("/claims/{claim_id}/pickup-review", response_model=PickupVerification)
+    def pickup_review(
+        claim_id: UUID, request: PickupReviewRequest, actor: Identity
+    ) -> PickupVerification:
+        """Explicitly ask the host to review the latest check."""
+        return invoke(backend.request_pickup_review, actor, str(claim_id), request.verification_id)
+
+    @router.get("/drops/{drop_id}/pickup-reviews", response_model=HostPickupReviewsResponse)
+    def pickup_reviews(drop_id: UUID, actor: Identity) -> HostPickupReviewsResponse:
+        """De-identified review queue for the publishing host's own drop."""
+        return invoke(backend.pickup_reviews, actor, str(drop_id))
+
+    @router.post(
+        "/drops/{drop_id}/pickup-reviews/{verification_id}", response_model=HostPickupReview
+    )
+    def decide_pickup_review(
+        drop_id: UUID, verification_id: UUID, decision: HostReviewDecision, actor: Identity
+    ) -> HostPickupReview:
+        """Record the host's explicit approve or reject decision."""
+        return invoke(
+            backend.decide_pickup_review,
+            actor,
+            str(drop_id),
+            str(verification_id),
+            decision.decision,
+        )
+
+    @router.get("/drops/{drop_id}/pantry-referral", response_model=HostPantryReferralResponse)
+    def pantry_referral(drop_id: UUID, actor: Identity) -> HostPantryReferralResponse:
+        """Simulated pantry referral for the publishing host's own drop; demo only."""
+        return invoke(backend.pantry_referral, actor, str(drop_id))
+
+    @router.post("/drops/{drop_id}/pantry-referral", response_model=PantryReferral)
+    def request_pantry_referral(
+        drop_id: UUID, request: PantryReferralRequest, actor: Identity
+    ) -> PantryReferral:
+        """Explicit simulated request; nothing is sent to KSU and no stock is reserved."""
+        return invoke(backend.request_pantry_referral, actor, str(drop_id), request.servings)
+
+    @router.post("/drops/{drop_id}/pantry-referral/handoff", response_model=PantryReferral)
+    def pantry_handoff(
+        drop_id: UUID, request: PantryHandoffRequest, actor: Identity
+    ) -> PantryReferral:
+        """Simulated handoff confirmation by the publishing host; not a verified transfer."""
+        return invoke(backend.confirm_pantry_handoff, actor, str(drop_id))
+
+    @router.get("/pantry/referrals", response_model=PantryReferralsResponse)
+    def pantry_referrals(actor: Identity) -> PantryReferralsResponse:
+        """De-identified referral queue for the synthetic demo coordinator only."""
+        return invoke(backend.pantry_referrals, actor)
+
+    @router.post("/pantry/referrals/{referral_id}/decision", response_model=PantryReferral)
+    def decide_pantry_referral(
+        referral_id: UUID, request: PantryDecisionRequest, actor: Identity
+    ) -> PantryReferral:
+        """Simulated coordinator accept or reject under the shared inventory lock."""
+        return invoke(
+            backend.decide_pantry_referral,
+            actor,
+            str(referral_id),
+            request.decision,
+            request.servings,
+        )
 
     @router.put("/students/me/preferences", response_model=Preferences)
     def preferences(preferences: Preferences, actor: Identity) -> Preferences:
@@ -164,6 +333,21 @@ def build_router(
             },
         )
 
+    @router.get("/hosts/me/push-token", response_model=PushTokenResponse)
+    def host_push_status(actor: Identity) -> PushTokenResponse:
+        """Report the authenticated host's current backend registration."""
+        return invoke(backend.host_push_status, actor)
+
+    @router.post("/hosts/me/push-token", response_model=PushTokenResponse)
+    def host_push_register(token: PushTokenRequest, actor: Identity) -> PushTokenResponse:
+        """Opt the authenticated host in to their own pickup updates."""
+        return invoke(backend.register_host_push, actor, token.token)
+
+    @router.delete("/hosts/me/push-token", response_model=PushTokenResponse)
+    def host_push_forget(actor: Identity) -> PushTokenResponse:
+        """Opt the authenticated host out; deferred sends recheck this."""
+        return invoke(backend.forget_host_push, actor)
+
     @router.get("/demo/active-drop", response_model=DemoActiveDropResponse)
     def active_drop(actor: Identity) -> DemoActiveDropResponse:
         """Allow a separate synthetic projector to discover the current host flow."""
@@ -180,10 +364,25 @@ def build_router(
         invoke(backend.require_presenter, actor)
         return DemoTickResponse(server_time=invoke(backend.tick, tick.advance_seconds))
 
+    @router.get("/analytics/operations", response_model=OperationsResponse)
+    def operations(actor: Identity, period: OperationsPeriod = "7d") -> OperationsResponse:
+        """Projector-only aggregate analytics from persisted rows; never identities."""
+        return invoke(backend.operations, actor, period)
+
+    @router.post("/demo/recording-dataset", response_model=OperationsResponse)
+    def recording_dataset(request: RecordingDatasetRequest, actor: Identity) -> OperationsResponse:
+        """Explicitly confirmed replacement of demo data with the simulated recording set."""
+        return invoke(backend.load_recording_dataset, actor)
+
     @router.get("/demo/status", response_model=DemoStatusResponse)
     def status(actor: Identity) -> DemoStatusResponse:
         """Give presenter controls a projector-safe overview."""
         return invoke(backend.demo_status, actor)
+
+    @router.get("/buildings", response_model=BuildingsResponse)
+    def buildings() -> BuildingsResponse:
+        """List verified campus buildings; public map data needing no location permission."""
+        return backend.campus_buildings()
 
     @router.get("/demo/areas", response_model=DemoAreasResponse)
     def areas() -> DemoAreasResponse:

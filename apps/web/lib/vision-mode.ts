@@ -32,11 +32,19 @@ function useDemoHealth(): {
   vision: VisionMode | null;
   notifications: NotificationMode | null;
 } {
-  const [mode, setMode] = useState<VisionMode | null>(null);
+  const isFixtureMode = process.env.NEXT_PUBLIC_UI_FIXTURE_MODE === "true";
+  const [mode, setMode] = useState<VisionMode | null>(
+    isFixtureMode ? "fixture" : null,
+  );
   const [notifications, setNotifications] = useState<NotificationMode | null>(
-    null,
+    isFixtureMode ? "simulated" : null,
   );
   useEffect(() => {
+    if (isFixtureMode) {
+      setMode("fixture");
+      setNotifications("simulated");
+      return;
+    }
     let active = true;
     fetch(`${API_BASE_URL}/health`, { cache: "no-store" })
       .then(
@@ -64,6 +72,6 @@ function useDemoHealth(): {
     return () => {
       active = false;
     };
-  }, []);
+  }, [isFixtureMode]);
   return { vision: mode, notifications };
 }

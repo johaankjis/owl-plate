@@ -17,21 +17,21 @@ interface AllergenListDisplayProps {
 export function AllergenListDisplay({
   allergens,
   notice = ALLERGEN_WARNING_TEXT,
-  title = "Allergens (AI estimate / host reviewed)",
+  title = "Allergen information",
   compact = false,
 }: AllergenListDisplayProps) {
   return (
     <div
       data-testid="allergen-display-box"
-      className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-3"
+      className="rounded-lg border border-warning/30 bg-warning-tint p-3"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wider text-amber-300">
+        <span className="text-xs font-semibold uppercase tracking-wider text-warning">
           {title}
         </span>
         <span
           data-testid="allergen-warning-banner"
-          className="rounded bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-200"
+          className="rounded bg-warning-tint px-2 py-0.5 text-xs font-bold text-warning"
         >
           Warning: {notice || ALLERGEN_WARNING_TEXT}
         </span>
@@ -42,25 +42,25 @@ export function AllergenListDisplay({
           allergens.map((alg) => (
             <span
               key={alg}
-              className="inline-flex items-center gap-1 rounded-md border border-amber-400/40 bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-100"
+              className="inline-flex items-center gap-1 rounded-md border border-warning/30 bg-warning-tint px-2.5 py-1 text-xs font-semibold text-warning"
             >
               <span>{alg.replace("_", " ")}</span>
               {!compact && (
-                <span className="text-[10px] font-normal text-amber-300/90">
+                <span className="text-[10px] font-normal text-warning">
                   ({ALLERGEN_WARNING_TEXT})
                 </span>
               )}
             </span>
           ))
         ) : (
-          <span className="text-xs text-amber-200/90">
+          <span className="text-xs text-warning">
             No specific allergens tagged —{" "}
             <strong className="font-semibold">{ALLERGEN_WARNING_TEXT}</strong>
           </span>
         )}
       </div>
 
-      <p className="mt-2 text-[11px] text-amber-200/80">
+      <p className="mt-2 text-[11px] text-warning">
         Offered in good faith by the host. Allergens are estimates:{" "}
         <strong className="underline">{ALLERGEN_WARNING_TEXT}</strong>.
       </p>

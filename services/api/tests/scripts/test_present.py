@@ -55,6 +55,16 @@ def test_fixture_mode_is_unchanged_and_needs_no_key(isolated_env) -> None:
     assert present.vision_environment("fixture") == {"VISION_PROVIDER": "fixture"}
 
 
+def test_build_fingerprint_tracks_effective_proxy_origin(tmp_path, monkeypatch) -> None:
+    """A build for an isolated API must never be reused against the canonical API."""
+    monkeypatch.setattr(present, "WEB", tmp_path)
+    default = present.build_fingerprint({})
+    assert default == present.build_fingerprint({"OWL_API_ORIGIN": ""})
+    assert default == present.build_fingerprint({"OWL_API_ORIGIN": "http://127.0.0.1:8017"})
+    isolated = present.build_fingerprint({"OWL_API_ORIGIN": "http://127.0.0.1:8027"})
+    assert default != isolated
+
+
 def test_openrouter_missing_key_exits_with_private_setup_message(isolated_env) -> None:
     with pytest.raises(SystemExit) as exc_info:
         present.resolve_openrouter_credentials()

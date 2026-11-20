@@ -5,8 +5,20 @@ const { execFileSync } = require("node:child_process");
 const { chromium } = require(
   process.env.OWL_PLAYWRIGHT_MODULE || "playwright-core",
 );
-const api = process.env.OWL_API_URL || "http://localhost:8017";
-const web = process.env.OWL_WEB_URL || "http://localhost:3017";
+const api = process.env.OWL_API_URL || "http://127.0.0.1:8027";
+const web = process.env.OWL_WEB_URL || "http://127.0.0.1:3027";
+for (const [value, port] of [
+  [web, "3027"],
+  [api, "8027"],
+]) {
+  const url = new URL(value);
+  assert.ok(["localhost", "127.0.0.1"].includes(url.hostname));
+  assert.equal(
+    url.port,
+    port,
+    "Isolated candidate only; never reset the live demo",
+  );
+}
 const out = process.env.OWL_REHEARSAL_ARTIFACTS || "test-results/rehearsal";
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -31,10 +43,14 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       seconds: +((performance.now() - started) / 1000).toFixed(3),
       ...details,
     });
-  async function request(path, token = "demo-host", method = "GET") {
+  async function request(path, token = "demo-host", method = "GET", body) {
     const res = await fetch(`${api}${path}`, {
       method,
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(body ? { "Content-Type": "application/json" } : {}),
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
     });
     assert.equal(res.status, 200, `${method} ${path}`);
     return res.json();
@@ -46,7 +62,8 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     "Never run this capture with live notification transport",
   );
   assert.equal(health.is_demo, true);
-  await request("/demo/reset", "demo-host", "POST");
+  assert.equal(health.vision, "fixture");
+  await request("/demo/reset", "demo-host", "POST", { scenario: "seeded" });
   mark("clean_reset", { students: 30 });
   const photo = `${out}/synthetic-photo.png`;
   fs.writeFileSync(
@@ -73,8 +90,12 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     })) {
       contexts[name] = await browser.newContext({
         viewport,
-        recordVideo: { dir: `${out}/raw`, size: viewport },
+        recordVideo:
+          process.env.OWL_RECORD_VIDEO === "false"
+            ? undefined
+            : { dir: `${out}/raw`, size: viewport },
       });
+      contexts[name].setDefaultTimeout(20000);
       pages[name] = await contexts[name].newPage();
       origins[name] = performance.now();
       pages[name].on("pageerror", (err) => errors.push(err.message));
@@ -93,15 +114,28 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     async function text(id, value) {
       await pages.projector
         .getByTestId(id)
-        .filter({ hasText: value })
+        .filter({ hasText: new RegExp(`^${value}$`) })
         .waitFor({ timeout: 90000 });
     }
     await Promise.all(
       Object.entries(pages).map(([name, page]) =>
-        page.goto(`${web}/${name === "projector" ? "dispatch" : name}`),
+        page.goto(
+          `${web}/${name === "projector" ? "admin/projector" : name === "student" ? "student?persona=A" : "host?rehearsal=1"}`,
+        ),
       ),
     );
     const { host, projector, student } = pages;
+    await student
+      .getByTestId("seeded-persona-banner")
+      .filter({ hasText: "Rehearsal" })
+      .waitFor();
+    assert.equal(
+      await student
+        .locator('[data-testid*="building-selector"], [data-testid*="checkin"]')
+        .count(),
+      0,
+      "No student location controls",
+    );
     await scene(
       "host",
       "1. Photograph and review",
@@ -119,15 +153,18 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     await shot("01-host-estimate", host);
     await pause(2500);
     await host.getByTestId("servings-input").fill("2");
+    await host.getByTestId("host-rehearsal-option-DEMO-ORIGIN").click();
     for (const name of ["covered", "two-hours", "untouched"])
       await host.getByTestId(`safety-check-${name}`).check();
     await pause(3000);
     await host.getByTestId("publish-drop-button").click();
-    await text("persona-status-A", "sent");
-    await text("persona-status-C", "sent");
+    await text("persona-status-A", "Invited");
+    await text("persona-status-C", "Invited");
     const { drop_id: dropId } = await request("/demo/active-drop");
     const drop = await request(`/drops/${dropId}`);
     assert.equal(drop.vision_source, "fixture");
+    assert.equal(drop.building_code, "DEMO-ORIGIN");
+    assert.equal(drop.building, null);
     mark("wave1_observed", { ring_k: 2 });
     await scene(
       "projector",
@@ -136,11 +173,11 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     );
     assert.match(
       await projector.getByTestId("persona-row-B").innerText(),
-      /allergen_conflict/,
+      /dietary filter/i,
     );
     assert.match(
       await projector.getByTestId("persona-row-D").innerText(),
-      /out_of_range/,
+      /outside current ring/i,
     );
     await shot("02-wave1", projector);
     await pause(5000);
@@ -149,8 +186,9 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       "3. C sees an invitation",
       "This is C's own browser invite. No physical phone or push receipt is being shown.",
     );
-    await student.getByTestId("switch-demo-student-C").click();
+    await student.goto(`${web}/student?persona=C`);
     await student.locator('[data-testid^="invite-card-"]').waitFor();
+    assert.equal(await student.getByTestId("get-directions-link").count(), 0);
     await student
       .locator('[data-testid^="invite-card-"]')
       .evaluate((el) => el.scrollIntoView({ block: "center" }));
@@ -162,7 +200,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       "4. B has no invitation",
       "The dairy hard filter excludes B before ranking; B receives no simulated invite.",
     );
-    await student.getByTestId("switch-demo-student-B").click();
+    await student.goto(`${web}/student?persona=B`);
     await student.getByTestId("no-invites-card").waitFor();
     await student
       .getByTestId("no-invites-card")
@@ -179,7 +217,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       "5. A holds one serving",
       "The claim uses the real application route. Two available becomes one available plus one held.",
     );
-    await student.getByTestId("switch-demo-student-A").click();
+    await student.goto(`${web}/student?persona=A`);
     const claim = student
       .locator('[data-testid^="claim-invite-button-"]')
       .first();
@@ -202,8 +240,8 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       "Real elapsed waiting: no demo clock advance. Scheduler checks every 10 seconds.",
     );
     await text("dispatch-ring-k", "k = 4");
-    await text("persona-status-C", "expired");
-    await text("persona-status-D", "sent");
+    await text("persona-status-C", "Invite expired");
+    await text("persona-status-D", "Invited");
     mark("wave2_observed", { ring_k: 4 });
     await scene(
       "projector",
@@ -219,6 +257,8 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       available: 1,
       held: 1,
       picked_up: 0,
+      pantry_held: 0,
+      pantry_transferred: 0,
     });
     assert.doesNotMatch(
       JSON.stringify(snapshot).toLowerCase(),
@@ -237,21 +277,55 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       "8. D sees the second-wave invitation",
       "A separate synthetic identity sees only its own invite. Physical push verification remains pending.",
     );
-    await student.getByTestId("switch-demo-student-D").click();
+    await student.goto(`${web}/student?persona=D`);
     await student.locator('[data-testid^="invite-card-"]').waitFor();
     await student
       .locator('[data-testid^="invite-card-"]')
       .evaluate((el) => el.scrollIntoView({ block: "center" }));
     mark("D_browser_invite_visible");
     await shot("07-D-invite", student);
+    // Legacy no-photo completion is permitted only in this explicit seeded demo.
+    const seededClaim = (
+      await request("/students/me/invites", "demo-student-A")
+    ).invites[0].claim;
+    assert.equal(seededClaim.status, "held");
+    const legacyPickup = await request(
+      `/claims/${seededClaim.id}/pickup`,
+      "demo-student-A",
+      "POST",
+    );
+    assert.equal(legacyPickup.status, "picked_up");
+    const legacyRetry = await request(
+      `/claims/${seededClaim.id}/pickup`,
+      "demo-student-A",
+      "POST",
+    );
+    assert.equal(legacyRetry.id, legacyPickup.id);
+    assert.deepEqual(
+      (await request(`/drops/${dropId}/dispatch`, "demo-projector")).counts,
+      {
+        total: 2,
+        available: 1,
+        held: 0,
+        picked_up: 1,
+        pantry_held: 0,
+        pantry_transferred: 0,
+      },
+    );
+    mark("explicit_seeded_only_legacy_no_body_pickup_idempotent");
     await pause(6000);
     await scene(
       "host",
       "9. Reset for the next run",
       "Reset clears drops, invites and holds; 30 synthetic students are seeded again.",
     );
-    await host.getByTestId("demo-reset-button").click();
-    await host.getByText("Reset complete:", { exact: false }).waitFor();
+    await projector.getByTestId("presenter-toggle").click();
+    await projector.getByTestId("presenter-load-seeded").click();
+    await projector.getByTestId("presenter-load-seeded").click();
+    await projector
+      .getByTestId("presenter-notice")
+      .filter({ hasText: "Seeded rehearsal loaded" })
+      .waitFor();
     assert.equal((await request("/demo/active-drop")).drop_id, null);
     assert.equal(
       (await request("/students/me/invites", "demo-student-A")).invites.length,
@@ -272,7 +346,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     );
     for (const [name, context] of Object.entries(contexts)) {
       await context.close();
-      if (pages[name]) {
+      if (pages[name]?.video()) {
         const videoPath = await pages[name].video().path();
         assert.ok(
           fs.statSync(videoPath).size > 0,

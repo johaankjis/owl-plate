@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 
 from sqlmodel import Session, select
 
+from services.api.campus import CampusRegistry
 from services.api.db.models import Claim, Drop, Invite, Student, VisitorSession, Wave
 from services.api.schemas.api import (
     JoinRequest,
@@ -44,42 +45,61 @@ def resolve_token(session: Session, token: str) -> str | None:
     return record.student_id if record else None
 
 
+def _join_cell(
+    session: Session, origin: str, area: str | None, campus: CampusRegistry
+) -> str | None:
+    """Resolve a legacy rehearsal ring or a verified building's own cell, nothing else."""
+    if area is None:
+        return None
+    if area in RING_DISTANCE:
+        neighbors = session.exec(
+            select(VisitorSession.student_id).where(VisitorSession.area == area)
+        ).all()
+        return area_cell(origin, RING_DISTANCE[area], len(neighbors))
+    cell = campus.cells.get(area)
+    if cell is None:
+        raise SessionError("invalid_building", "Choose a building from the campus list.", 422)
+    return cell
+
+
 def create_session(
-    session: Session, *, origin: str, now: datetime, request: JoinRequest
+    session: Session,
+    *,
+    origin: str,
+    now: datetime,
+    request: JoinRequest,
+    campus: CampusRegistry,
+    location_free: bool = False,
 ) -> JoinResponse:
-    """Create a distinct visitor student and a revocable token record per join call."""
+    """Create a distinct visitor student and a revocable token record per join call.
+
+    In location-free (campus feed) mode the deprecated area is ignored entirely: nothing
+    is validated, stored or derived from it, so no student cell ever exists.
+    """
+    area = None if location_free else request.area
+    cell = _join_cell(session, origin, area, campus)
     if len(session.exec(select(VisitorSession.student_id)).all()) >= SESSION_LIMIT:
         raise SessionError("session_limit", "This demo session is full.")
     key = request.nickname.lower()
     if session.exec(select(VisitorSession).where(VisitorSession.nickname_key == key)).first():
         raise SessionError("nickname_taken", "That nickname is already in this demo.")
-    neighbors = session.exec(
-        select(VisitorSession.student_id).where(VisitorSession.area == request.area)
-    ).all()
-    cell = area_cell(origin, RING_DISTANCE[request.area], len(neighbors))
     student_id = str(uuid4())
     valid_until = now + timedelta(hours=2)
-    session.add(
-        Student(
-            id=student_id,
-            label=request.nickname,
-            is_simulated=False,
-            data={
-                "kind": "visitor",
-                "nickname": request.nickname,
-                "area": request.area,
-                "cell": cell,
-                "allergens": list(request.allergens),
-                "diets": list(request.diets),
-                "alerts_paused": False,
-                "priority": False,
-                "claims_last_7d": 0,
-                "ignored_last_7d": 0,
-                "valid_from": now.isoformat(),
-                "valid_until": valid_until.isoformat(),
-            },
-        )
-    )
+    data = {
+        "kind": "visitor",
+        "nickname": request.nickname,
+        "allergens": list(request.allergens),
+        "diets": list(request.diets),
+        "alerts_paused": False,
+        "priority": False,
+        "claims_last_7d": 0,
+        "ignored_last_7d": 0,
+        "valid_from": now.isoformat(),
+        "valid_until": valid_until.isoformat(),
+    }
+    if cell is not None:
+        data |= {"area": area, "cell": cell}
+    session.add(Student(id=student_id, label=request.nickname, is_simulated=False, data=data))
     token = TOKEN_PREFIX + token_urlsafe(32)
     session.add(
         VisitorSession(
@@ -87,7 +107,7 @@ def create_session(
             token_hash=hash_token(token),
             nickname=request.nickname,
             nickname_key=key,
-            area=request.area,
+            area=area or "",
             joined_at=now.isoformat(),
         )
     )
@@ -97,7 +117,7 @@ def create_session(
         student=SessionStudent(
             id=UUID(student_id),
             nickname=request.nickname,
-            area=request.area,
+            area=area,
             allergens=list(request.allergens),
             diets=list(request.diets),
             kind="visitor",
@@ -116,13 +136,23 @@ def require_session(session: Session, student_id: str) -> VisitorSession:
     return record
 
 
+def move_session(session: Session, student_id: str, area: str) -> None:
+    """Keep a visitor's shown area in step with their latest real-building check-in."""
+    record = session.exec(
+        select(VisitorSession).where(VisitorSession.student_id == student_id)
+    ).first()
+    if record is not None:
+        record.area = area
+        session.add(record)
+
+
 def session_student(session: Session, record: VisitorSession) -> SessionStudent:
     """Reflect the visitor's current preferences alongside the session record."""
     student = session.get(Student, record.student_id)
     return SessionStudent(
         id=UUID(record.student_id),
         nickname=record.nickname,
-        area=record.area,
+        area=record.area or None,
         allergens=list(student.data.get("allergens", [])),
         diets=list(student.data.get("diets", [])),
         kind="visitor",
@@ -193,8 +223,8 @@ def visitor_decisions(
         rows.append(
             VisitorDecision(
                 nickname=record.nickname,
-                area=record.area,
-                ring_distance=distance(origin_cell, cell),
+                area=record.area or None,
+                ring_distance=distance(origin_cell, cell) if cell else None,
                 status=status,
                 reason_codes=reasons,
                 h3_cell=cell,
