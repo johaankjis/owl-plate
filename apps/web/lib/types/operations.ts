@@ -24,6 +24,10 @@ export interface OperationsSummary {
   buildings_served: number;
   joined_sessions: number;
   student_pickup_rate_percent: number;
+  combined_recovery_rate_percent: number;
+  average_reservation_seconds: number | null;
+  participating_hosts: number;
+  participating_students: number;
 }
 export interface OperationsOutcomes {
   available: number;
@@ -70,6 +74,40 @@ export interface OperationsActivity {
   servings: number;
   is_simulated: boolean;
 }
+export interface OperationsCategory {
+  category: string;
+  published_listings: number;
+  total_servings_offered: number;
+  student_pickups: number;
+  pantry_transfers: number;
+}
+export interface OperationsListing {
+  drop_id: string;
+  food: string;
+  category: string;
+  building: Building;
+  room: string;
+  published_at: string;
+  expires_at: string;
+  status: string;
+  has_photo: boolean;
+  photo_url: string | null;
+  total_servings: number;
+  available: number;
+  held: number;
+  picked_up: number;
+  pantry_held: number;
+  pantry_transferred: number;
+}
+export interface OperationsEstimates {
+  currency: "USD";
+  meal_value_per_serving: number;
+  food_kg_per_serving: number;
+  recovered_servings: number;
+  equivalent_meal_value: number;
+  recovered_food_kg: number;
+  assumptions: string[];
+}
 export interface OperationsResponse {
   schema_version: 1;
   dataset: OperationsDataset;
@@ -83,5 +121,8 @@ export interface OperationsResponse {
   series: OperationsSeriesPoint[];
   buildings: OperationsBuilding[];
   activity: OperationsActivity[];
+  categories: OperationsCategory[];
+  active_listings: OperationsListing[];
+  estimates: OperationsEstimates;
   notes: string[];
 }
