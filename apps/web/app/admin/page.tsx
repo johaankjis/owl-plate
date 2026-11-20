@@ -73,7 +73,7 @@ export default function AdminDiagnosticsPage() {
             href="/dispatch"
             className="consumer-button-secondary px-3 py-2 text-xs"
           >
-            Projector View
+            Analytics
           </Link>
           <button
             type="button"

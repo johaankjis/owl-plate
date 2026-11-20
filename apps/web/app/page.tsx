@@ -301,6 +301,14 @@ export default function HomePage() {
             . Confirm directly with the event host at pickup.
           </p>
           <Link
+            href="/dispatch"
+            data-testid="home-analytics-link"
+            className="inline-flex min-h-[44px] shrink-0 items-center gap-1.5 font-semibold text-ink-muted transition hover:text-ink"
+          >
+            <span>Analytics</span>
+            <ArrowRight size={14} aria-hidden="true" />
+          </Link>
+          <Link
             href="/pantry"
             data-testid="home-pantry-link"
             className="inline-flex min-h-[44px] shrink-0 items-center gap-1.5 font-semibold text-ink-muted transition hover:text-ink"

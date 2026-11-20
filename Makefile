@@ -91,3 +91,7 @@ verify-pantry-routes:
 
 verify-pantry-ui:
 	OWL_WEB_URL=http://127.0.0.1:3027 node scripts/verify_pantry_ui.cjs
+
+.PHONY: verify-operations
+verify-operations:
+	OWL_WEB_URL=http://127.0.0.1:3027 node scripts/verify_operations_routes.cjs
