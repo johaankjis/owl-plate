@@ -15,6 +15,7 @@ import {
 import { AppShell } from "../../components/ui/AppShell";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { PresenterControls } from "../../components/presenter/PresenterControls";
+import { PickupDisplayStatusSection } from "../../components/admin/PickupDisplayStatusSection";
 import {
   getDemoStatus,
   getDrop,
@@ -314,6 +315,9 @@ export default function AdminDiagnosticsPage() {
             </div>
           </div>
         </section>
+
+        {/* Pickup display (It) troubleshooting */}
+        <PickupDisplayStatusSection />
 
         {/* Active Drop & Synthetic Credentials Reference */}
         <div className="grid gap-4 lg:grid-cols-2">
