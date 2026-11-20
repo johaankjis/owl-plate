@@ -25,6 +25,11 @@ async function noOverflow(page) {
   );
 }
 async function screenshot(page, name) {
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll("span[data-value]")].every(
+      (el) => el.textContent.trim() === el.getAttribute("data-value"),
+    ),
+  );
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.evaluate(
     () =>
@@ -307,26 +312,25 @@ async function screenshot(page, name) {
           "host_upload_review_publish_student_browse_search_details_photo_pickup_twice_pantry_accept_explicit_handoff_dashboard_auto_refresh",
         summary,
       });
-      await dashboard.getByTestId("operations-recording-open-button").click();
-      const confirmation = dashboard.getByTestId(
+      const admin = await open("/admin");
+      await admin.getByTestId("operations-recording-open-button").click();
+      const confirmation = admin.getByTestId(
         "operations-recording-confirm-checkbox",
       );
       assert.equal(await confirmation.isChecked(), false);
       assert.equal(
-        await dashboard
+        await admin
           .getByTestId("operations-recording-confirm-button")
           .isDisabled(),
         true,
       );
       await confirmation.check();
-      const seeded = dashboard.waitForResponse(
+      const seeded = admin.waitForResponse(
         (r) =>
           new URL(r.url()).pathname.endsWith("/demo/recording-dataset") &&
           r.request().method() === "POST",
       );
-      await dashboard
-        .getByTestId("operations-recording-confirm-button")
-        .click();
+      await admin.getByTestId("operations-recording-confirm-button").click();
       assert.equal((await seeded).status(), 200);
       await dashboard
         .getByText(/Recording dataset/i)
@@ -377,6 +381,12 @@ async function screenshot(page, name) {
         .getByTestId(`pantry-referral-illustration-${expired.id}`)
         .waitFor();
       assert.match(await expiredCard.innerText(), /Illustration/);
+      await dashboard.getByTestId("theme-select").selectOption("dark");
+      await coordinator.getByTestId("theme-select").selectOption("dark");
+      assert.equal(
+        await dashboard.locator("html").getAttribute("class"),
+        "dark",
+      );
       await dashboard.emulateMedia({
         colorScheme: "dark",
         reducedMotion: "reduce",
