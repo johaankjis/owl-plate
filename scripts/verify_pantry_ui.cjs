@@ -185,6 +185,11 @@ async function policy(card) {
       await card.getByTestId("host-pantry-handoff-button").click();
       await exactCount(host, "host-count-pantry-transferred", 1);
       await exactCount(host, "host-count-pantry-held", 0);
+      await queued
+        .getByTestId(`pantry-referral-accepted-${item.id}`)
+        .locator("..")
+        .getByText("Accepted servings", { exact: true })
+        .waitFor();
       await exactCount(projector, "dispatch-count-available", 0);
       await exactCount(projector, "dispatch-count-held", 0);
       await exactCount(projector, "dispatch-count-pantry-held", 0);

@@ -254,7 +254,7 @@ function CoordinatorReferralCard({
               {referral.accepted_servings}
             </div>
             <div className="text-[11px] font-semibold text-zinc-400">
-              Pantry reserved
+              Accepted servings
             </div>
           </div>
 
