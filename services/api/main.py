@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import SQLAlchemyError
 
+from services.api.analytics import assumptions_from_env
 from services.api.application import Backend
 from services.api.db.session import create_database
 from services.api.pickup.verifiers import build_pickup_verifier
@@ -36,6 +37,13 @@ def create_app(database_url: str | None = None) -> FastAPI:
         raise ValueError("Only explicit demo mode and demo auth are supported")
     if notification_mode not in {"log", "fcm"}:
         raise ValueError("Unsupported notification provider")
+    vision_mode = os.getenv("VISION_PROVIDER", "fixture")
+    if vision_mode not in {"gemini", "openrouter"}:
+        vision_mode = "fixture"
+    assumptions = assumptions_from_env(
+        os.getenv("OWL_ESTIMATED_MEAL_VALUE_USD", "").strip(),
+        os.getenv("OWL_ESTIMATED_FOOD_KG_PER_SERVING", "").strip(),
+    )
     provider = build_vision_provider()
     pickup_verifier = build_pickup_verifier()
     if notification_mode == "fcm":
@@ -69,6 +77,9 @@ def create_app(database_url: str | None = None) -> FastAPI:
         verify_pickup=pickup_verifier,
         demo_mode=demo,
         auth_mode=auth_mode,
+        # Simulated recording data only when nothing live can see or send it.
+        recording_available=vision_mode == "fixture" and notification_mode == "log",
+        impact_assumptions=assumptions,
     )
     register_push_token = None
     if notification_mode == "fcm":
@@ -141,10 +152,6 @@ def create_app(database_url: str | None = None) -> FastAPI:
     app.include_router(
         build_survey_router(SurveyService(engine, os.getenv("SURVEY_ENABLED", "false") == "true"))
     )
-
-    vision_mode = os.getenv("VISION_PROVIDER", "fixture")
-    if vision_mode not in {"gemini", "openrouter"}:
-        vision_mode = "fixture"
 
     @app.get("/health")
     def health() -> dict[str, str | bool]:

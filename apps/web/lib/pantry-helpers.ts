@@ -137,15 +137,15 @@ export function resolvePantryOfficialLinks(
 export function formatPantryStatusLabel(status: PantryStatus | null): string {
   switch (status) {
     case "suggested":
-      return "Suggested (demo)";
+      return "Suggested";
     case "requested":
-      return "Requested (demo)";
+      return "Requested";
     case "accepted":
-      return "Accepted (pantry reserved)";
+      return "Accepted";
     case "handoff_confirmed":
-      return "Simulated handoff confirmed";
+      return "Handed off (simulated)";
     case "rejected":
-      return "Rejected (demo)";
+      return "Declined";
     case "expired":
       return "Expired";
     default:
@@ -547,4 +547,96 @@ export function summarizePantryFood(
   return names.length <= 2
     ? names.join(" & ")
     : `${names.slice(0, 2).join(", ")} +${names.length - 2} more`;
+}
+
+/** Notes that describe how an estimate was produced, not the food; never shown to people. */
+const INTERNAL_NOTE_PATTERN =
+  /^(fixture|demo|cached|sample|synthetic|test)$|\b(simulated|fixture|cached estimate|rehearsal|placeholder)\b/i;
+
+/**
+ * A one-line description for a pantry card: the host-reviewed items with their estimated
+ * portions, plus the host's own note when it describes the food. Provider and fixture
+ * wording is dropped so the card reads as food, not as a developer screen.
+ */
+export function describePantryListing(
+  drop: Pick<DropResponse, "vision">,
+): string {
+  const items = drop.vision.items
+    .filter((item) => item.name.trim())
+    .map((item) => {
+      const count = toSafeNonNegInt(item.count_estimate);
+      const unit = item.portion_unit.trim();
+      if (count <= 0 || !unit) return item.name.trim();
+      const plural = count === 1 || unit.endsWith("s") ? unit : `${unit}s`;
+      return `${item.name.trim()} (about ${count} ${plural})`;
+    });
+  const note = drop.vision.notes?.trim() ?? "";
+  const parts = items.length > 0 ? [items.join(", ")] : [];
+  if (note && !INTERNAL_NOTE_PATTERN.test(note)) parts.push(note);
+  return parts.join(". ") || "Shared food";
+}
+
+export type CoordinatorSectionKey = "incoming" | "accepted" | "completed";
+
+export interface CoordinatorSection {
+  key: CoordinatorSectionKey;
+  title: string;
+  description: string;
+  emptyText: string;
+  referrals: PantryReferral[];
+}
+
+const SECTION_FOR_STATUS: Record<PantryStatus, CoordinatorSectionKey> = {
+  suggested: "incoming",
+  requested: "incoming",
+  accepted: "accepted",
+  handoff_confirmed: "completed",
+  rejected: "completed",
+  expired: "completed",
+};
+
+/**
+ * Groups the coordinator queue into Incoming, Accepted and Completed, keeping the server's
+ * deterministic order inside each group. Requests needing a decision come first in
+ * Incoming; suggestions the host has not sent yet follow them.
+ */
+export function groupCoordinatorReferrals(
+  referrals: ReadonlyArray<PantryReferral>,
+): CoordinatorSection[] {
+  const sections: CoordinatorSection[] = [
+    {
+      key: "incoming",
+      title: "Incoming",
+      description: "Requests waiting for your decision.",
+      emptyText: "No incoming requests.",
+      referrals: [],
+    },
+    {
+      key: "accepted",
+      title: "Accepted",
+      description: "Waiting for the host to confirm the simulated handoff.",
+      emptyText: "Nothing accepted right now.",
+      referrals: [],
+    },
+    {
+      key: "completed",
+      title: "Completed",
+      description: "Handed off, declined or expired.",
+      emptyText: "No completed requests yet.",
+      referrals: [],
+    },
+  ];
+  const byKey = new Map(sections.map((section) => [section.key, section]));
+  for (const referral of referrals) {
+    const key = SECTION_FOR_STATUS[referral.status] ?? "completed";
+    byKey.get(key)?.referrals.push(referral);
+  }
+  const incoming = byKey.get("incoming");
+  if (incoming) {
+    incoming.referrals = [
+      ...incoming.referrals.filter((r) => r.status === "requested"),
+      ...incoming.referrals.filter((r) => r.status !== "requested"),
+    ];
+  }
+  return sections;
 }

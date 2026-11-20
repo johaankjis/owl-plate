@@ -14,10 +14,17 @@ from sqlalchemy import Engine, delete, inspect
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, SQLModel, select
 
+from services.api.analytics import (
+    ImpactAssumptions,
+    RecordingUnavailable,
+    build_operations,
+    seed_recording,
+)
 from services.api.campus import CampusRegistry, load_registry
 from services.api.db.models import (
     Claim,
     Coordinator,
+    DatasetMarker,
     DemoSettings,
     Drop,
     FeedNotification,
@@ -119,6 +126,7 @@ from services.api.schemas.api import (
     WaveResponse,
 )
 from services.api.schemas.api import PantryReferral as PantryReferralOut
+from services.api.schemas.operations import OperationsPeriod, OperationsResponse
 from services.api.sessions import (
     TOKEN_PREFIX,
     SessionError,
@@ -217,6 +225,8 @@ class Backend:
         buildings: Mapping[str, str] | None = None,
         campus: CampusRegistry | None = None,
         authenticate: Callable[[str], Actor] | None = None,
+        recording_available: bool = False,
+        impact_assumptions: ImpactAssumptions | None = None,
     ) -> None:
         self.engine = engine
         self.analyze = analyze
@@ -230,6 +240,9 @@ class Backend:
         self.auth_mode = auth_mode
         self.clock = clock or (lambda: datetime.now(UTC))
         self.authenticate = authenticate
+        # Server-derived composition fact (fixture vision + log notifications), never input.
+        self.recording_available = recording_available
+        self.impact_assumptions = impact_assumptions or ImpactAssumptions()
         self.seed = json.loads(SEED_PATH.read_text())
         self.origin = h3.latlng_to_cell(self.seed["origin"]["lat"], self.seed["origin"]["lng"], 11)
         self.campus = campus if campus is not None else load_registry()
@@ -1503,60 +1516,108 @@ class Backend:
         """Replace demo state atomically; any reset ends every visitor session."""
         self.require_presenter(actor)
         with transaction(self.engine) as session:
-            for name in PUSH_REGISTRATION_TABLES:
-                registrations = SQLModel.metadata.tables.get(name)
-                if registrations is not None and inspect(session.connection()).has_table(name):
-                    session.execute(delete(registrations))
-            purge_all_photos(session)
-            for model in (
-                HostPickupNotification,
-                PickupAttempt,
-                FeedNotification,
-                PantryReferral,
-                Claim,
-                Invite,
-                Wave,
-                Drop,
-                VisitorSession,
-                Student,
-            ):
-                session.execute(delete(model))
-            coordinator = session.get(Coordinator, 1)
-            coordinator.clock_offset = 0
-            session.add(coordinator)
-            settings = session.get(DemoSettings, 1)
-            if settings is None:
-                session.add(DemoSettings(id=1, scenario=scenario))
-            else:
-                settings.scenario = scenario
-                session.add(settings)
-            now = self._now(session)
-            for record in self.seed["students"]:
-                ring = record["ring_distance"]
-                cells = sorted(
-                    set(h3.grid_disk(self.origin, ring))
-                    - set(h3.grid_disk(self.origin, ring - 1) if ring else [])
-                )
-                cell = next(cell for cell in cells if grid_distance(self.origin, cell) == ring)
-                session.add(
-                    Student(
-                        id=record["id"],
-                        label=record["label"],
-                        is_simulated=True,
-                        data={
-                            **record,
-                            "alerts_paused": record["alerts_paused"] or scenario == "visitors",
-                            "cell": cell,
-                            "valid_from": now.isoformat(),
-                            "valid_until": (now + timedelta(hours=2)).isoformat(),
-                        },
-                    )
-                )
-            return DemoResetResponse(
-                students=len(self.seed["students"]),
-                personas={row["label"]: row["id"] for row in self.seed["students"][:5]},
-                scenario=scenario,
+            return self._replace_demo_state(session, scenario)
+
+    def _replace_demo_state(self, session: Session, scenario: Scenario) -> DemoResetResponse:
+        """Clear every demo row and the recording marker, then reseed synthetic personas."""
+        for name in PUSH_REGISTRATION_TABLES:
+            registrations = SQLModel.metadata.tables.get(name)
+            if registrations is not None and inspect(session.connection()).has_table(name):
+                session.execute(delete(registrations))
+        purge_all_photos(session)
+        for model in (
+            DatasetMarker,
+            HostPickupNotification,
+            PickupAttempt,
+            FeedNotification,
+            PantryReferral,
+            Claim,
+            Invite,
+            Wave,
+            Drop,
+            VisitorSession,
+            Student,
+        ):
+            session.execute(delete(model))
+        coordinator = session.get(Coordinator, 1)
+        coordinator.clock_offset = 0
+        session.add(coordinator)
+        settings = session.get(DemoSettings, 1)
+        if settings is None:
+            session.add(DemoSettings(id=1, scenario=scenario))
+        else:
+            settings.scenario = scenario
+            session.add(settings)
+        now = self._now(session)
+        for record in self.seed["students"]:
+            ring = record["ring_distance"]
+            cells = sorted(
+                set(h3.grid_disk(self.origin, ring))
+                - set(h3.grid_disk(self.origin, ring - 1) if ring else [])
             )
+            cell = next(cell for cell in cells if grid_distance(self.origin, cell) == ring)
+            session.add(
+                Student(
+                    id=record["id"],
+                    label=record["label"],
+                    is_simulated=True,
+                    data={
+                        **record,
+                        "alerts_paused": record["alerts_paused"] or scenario == "visitors",
+                        "cell": cell,
+                        "valid_from": now.isoformat(),
+                        "valid_until": (now + timedelta(hours=2)).isoformat(),
+                    },
+                )
+            )
+        session.flush()
+        return DemoResetResponse(
+            students=len(self.seed["students"]),
+            personas={row["label"]: row["id"] for row in self.seed["students"][:5]},
+            scenario=scenario,
+        )
+
+    def operations(self, actor: Actor, period: OperationsPeriod = "7d") -> OperationsResponse:
+        """Projector-only aggregate snapshot taken after the shared expiry sweep."""
+        self.require(actor, "projector", demo=True)
+        return self._run(
+            lambda session, now: build_operations(
+                session,
+                now=now,
+                period=period,
+                counts=lambda drop: self._counts(session, drop),
+                recording_available=self.recording_available and self._demo_gates(),
+                assumptions=self.impact_assumptions,
+            )
+        )
+
+    def load_recording_dataset(
+        self, actor: Actor, anchor: datetime | None = None
+    ) -> OperationsResponse:
+        """Atomically replace demo data with the simulated recording dataset.
+
+        Only the projector may do this, only under both demo gates and only when the server
+        was composed with fixture vision and log notifications. Reset and seed share one
+        transaction, so a failure leaves the previous data in place.
+        """
+        self.require(actor, "projector", demo=True)
+        if not self.recording_available:
+            raise DomainError(
+                "recording_unavailable",
+                "The recording dataset needs fixture vision and simulated notifications.",
+            )
+        try:
+            with transaction(self.engine) as session:
+                self._replace_demo_state(session, "visitors")
+                seeded = seed_recording(
+                    session, anchor=anchor or self._now(session), campus=self.campus
+                )
+                for drop_id in seeded.drop_ids:
+                    drop = session.get(Drop, drop_id)
+                    self._refresh(session, drop)
+        except RecordingUnavailable as exc:
+            raise DomainError("recording_unavailable", str(exc)) from None
+        return self.operations(actor, "all")
 
     def preferences(self, actor: Actor, preferences: Preferences) -> Preferences:
         """Allow students to change consent and filters without accessing private tiers."""

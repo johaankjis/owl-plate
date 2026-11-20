@@ -52,6 +52,11 @@ from services.api.schemas.api import (
     SessionStudent,
     StudentReservationsResponse,
 )
+from services.api.schemas.operations import (
+    OperationsPeriod,
+    OperationsResponse,
+    RecordingDatasetRequest,
+)
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -358,6 +363,16 @@ def build_router(
         """Advance only the demo clock while reusing production scheduling logic."""
         invoke(backend.require_presenter, actor)
         return DemoTickResponse(server_time=invoke(backend.tick, tick.advance_seconds))
+
+    @router.get("/analytics/operations", response_model=OperationsResponse)
+    def operations(actor: Identity, period: OperationsPeriod = "7d") -> OperationsResponse:
+        """Projector-only aggregate analytics from persisted rows; never identities."""
+        return invoke(backend.operations, actor, period)
+
+    @router.post("/demo/recording-dataset", response_model=OperationsResponse)
+    def recording_dataset(request: RecordingDatasetRequest, actor: Identity) -> OperationsResponse:
+        """Explicitly confirmed replacement of demo data with the simulated recording set."""
+        return invoke(backend.load_recording_dataset, actor)
 
     @router.get("/demo/status", response_model=DemoStatusResponse)
     def status(actor: Identity) -> DemoStatusResponse:

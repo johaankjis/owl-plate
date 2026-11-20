@@ -100,6 +100,41 @@ export function HostPantryCard({
   const isRequesting = busyAction === "pantry:request";
   const isConfirmingHandoff = busyAction === "pantry:handoff";
 
+  // One required notice and official links per card, placed beside whichever
+  // confirmation the host can take next.
+  const policyNotice = (
+    <div className="space-y-1 rounded-xl border border-warning/30 bg-warning-tint px-3 py-2 text-sm">
+      <p data-testid="host-pantry-notice" className="text-warning">
+        {notice}
+      </p>
+      <div className="flex flex-wrap gap-x-4 text-xs font-semibold">
+        <a
+          data-testid="host-pantry-care-link"
+          href={officialLinks.careSourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-11 items-center gap-1 text-owl-goldText underline underline-offset-2"
+        >
+          Official KSU CARE Services
+          <ExternalLink size={12} aria-hidden="true" />
+        </a>
+        <a
+          data-testid="host-pantry-catering-link"
+          href={officialLinks.cateringPolicyUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-11 items-center gap-1 text-owl-goldText underline underline-offset-2"
+        >
+          Official KSU Catering Policies
+          <ExternalLink size={12} aria-hidden="true" />
+        </a>
+      </div>
+    </div>
+  );
+  const hasAction =
+    actionState.canRequest ||
+    (actionState.canConfirmHandoff && referral !== null);
+
   if (!actionState.isCampusFeed) {
     return null;
   }
@@ -120,7 +155,7 @@ export function HostPantryCard({
             />
             <h3 className="text-lg font-extrabold">Donate remaining food</h3>
             <span data-testid="host-pantry-demo-badge">
-              <StatusBadge tone="warning">Simulation only</StatusBadge>
+              <StatusBadge tone="warning">Simulated</StatusBadge>
             </span>
           </div>
           <p
@@ -143,7 +178,7 @@ export function HostPantryCard({
       </div>
 
       {referral && (
-        <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
           {[
             {
               id: "host-pantry-requested-servings",
@@ -153,12 +188,17 @@ export function HostPantryCard({
             {
               id: "host-pantry-accepted-servings",
               value: referral.accepted_servings,
-              label: "Accepted",
+              label: "Accepted (total)",
+            },
+            {
+              id: "host-pantry-reserved-servings",
+              value: drop.counts.pantry_held ?? 0,
+              label: "Pantry reserved now",
             },
             {
               id: "host-pantry-transferred-servings",
               value: referral.transferred_servings,
-              label: "Handed off",
+              label: "Pantry transfers",
             },
           ].map((tile) => (
             <div
@@ -214,33 +254,7 @@ export function HostPantryCard({
         )}
       </div>
 
-      <div className="space-y-2 rounded-2xl border border-warning/30 bg-warning-tint px-4 py-3 text-sm">
-        <p data-testid="host-pantry-notice" className="text-warning">
-          {notice}
-        </p>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold">
-          <a
-            data-testid="host-pantry-care-link"
-            href={officialLinks.careSourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex min-h-11 items-center gap-1 text-owl-goldText underline underline-offset-2"
-          >
-            Official KSU CARE Services
-            <ExternalLink size={12} aria-hidden="true" />
-          </a>
-          <a
-            data-testid="host-pantry-catering-link"
-            href={officialLinks.cateringPolicyUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex min-h-11 items-center gap-1 text-owl-goldText underline underline-offset-2"
-          >
-            Official KSU Catering Policies
-            <ExternalLink size={12} aria-hidden="true" />
-          </a>
-        </div>
-      </div>
+      {!hasAction && policyNotice}
 
       {actionState.stateNote && (
         <p
@@ -323,6 +337,8 @@ export function HostPantryCard({
             </div>
           </div>
 
+          {policyNotice}
+
           <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm">
             <input
               type="checkbox"
@@ -358,6 +374,7 @@ export function HostPantryCard({
 
       {actionState.canConfirmHandoff && referral && (
         <div className="space-y-3 rounded-2xl border border-success/30 bg-success-tint p-4">
+          {policyNotice}
           <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm text-ink">
             <input
               type="checkbox"

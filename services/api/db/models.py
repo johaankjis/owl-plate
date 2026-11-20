@@ -175,3 +175,16 @@ class DropPhoto(SQLModel, table=True):
     content: bytes = Field(sa_column=Column(LargeBinary, nullable=False))
     created_at: str
     expires_at: str
+
+
+class DatasetMarker(SQLModel, table=True):
+    """Provenance of the current demo app data; present only for the recording dataset.
+
+    It survives restarts so analytics keep labeling seeded rows as simulated, and an
+    ordinary demo reset deletes it in the same transaction that clears the rows.
+    """
+
+    id: int = Field(default=1, primary_key=True)
+    kind: str = "recording"
+    seed_version: str
+    anchor_time: str
