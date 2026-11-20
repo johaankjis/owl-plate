@@ -1,5 +1,7 @@
 # Owl Plate checkpoint
 
+> **Historical record.** This file preserves earlier integration checkpoints verbatim. The `submission/` drafts it cites (deck, recording, rehearsal and approval bundles) are not part of the final repository tree; they remain available in Git history. Current documentation starts at the [README](../README.md).
+
 ## Current priority — app deployment review, November 18, 2026
 
 Johaan's latest direction supersedes the old survey-first ordering below:

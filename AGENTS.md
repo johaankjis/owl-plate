@@ -6,7 +6,7 @@ Guide for any coding agent or teammate working on Owl Plate. Read this first, th
 
 Owl Plate routes leftover event food and spare meal swipes to KSU students who need them. A host snaps one photo. Vision AI estimates food, servings and allergens. A dispatch engine pings just enough nearby, opted in, diet compatible students, quietly prioritizing CARE Services students, and widens the search in waves if spots go unclaimed.
 
-Hackathon: KSU AI Club Hackathon 2026. Deliverables due **Friday Nov 20, 12:00 PM**: pitch deck (PowerPoint) plus demo video. Pitches 5:30 to 8:30 PM, 5 minutes per team.
+Hackathon: KSU AI Club Hackathon 2026. Submission due **Friday Nov 20, 12:00 PM Eastern**. Pitches 5:30 to 8:30 PM, 5 minutes per team.
 Tracks: AI Club (primary), Nudox (most organized codebase wins, so code quality is a prize here), it. track TBA.
 
 ## Doc map
@@ -50,20 +50,27 @@ Tracks: AI Club (primary), Nudox (most organized codebase wins, so code quality 
 
 ```
 apps/web/
-  app/host/              Host flow: photo, review AI estimate, publish
-  app/student/           Student flow: onboarding, alerts, claim
-  app/dispatch/          Big screen: map, waves, reasons (demo view)
+  app/host/              Host flow: photo, review estimate, publish, inventory, pickup reviews
+  app/join/, app/student/  Student flow: join, campus feed and map, hold, photo-assisted pickup
+  app/pantry/            Simulated CARE Pantry coordinator
+  app/dispatch/, app/impact/  Food rescue analytics
+  app/admin/             Diagnostics, dataset controls, seeded wave projector
+  components/, lib/      Shared UI, maps, API clients, generated OpenAPI types
   public/firebase-messaging-sw.js
 services/api/
-  main.py                App factory, router registration only
+  main.py                App factory, provider composition, router registration
   routes/                Thin HTTP layer
-  dispatch/              Matching engine (pure)
-  vision/                Food estimation using providers
-  providers/             gemini.py, bedrock.py, fcm.py, twilio_sms.py, entra.py
+  application.py         Serialized transaction owner composing domain services
+  feed/ pickup/ pantry/ analytics/   Domain rules inside the caller's session
+  dispatch/              Seeded-wave matching engine (pure)
+  vision/                Vision contract and safety post-processing
+  providers/             openrouter.py, gemini.py, fcm.py, notifications.py
+  campus/ sessions/ storage/   Verified buildings (H3), visitor sessions, short-lived photos
   schemas/               Pydantic request and response models
-  db/                    SQLModel tables, session, migrations
+  db/                    SQLModel tables and serialized sessions
   tests/
-data/seed/  data/eval/  docs/
+prototypes/itcan/        It (itcan.do) pickup display and Campus Rescue Command Center
+data/campus/  data/seed/  data/eval/  docs/  scripts/
 ```
 
 ## Commands
@@ -75,7 +82,9 @@ make dev       run API and web
 make test      run tests (dispatch tests must pass before any merge)
 make lint      ruff + eslint + prettier
 make types     regenerate frontend API types
-make eval      run vision accuracy eval on data/eval
+make eval      offline synthetic vision scoring checks (not measured accuracy)
+make campus    validate the verified Marietta building registry
+make present   build and start the presentation demo (see docs/RUNBOOK.md)
 make demo      reset database and seed the scripted demo state
 ```
 
@@ -87,7 +96,7 @@ Create a target if it is missing.
 * TypeScript strict, App Router, server components by default, client components only when needed.
 * Times stored in UTC, shown in America/New_York.
 * H3 resolution 11 for locations, rings computed with `grid_disk`.
-* IDs are UUIDs. Building codes match `data/seed/buildings.yaml`.
+* IDs are UUIDs. Building IDs match the verified registry in `data/campus/marietta.json`.
 
 ## When unsure
 

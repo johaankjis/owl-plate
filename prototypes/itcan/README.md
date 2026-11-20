@@ -52,21 +52,25 @@ Never paste the pairing code or the pairing link into chats or reports.
 
 ### Copy the companion files to the Mac
 
-Run this from the Mac. It copies only this folder out of the Owl Plate
-container on ZimaOS:
+Run this from the Mac. It copies only this folder from the machine (or
+container) running Owl Plate. Replace the placeholders with your own host,
+user and checkout path:
 
 ```bash
-mkdir -p ~/owl-plate-it && ssh <zima-ssh-user>@192.168.0.126 \
-  "docker exec 1ce68abde0c3 tar -C /home/node/projects/owl-plate -cz prototypes/itcan" \
+mkdir -p ~/owl-plate-it && ssh <ssh-user>@<owl-host> \
+  "tar -C <owl-plate-checkout> -cz prototypes/itcan" \
   | tar -xz -C ~/owl-plate-it
 ```
+
+If Owl Plate runs inside a container on that host, wrap the remote command as
+`docker exec <container> tar -C <owl-plate-checkout> -cz prototypes/itcan`.
 
 ### Keep the Owl Plate tunnel open
 
 In its own terminal:
 
 ```bash
-ssh -N -L 3017:172.23.0.2:3017 <zima-ssh-user>@192.168.0.126
+ssh -N -L 3017:<owl-web-address>:3017 <ssh-user>@<owl-host>
 ```
 
 ### Point the host button at It

@@ -22,7 +22,7 @@ Manager source check, Nov 18: the KSU News URL below returned HTTP 200 and expli
 
 | Fact | Source |
 |---|---|
-| Submission due Fri Nov 20, 12:00 PM: pitch deck (PowerPoint) plus demo video, or a note that you'll demo live | Opening ceremony slides |
+| Submission due Fri Nov 20, 12:00 PM | Opening ceremony slides |
 | Pitch and judging Fri 5:30 to 8:30 PM, 5 minutes per team | Opening ceremony slides |
 | Pitch structure: 0:00 to 1:00 problem, 1:00 to 2:00 solution, 2:00 to 4:00 demo, 4:00 to 5:00 how and next | Opening ceremony slides |
 | AI Club rubric: campus impact backed by real data 25, use of AI as the core 25, feasibility for KSU 20, creativity 15, pitch 15 | Opening ceremony slides |
@@ -32,6 +32,7 @@ Manager source check, Nov 18: the KSU News URL below returned HTTP 200 and expli
 
 | Fact | Source |
 |---|---|
+| The U.S. Government Accountability Office estimated about 3.8 million U.S. college students experienced food insecurity in 2020. | GAO-24-107074 (2024), https://www.gao.gov/products/gao-24-107074 (citation supplied by the project lead, Nov 20) |
 | A Cal State report found 21 to 24 percent of students across its 23 campuses faced food insecurity. | Cal State Fullerton news (Titan Bites) |
 | A Temple University study reported more than 45 percent of college students were food insecure. | NBC San Diego (UCSD story), citing Temple |
 
