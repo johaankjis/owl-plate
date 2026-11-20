@@ -1,0 +1,5124 @@
+<!doctype html>
+<!-- Owl Plate campus rescue command center for It. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="theme-color"
+      content="#f8f8fa"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#0f1013"
+      media="(prefers-color-scheme: dark)"
+    />
+    <title>Owl Plate – Campus Rescue Command Center</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f8f8fa;
+        --surface: #ffffff;
+        --surface-subtle: #f1f2f6;
+        --border: #e4e5ec;
+        --ink: #121214;
+        --ink-muted: #525560;
+        --gold: #fdbb30;
+        --gold-hover: #e5a41b;
+        --gold-ink: #121214;
+        --gold-text: #8a5e00;
+        --gold-tint: #fef6e1;
+        --success: #15803d;
+        --success-tint: #dcfce7;
+        --warning: #92400e;
+        --warning-tint: #fef3c7;
+        --focus: #8a5e00;
+
+        /* One fixed colour per serving outcome, checked for colour-blind separation. */
+        --series-available: #15803d;
+        --series-held: #e5a41b;
+        --series-picked-up: #2e79f5;
+        --series-pantry-held: #6928b0;
+        --series-pantry-transferred: #e24ea0;
+        --series-expired: #8d92a1;
+        --track: #e9ebf1;
+
+        --glass: rgba(255, 255, 255, 0.74);
+        --glass-border: rgba(255, 255, 255, 0.9);
+        --glass-shadow:
+          0 1px 1px rgba(18, 18, 20, 0.04),
+          0 14px 30px -10px rgba(18, 18, 20, 0.16),
+          0 40px 70px -30px rgba(18, 18, 20, 0.22);
+        --shadow-card:
+          0 1px 1px rgba(18, 18, 20, 0.03), 0 4px 10px rgba(18, 18, 20, 0.035),
+          0 18px 36px -12px rgba(18, 18, 20, 0.09);
+        --shadow-button:
+          inset 0 1px 0 rgba(255, 255, 255, 0.5),
+          0 1px 2px rgba(138, 94, 0, 0.28),
+          0 10px 22px -8px rgba(229, 164, 27, 0.75);
+
+        /* Isometric campus scene. Gold is reserved for buildings with food. */
+        --stage-a: #f3f4f8;
+        --stage-b: #e4e7ef;
+        --stage-glow: rgba(253, 187, 48, 0.16);
+        --ground-top: #fbfbfd;
+        --ground-left: #d9dde7;
+        --ground-right: #c9cedb;
+        --grid: rgba(18, 18, 20, 0.055);
+        --b-top-academic: #ffffff;
+        --b-top-student-life: #fbf9f4;
+        --b-top-housing: #f4f6fb;
+        --b-left: #e2e5ee;
+        --b-right: #cdd2de;
+        --b-edge: rgba(18, 18, 20, 0.2);
+        --b-detail: rgba(18, 18, 20, 0.1);
+        --b-shadow: rgba(30, 34, 48, 0.13);
+        --gold-left: #eaa91f;
+        --gold-right: #c98a0a;
+        --gold-edge: rgba(110, 74, 0, 0.55);
+        --gold-recent: #fdeec4;
+        --halo: rgba(253, 187, 48, 0.34);
+
+        --agent-bg: #15161b;
+        --agent-raise: rgba(255, 255, 255, 0.06);
+        --agent-line: rgba(255, 255, 255, 0.11);
+        --agent-ink: #f4f4f6;
+        --agent-muted: #a7abb8;
+
+        --dur-fast: 150ms;
+        --dur-normal: 240ms;
+        --dur-slow: 420ms;
+        --ease: cubic-bezier(0.22, 1, 0.36, 1);
+        --sans:
+          ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color-scheme: dark;
+          --bg: #0f1013;
+          --surface: #18191e;
+          --surface-subtle: #22242b;
+          --border: #353842;
+          --ink: #f4f4f6;
+          --ink-muted: #a1a5b2;
+          --gold: #fdbb30;
+          --gold-hover: #e5a41b;
+          --gold-ink: #121214;
+          --gold-text: #fdbb30;
+          --gold-tint: #382e19;
+          --success: #4ade80;
+          --success-tint: #163424;
+          --warning: #fbbf24;
+          --warning-tint: #3d2f16;
+          --focus: #fdbb30;
+
+          --series-available: #0a8558;
+          --series-held: #c98500;
+          --series-picked-up: #1899ec;
+          --series-pantry-held: #8f54dc;
+          --series-pantry-transferred: #e652a3;
+          --series-expired: #6f7483;
+          --track: #2a2c35;
+
+          --glass: rgba(24, 25, 30, 0.72);
+          --glass-border: rgba(255, 255, 255, 0.09);
+          --glass-shadow:
+            0 1px 1px rgba(0, 0, 0, 0.4), 0 16px 34px -10px rgba(0, 0, 0, 0.6),
+            0 44px 80px -30px rgba(0, 0, 0, 0.7);
+          --shadow-card:
+            0 1px 1px rgba(0, 0, 0, 0.3), 0 8px 20px rgba(0, 0, 0, 0.26),
+            0 24px 48px -14px rgba(0, 0, 0, 0.5);
+          --shadow-button:
+            inset 0 1px 0 rgba(255, 255, 255, 0.45),
+            0 1px 2px rgba(0, 0, 0, 0.5),
+            0 12px 26px -10px rgba(253, 187, 48, 0.5);
+
+          --stage-a: #17181d;
+          --stage-b: #0b0c0f;
+          --stage-glow: rgba(253, 187, 48, 0.09);
+          --ground-top: #1c1e25;
+          --ground-left: #121318;
+          --ground-right: #0c0d11;
+          --grid: rgba(255, 255, 255, 0.05);
+          --b-top-academic: #454956;
+          --b-top-student-life: #4a4a52;
+          --b-top-housing: #3d4250;
+          --b-left: #2e313b;
+          --b-right: #22242c;
+          --b-edge: rgba(255, 255, 255, 0.14);
+          --b-detail: rgba(255, 255, 255, 0.07);
+          --b-shadow: rgba(0, 0, 0, 0.42);
+          --gold-edge: rgba(60, 40, 0, 0.7);
+          --gold-recent: #5d4c22;
+          --halo: rgba(253, 187, 48, 0.22);
+
+          --agent-bg: #1b1d24;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        overflow-x: hidden;
+      }
+
+      body {
+        min-height: 100vh;
+        min-height: 100dvh;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 15px;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      :focus-visible {
+        outline: 3px solid var(--focus);
+        outline-offset: 3px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p,
+      dl,
+      dd,
+      ol,
+      ul {
+        margin: 0;
+        padding: 0;
+      }
+
+      ol,
+      ul {
+        list-style: none;
+      }
+
+      button {
+        font: inherit;
+        color: inherit;
+        touch-action: manipulation;
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      .num {
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+
+      span.num {
+        display: inline-block;
+      }
+
+      [data-series="available"] {
+        --series: var(--series-available);
+      }
+      [data-series="held"] {
+        --series: var(--series-held);
+      }
+      [data-series="picked_up"] {
+        --series: var(--series-picked-up);
+      }
+      [data-series="pantry_held"] {
+        --series: var(--series-pantry-held);
+      }
+      [data-series="pantry_transferred"] {
+        --series: var(--series-pantry-transferred);
+      }
+      [data-series="expired"] {
+        --series: var(--series-expired);
+      }
+      [data-series="offered"] {
+        --series: var(--ink-muted);
+      }
+
+      .app {
+        width: 100%;
+        max-width: 1760px;
+        margin: 0 auto;
+        padding: 0 clamp(14px, 2.2vw, 36px) 28px;
+      }
+
+      /* ---- Top bar ---- */
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px 20px;
+        padding: 18px 0 14px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+      }
+
+      .brand-mark {
+        width: 42px;
+        height: 42px;
+        flex-shrink: 0;
+        border-radius: 14px;
+        background: var(--gold);
+        color: var(--gold-ink);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: var(--shadow-button);
+      }
+
+      .brand-name {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--ink-muted);
+      }
+
+      .brand-title {
+        font-size: clamp(18px, 2vw, 24px);
+        font-weight: 750;
+        letter-spacing: -0.025em;
+        line-height: 1.15;
+      }
+
+      .topbar-meta {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        font-size: 13px;
+        color: var(--ink-muted);
+      }
+
+      .dataset {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border-radius: 9999px;
+        padding: 5px 12px;
+        background: var(--surface-subtle);
+        color: var(--ink-muted);
+        font-weight: 650;
+        line-height: 1.3;
+      }
+
+      .dataset svg {
+        display: none;
+        flex-shrink: 0;
+      }
+
+      .dataset[data-simulated="true"] {
+        background: var(--warning-tint);
+        color: var(--warning);
+      }
+
+      .dataset[data-simulated="true"] svg {
+        display: block;
+      }
+
+      .fresh {
+        font-weight: 500;
+      }
+
+      .fresh time {
+        font-weight: 700;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .live-line {
+        min-width: 0;
+        font-weight: 700;
+        color: var(--gold-text);
+      }
+
+      .live-line:empty {
+        display: none;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 44px;
+        border-radius: 9999px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        padding: 9px 18px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        cursor: pointer;
+        transition:
+          background-color var(--dur-fast) var(--ease),
+          border-color var(--dur-fast) var(--ease),
+          opacity var(--dur-normal) var(--ease),
+          transform var(--dur-fast) var(--ease);
+      }
+
+      .btn:hover:not(:disabled) {
+        background: var(--surface-subtle);
+      }
+
+      .btn:active:not(:disabled) {
+        transform: scale(0.97);
+      }
+
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .btn-gold {
+        border-color: transparent;
+        background: var(--gold);
+        color: var(--gold-ink);
+        box-shadow: var(--shadow-button);
+      }
+
+      .btn-gold:hover:not(:disabled) {
+        background: var(--gold-hover);
+      }
+
+      .spinner {
+        display: none;
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+        animation: spin 800ms linear infinite;
+      }
+
+      [data-busy="true"] > .spinner {
+        display: block;
+      }
+
+      [data-busy="true"] > .btn-icon {
+        display: none;
+      }
+
+      .error-banner {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 14px;
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        background: var(--warning-tint);
+        color: var(--warning);
+        padding: 12px 16px;
+        font-weight: 650;
+        animation: rise var(--dur-normal) var(--ease) backwards;
+      }
+
+      .error-banner svg {
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+
+      /* ---- Stage: the campus map with the summary and inspector over it ---- */
+
+      .stage,
+      .map-wrap {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .map {
+        position: relative;
+        height: min(96vw, 460px);
+        border-radius: 28px;
+        border: 1px solid var(--border);
+        background:
+          radial-gradient(
+            60% 70% at 62% 18%,
+            var(--stage-glow),
+            transparent 70%
+          ),
+          linear-gradient(170deg, var(--stage-a), var(--stage-b));
+        overflow: hidden;
+        box-shadow: var(--shadow-card);
+      }
+
+      .scene {
+        display: block;
+        width: 100%;
+        height: 100%;
+        cursor: grab;
+        touch-action: pan-y;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      .scene.is-zoomed {
+        touch-action: none;
+      }
+
+      .scene.is-dragging {
+        cursor: grabbing;
+      }
+
+      .ground-top {
+        fill: var(--ground-top);
+      }
+
+      .ground-left {
+        fill: var(--ground-left);
+      }
+
+      .ground-right {
+        fill: var(--ground-right);
+      }
+
+      .ground-grid {
+        fill: none;
+        stroke: var(--grid);
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+      }
+
+      .b-shadow {
+        fill: var(--b-shadow);
+      }
+
+      .b-halo {
+        fill: var(--halo);
+        opacity: 0;
+        transition: opacity var(--dur-slow) var(--ease);
+      }
+
+      .b-halo.is-active {
+        opacity: 1;
+        animation: breathe 3200ms ease-in-out infinite;
+      }
+
+      .bldg {
+        --b-top: var(--b-top-academic);
+        cursor: pointer;
+        outline: none;
+      }
+
+      .bldg[data-category="student_life"] {
+        --b-top: var(--b-top-student-life);
+      }
+
+      .bldg[data-category="housing"] {
+        --b-top: var(--b-top-housing);
+      }
+
+      .bldg.is-recent {
+        --b-top: var(--gold-recent);
+      }
+
+      .bldg.is-active {
+        --b-top: var(--gold);
+        --b-left: var(--gold-left);
+        --b-right: var(--gold-right);
+        --b-edge: var(--gold-edge);
+        --b-detail: rgba(90, 60, 0, 0.22);
+      }
+
+      .b-face {
+        stroke: var(--b-edge);
+        stroke-width: 1;
+        stroke-linejoin: round;
+        vector-effect: non-scaling-stroke;
+        transition: fill var(--dur-slow) var(--ease);
+      }
+
+      .b-top {
+        fill: var(--b-top);
+      }
+
+      .b-left {
+        fill: var(--b-left);
+      }
+
+      .b-right {
+        fill: var(--b-right);
+      }
+
+      .b-detail {
+        fill: none;
+        stroke: var(--b-detail);
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+        pointer-events: none;
+      }
+
+      .b-hit {
+        fill: transparent;
+      }
+
+      .b-ring {
+        fill: none;
+        stroke: var(--ink);
+        stroke-width: 2.5;
+        stroke-linejoin: round;
+        vector-effect: non-scaling-stroke;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity var(--dur-fast) var(--ease);
+      }
+
+      .b-body {
+        transition: transform var(--dur-normal) var(--ease);
+      }
+
+      .bldg:hover .b-body,
+      .bldg.is-hot .b-body,
+      .bldg:focus-visible .b-body {
+        transform: translateY(-3px);
+      }
+
+      .bldg.is-selected .b-body {
+        transform: translateY(-5px);
+      }
+
+      .bldg.is-selected .b-ring {
+        opacity: 1;
+      }
+
+      .bldg:focus-visible .b-ring {
+        opacity: 1;
+        stroke: var(--focus);
+        stroke-width: 3.5;
+      }
+
+      .scene[data-flat="true"] .b-body {
+        transform: none;
+      }
+
+      .scene[data-flat="true"] .bldg:hover .b-ring,
+      .scene[data-flat="true"] .bldg.is-hot .b-ring {
+        opacity: 0.55;
+      }
+
+      .tag {
+        cursor: pointer;
+      }
+
+      .tag-stem {
+        stroke: var(--ink);
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        opacity: 0.55;
+      }
+
+      .tag-pill rect {
+        fill: var(--ink);
+        stroke: var(--ground-top);
+        stroke-width: 1.5;
+      }
+
+      .tag-pill text {
+        fill: var(--bg);
+        font-family: var(--sans);
+        font-size: 13px;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        text-anchor: middle;
+        dominant-baseline: central;
+      }
+
+      .tag-pill {
+        transform-box: fill-box;
+        transform-origin: 50% 100%;
+      }
+
+      .tag-pill.is-popped {
+        animation: pop var(--dur-slow) var(--ease);
+      }
+
+      .map-empty {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        text-align: center;
+        font-weight: 600;
+        color: var(--ink-muted);
+        pointer-events: none;
+      }
+
+      .glass {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow-card);
+      }
+
+      .callout {
+        position: absolute;
+        left: 0;
+        top: 0;
+        z-index: 4;
+        max-width: 240px;
+        padding: 8px 12px;
+        border-radius: 12px;
+        background: var(--ink);
+        color: var(--bg);
+        font-size: 13px;
+        line-height: 1.35;
+        pointer-events: none;
+        opacity: 0;
+        transform: translate(-50%, -100%);
+        transition: opacity var(--dur-fast) var(--ease);
+        box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.45);
+      }
+
+      .callout[data-open="true"] {
+        opacity: 1;
+      }
+
+      .callout-name {
+        display: block;
+        font-weight: 750;
+      }
+
+      .callout-meta {
+        display: block;
+        opacity: 0.74;
+        font-size: 12px;
+      }
+
+      .map-controls {
+        position: absolute;
+        right: 14px;
+        bottom: 14px;
+        z-index: 3;
+        display: flex;
+        gap: 6px;
+        padding: 5px;
+        border-radius: 9999px;
+      }
+
+      .icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border: 0;
+        border-radius: 9999px;
+        background: transparent;
+        cursor: pointer;
+        transition:
+          background-color var(--dur-fast) var(--ease),
+          opacity var(--dur-fast) var(--ease);
+      }
+
+      .icon-btn:hover:not(:disabled) {
+        background: var(--surface-subtle);
+      }
+
+      .icon-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .compass {
+        position: absolute;
+        right: 14px;
+        top: 14px;
+        z-index: 3;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 9999px;
+        padding: 6px 12px 6px 8px;
+        font-size: 12px;
+        font-weight: 750;
+        color: var(--ink-muted);
+      }
+
+      .compass svg {
+        transition: transform var(--dur-slow) var(--ease);
+      }
+
+      .geometry-note {
+        font-size: 12px;
+        line-height: 1.4;
+        color: var(--ink-muted);
+      }
+
+      .map-wrap > .geometry-note {
+        margin-top: -4px;
+        padding: 0 6px;
+        border: 0;
+        background: none;
+        box-shadow: none;
+      }
+
+      /* ---- Summary: one composed strip, not a wall of tiles ---- */
+
+      .hero {
+        display: grid;
+        gap: 18px;
+        border-radius: 26px;
+        padding: 20px;
+        animation: rise var(--dur-slow) var(--ease) backwards;
+      }
+
+      .eyebrow {
+        font-size: 11px;
+        font-weight: 750;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--ink-muted);
+      }
+
+      .hero-figure {
+        margin-top: 6px;
+        font-size: clamp(64px, 9vw, 92px);
+        font-weight: 760;
+        line-height: 0.92;
+        letter-spacing: -0.045em;
+      }
+
+      .hero-figure .num {
+        display: inline-block;
+      }
+
+      .hero-caption {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 8px;
+        font-size: 16px;
+        font-weight: 700;
+      }
+
+      .hero-sub {
+        margin-top: 4px;
+        font-size: 14px;
+        color: var(--ink-muted);
+      }
+
+      .hero-sub .num {
+        font-weight: 750;
+        color: var(--ink);
+      }
+
+      .swatch {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        flex-shrink: 0;
+        border-radius: 3px;
+        background: var(--series);
+      }
+
+      .flow-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink-muted);
+      }
+
+      .flow-head .num {
+        font-size: 22px;
+        font-weight: 750;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+      }
+
+      .bar {
+        display: flex;
+        gap: 2px;
+        width: 100%;
+        height: 8px;
+        border-radius: 9999px;
+        background: var(--track);
+        overflow: hidden;
+      }
+
+      .bar .seg {
+        width: 0;
+        min-width: 0;
+        flex-shrink: 1;
+        background: var(--series);
+        transition: width var(--dur-slow) var(--ease);
+      }
+
+      .hero .bar {
+        height: 10px;
+        margin: 10px 0 12px;
+      }
+
+      .legend {
+        display: grid;
+        gap: 7px;
+      }
+
+      .legend-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 13.5px;
+      }
+
+      .legend-row dt {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--ink-muted);
+        font-weight: 550;
+      }
+
+      .legend-row dd {
+        font-weight: 750;
+      }
+
+      .hero-recovery {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        border-top: 1px solid var(--border);
+        padding-top: 16px;
+      }
+
+      .gauge {
+        width: 60px;
+        height: 60px;
+        flex-shrink: 0;
+      }
+
+      .gauge-track,
+      .gauge-arc {
+        fill: none;
+        stroke-width: 7;
+      }
+
+      .gauge-track {
+        stroke: var(--track);
+      }
+
+      .gauge-arc {
+        stroke: var(--series-picked-up);
+        stroke-linecap: round;
+        stroke-dasharray: 0 164;
+        transition: stroke-dasharray var(--dur-slow) var(--ease);
+      }
+
+      .recovery-figure {
+        font-size: 30px;
+        font-weight: 760;
+        line-height: 1;
+        letter-spacing: -0.03em;
+      }
+
+      .recovery-figure .unit {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--ink-muted);
+      }
+
+      .recovery-label {
+        margin-top: 4px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink-muted);
+      }
+
+      .is-popped {
+        animation: pop var(--dur-slow) var(--ease);
+      }
+
+      /* ---- Inspector: the selected building and listing ---- */
+
+      .inspector {
+        border-radius: 26px;
+        padding: 20px;
+        animation: slide-in var(--dur-slow) var(--ease) backwards;
+      }
+
+      .insp-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .insp-title {
+        margin-top: 4px;
+        font-size: 22px;
+        font-weight: 760;
+        line-height: 1.15;
+        letter-spacing: -0.025em;
+      }
+
+      .insp-line {
+        margin-top: 6px;
+        font-size: 13.5px;
+        color: var(--ink-muted);
+      }
+
+      .insp-head .icon-btn {
+        flex-shrink: 0;
+        margin: -8px -8px 0 0;
+      }
+
+      .insp-section {
+        margin-top: 16px;
+        border-top: 1px solid var(--border);
+        padding-top: 14px;
+      }
+
+      .listing-list {
+        display: grid;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .listing-btn {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 2px 12px;
+        width: 100%;
+        min-height: 52px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: var(--surface);
+        padding: 9px 14px;
+        text-align: left;
+        cursor: pointer;
+        transition:
+          border-color var(--dur-fast) var(--ease),
+          background-color var(--dur-fast) var(--ease);
+      }
+
+      .listing-btn:hover {
+        background: var(--surface-subtle);
+      }
+
+      .listing-btn[aria-pressed="true"] {
+        border-color: var(--gold);
+        background: var(--gold-tint);
+      }
+
+      .listing-food {
+        font-weight: 700;
+        line-height: 1.25;
+      }
+
+      .listing-meta {
+        grid-column: 1;
+        font-size: 12.5px;
+        color: var(--ink-muted);
+      }
+
+      .listing-count {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        font-size: 13px;
+        font-weight: 750;
+        white-space: nowrap;
+      }
+
+      .note {
+        font-size: 13.5px;
+        color: var(--ink-muted);
+      }
+
+      .detail {
+        animation: rise var(--dur-normal) var(--ease) backwards;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 9999px;
+        padding: 4px 11px;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.3;
+        background: var(--surface-subtle);
+        color: var(--ink-muted);
+      }
+
+      .pill::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: currentColor;
+        opacity: 0.6;
+      }
+
+      .pill[data-tone="success"] {
+        background: var(--success-tint);
+        color: var(--success);
+      }
+
+      .pill[data-tone="gold"] {
+        background: var(--gold-tint);
+        color: var(--gold-text);
+      }
+
+      .detail-food {
+        margin-top: 10px;
+        font-size: 19px;
+        font-weight: 750;
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+      }
+
+      .detail-text {
+        margin-top: 6px;
+        font-size: 13.5px;
+        color: var(--ink-muted);
+      }
+
+      .detail-place {
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
+        margin-top: 8px;
+        font-size: 13.5px;
+        font-weight: 600;
+      }
+
+      .detail-place svg {
+        flex-shrink: 0;
+        margin-top: 2px;
+        color: var(--ink-muted);
+      }
+
+      .answer-box {
+        display: grid;
+        gap: 10px;
+        margin-top: 14px;
+        border-radius: 18px;
+        background: var(--surface-subtle);
+        padding: 14px;
+      }
+
+      .answer {
+        font-size: 16px;
+        font-weight: 750;
+        letter-spacing: -0.01em;
+      }
+
+      .answer.is-fresh {
+        animation: flash 900ms var(--ease);
+      }
+
+      .answer-box .btn {
+        width: 100%;
+      }
+
+      .detail .bar {
+        margin-top: 14px;
+      }
+
+      .counts {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px 16px;
+        margin-top: 12px;
+      }
+
+      .counts dt {
+        display: flex;
+        align-items: flex-start;
+        gap: 7px;
+        font-size: 12.5px;
+        font-weight: 550;
+        line-height: 1.3;
+        color: var(--ink-muted);
+      }
+
+      .counts dt .swatch {
+        margin-top: 3px;
+      }
+
+      .counts dd {
+        transform-origin: left center;
+        margin-top: 2px;
+        font-size: 22px;
+        font-weight: 760;
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+      }
+
+      .times {
+        display: grid;
+        gap: 6px;
+        margin-top: 14px;
+        border-top: 1px solid var(--border);
+        padding-top: 12px;
+        font-size: 13px;
+      }
+
+      .times div {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .times dt {
+        color: var(--ink-muted);
+      }
+
+      .times dd {
+        font-weight: 700;
+        text-align: right;
+      }
+
+      /* ---- Workspace below the map ---- */
+
+      .workspace {
+        display: grid;
+        gap: 16px;
+        margin-top: 16px;
+      }
+
+      .panel {
+        min-width: 0;
+        border: 1px solid var(--border);
+        border-radius: 26px;
+        background: var(--surface);
+        padding: 22px;
+        box-shadow: var(--shadow-card);
+        animation: rise var(--dur-slow) var(--ease) backwards;
+        animation-delay: calc(var(--order, 0) * 60ms);
+      }
+
+      .panel-head {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 6px 16px;
+        margin-bottom: 16px;
+      }
+
+      .panel-title {
+        margin-top: 3px;
+        font-size: 20px;
+        font-weight: 750;
+        letter-spacing: -0.02em;
+        line-height: 1.2;
+      }
+
+      .empty {
+        padding: 22px 0;
+        font-size: 14px;
+        color: var(--ink-muted);
+      }
+
+      /* ---- Agent panel: always dark, so the collaborator reads as its own voice ---- */
+
+      .agent {
+        --focus: #fdbb30;
+        position: relative;
+        display: grid;
+        gap: 18px;
+        border-color: var(--agent-line);
+        background:
+          radial-gradient(
+            120% 70% at 0% 0%,
+            rgba(253, 187, 48, 0.14),
+            transparent 62%
+          ),
+          var(--agent-bg);
+        color: var(--agent-ink);
+        overflow: hidden;
+      }
+
+      .agent-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .agent-avatar {
+        position: relative;
+        width: 44px;
+        height: 44px;
+        flex-shrink: 0;
+        border-radius: 50%;
+        background: var(--gold);
+        color: var(--gold-ink);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .agent-avatar::after {
+        content: "";
+        position: absolute;
+        inset: -5px;
+        border-radius: 50%;
+        border: 2px solid var(--gold);
+        opacity: 0;
+      }
+
+      .agent[data-phase="waiting"] .agent-avatar::after {
+        animation: ripple 1600ms ease-out infinite;
+      }
+
+      .agent .eyebrow {
+        color: var(--agent-muted);
+      }
+
+      .agent-title {
+        font-size: 20px;
+        font-weight: 750;
+        letter-spacing: -0.02em;
+        line-height: 1.2;
+      }
+
+      .agent-chip {
+        margin-left: auto;
+        border-radius: 9999px;
+        padding: 4px 12px;
+        background: var(--agent-raise);
+        color: var(--agent-muted);
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .agent[data-phase="ready"] .agent-chip {
+        background: rgba(74, 222, 128, 0.16);
+        color: #86efac;
+      }
+
+      .agent[data-phase="waiting"] .agent-chip {
+        background: rgba(253, 187, 48, 0.18);
+        color: #fdbb30;
+      }
+
+      .agent[data-phase="stalled"] .agent-chip,
+      .agent[data-phase="error"] .agent-chip {
+        background: rgba(251, 191, 36, 0.16);
+        color: #fcd34d;
+      }
+
+      .agent-main,
+      .agent-side {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        min-width: 0;
+      }
+
+      .agent-side {
+        justify-content: flex-end;
+      }
+
+      .agent-body {
+        display: grid;
+        gap: 12px;
+        align-content: start;
+      }
+
+      .agent-invite {
+        font-size: clamp(20px, 2.1vw, 26px);
+        font-weight: 650;
+        line-height: 1.25;
+        letter-spacing: -0.02em;
+        color: var(--agent-ink);
+      }
+
+      .agent-hint {
+        font-size: 13.5px;
+        color: var(--agent-muted);
+      }
+
+      .agent-wait {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-radius: 16px;
+        background: var(--agent-raise);
+        padding: 12px 14px;
+        font-weight: 650;
+      }
+
+      .agent-wait .spinner {
+        display: block;
+        color: #fdbb30;
+      }
+
+      .agent[data-phase="stalled"] .agent-wait .spinner {
+        display: none;
+      }
+
+      .agent-alert {
+        border-radius: 16px;
+        border: 1px solid rgba(251, 191, 36, 0.3);
+        background: rgba(251, 191, 36, 0.1);
+        color: #fcd34d;
+        padding: 12px 14px;
+        font-weight: 650;
+      }
+
+      .agent-message {
+        border-radius: 6px 20px 20px 20px;
+        border: 1px solid var(--agent-line);
+        background: var(--agent-raise);
+        padding: 16px 18px;
+        animation: rise var(--dur-normal) var(--ease) backwards;
+      }
+
+      .agent-message-text {
+        font-size: 15.5px;
+        line-height: 1.55;
+        white-space: pre-wrap;
+      }
+
+      .agent-stamp {
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--agent-muted);
+      }
+
+      .agent[data-phase="waiting"] .agent-message {
+        opacity: 0.55;
+      }
+
+      .recs-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .recs {
+        display: grid;
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      .rec {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 2px 12px;
+        border-radius: 16px;
+        border: 1px solid var(--agent-line);
+        background: var(--agent-raise);
+        padding: 13px 15px;
+        animation: rise var(--dur-normal) var(--ease) backwards;
+        animation-delay: calc(var(--order, 0) * 50ms);
+      }
+
+      .rec-index {
+        grid-row: 1 / span 2;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: rgba(253, 187, 48, 0.18);
+        color: #fdbb30;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12.5px;
+        font-weight: 800;
+      }
+
+      .rec-title {
+        font-weight: 720;
+        line-height: 1.3;
+      }
+
+      .rec-detail {
+        grid-column: 2;
+        font-size: 13.5px;
+        color: var(--agent-muted);
+        white-space: pre-wrap;
+      }
+
+      .agent-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .agent-actions .btn {
+        flex: 1 1 200px;
+      }
+
+      .btn-ghost {
+        border-color: var(--agent-line);
+        background: var(--agent-raise);
+        color: var(--agent-ink);
+      }
+
+      .btn-ghost:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.12);
+      }
+
+      .btn-quiet {
+        min-height: 44px;
+        border-color: transparent;
+        background: transparent;
+        color: var(--agent-muted);
+        padding: 6px 14px;
+        font-size: 13px;
+      }
+
+      .btn-quiet:hover:not(:disabled) {
+        background: var(--agent-raise);
+        color: var(--agent-ink);
+      }
+
+      /* ---- Recovery trend ---- */
+
+      .chart-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 16px;
+        font-size: 12.5px;
+        color: var(--ink-muted);
+      }
+
+      .chart-legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+      }
+
+      .line-key {
+        display: inline-block;
+        width: 14px;
+        height: 2px;
+        border-radius: 2px;
+        background: var(--series);
+      }
+
+      .trend-plot {
+        position: relative;
+        touch-action: pan-y;
+      }
+
+      .trend-svg {
+        display: block;
+        width: 100%;
+        height: 240px;
+      }
+
+      .t-grid {
+        stroke: var(--border);
+        stroke-width: 1;
+      }
+
+      .t-axis {
+        fill: var(--ink-muted);
+        font-family: var(--sans);
+        font-size: 11px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .t-col {
+        fill: var(--series);
+      }
+
+      .t-area {
+        fill: var(--ink-muted);
+        opacity: 0.1;
+      }
+
+      .t-line {
+        fill: none;
+        stroke: var(--ink-muted);
+        stroke-width: 2;
+        stroke-linejoin: round;
+        stroke-linecap: round;
+      }
+
+      .t-dot {
+        fill: var(--ink-muted);
+        stroke: var(--surface);
+        stroke-width: 2;
+      }
+
+      .t-band {
+        fill: var(--ink);
+        opacity: 0;
+      }
+
+      .t-band.is-on {
+        opacity: 0.05;
+      }
+
+      .tip {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 3;
+        min-width: 150px;
+        padding: 9px 12px;
+        border-radius: 12px;
+        background: var(--ink);
+        color: var(--bg);
+        font-size: 12.5px;
+        line-height: 1.4;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity var(--dur-fast) var(--ease);
+        box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.45);
+      }
+
+      .tip[data-open="true"] {
+        opacity: 1;
+      }
+
+      .tip-date {
+        display: block;
+        margin-bottom: 4px;
+        font-weight: 750;
+      }
+
+      .tip-row {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        white-space: nowrap;
+      }
+
+      .tip [data-series="offered"] {
+        --series: currentColor;
+      }
+
+      .tip-row b {
+        font-variant-numeric: tabular-nums;
+      }
+
+      .tip-row span:last-child {
+        opacity: 0.76;
+      }
+
+      /* ---- Campus distribution ---- */
+
+      .dist-list {
+        display: grid;
+        gap: 2px;
+        max-height: 380px;
+        margin: 0 -10px;
+        overflow-y: auto;
+      }
+
+      .dist-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 4px 12px;
+        width: 100%;
+        min-height: 56px;
+        border: 0;
+        border-radius: 14px;
+        background: transparent;
+        padding: 8px 10px;
+        text-align: left;
+        cursor: pointer;
+        transition: background-color var(--dur-fast) var(--ease);
+      }
+
+      .dist-row:hover,
+      .dist-row[aria-pressed="true"] {
+        background: var(--surface-subtle);
+      }
+
+      .dist-swatch {
+        grid-row: 1 / span 2;
+        width: 14px;
+        height: 14px;
+        border-radius: 4px;
+        border: 1px solid var(--b-edge);
+        background: var(--b-left);
+      }
+
+      .dist-row[data-active="true"] .dist-swatch {
+        border-color: var(--gold-edge);
+        background: var(--gold);
+      }
+
+      .dist-name {
+        font-weight: 700;
+        line-height: 1.25;
+      }
+
+      .dist-figure {
+        font-size: 13px;
+        color: var(--ink-muted);
+        white-space: nowrap;
+      }
+
+      .dist-figure b {
+        font-size: 15px;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .dist-track {
+        grid-column: 2 / span 2;
+      }
+
+      .dist-track .bar {
+        height: 6px;
+        background: transparent;
+      }
+
+      .dist-rest {
+        margin-top: 12px;
+      }
+
+      /* ---- Recent activity ---- */
+
+      .timeline {
+        position: relative;
+        display: grid;
+        gap: 14px;
+      }
+
+      .timeline::before {
+        content: "";
+        position: absolute;
+        left: 4px;
+        top: 8px;
+        bottom: 8px;
+        width: 1px;
+        background: var(--border);
+      }
+
+      .event {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 1px 12px;
+        padding-left: 22px;
+        animation: rise var(--dur-normal) var(--ease) backwards;
+        animation-delay: calc(var(--order, 0) * 30ms);
+      }
+
+      .event::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 6px;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--series, var(--ink-muted));
+        box-shadow: 0 0 0 3px var(--surface);
+      }
+
+      .event-title {
+        font-weight: 700;
+        line-height: 1.3;
+      }
+
+      .event-time {
+        font-size: 12.5px;
+        color: var(--ink-muted);
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .event-detail {
+        grid-column: 1 / span 2;
+        font-size: 13px;
+        color: var(--ink-muted);
+      }
+
+      footer {
+        padding: 22px 0 0;
+      }
+
+      .disclosure {
+        text-align: center;
+        font-size: 12.5px;
+        line-height: 1.4;
+        color: var(--ink-muted);
+      }
+
+      .disclosure a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        padding: 0 2px;
+        color: var(--ink);
+        font-weight: 650;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        border-radius: 6px;
+      }
+
+      .disclosure a:hover {
+        color: var(--gold-text);
+      }
+
+      /* ---- Wider screens ---- */
+
+      @media (min-width: 720px) {
+        .map {
+          height: clamp(460px, 62vh, 640px);
+        }
+
+        .hero {
+          grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.3fr) auto;
+          align-items: center;
+          gap: 28px;
+          padding: 22px 26px;
+        }
+
+        .hero-recovery {
+          flex-direction: column;
+          align-items: flex-start;
+          border-top: 0;
+          border-left: 1px solid var(--border);
+          padding: 0 0 0 26px;
+        }
+
+        .legend {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 7px 24px;
+        }
+
+        .glass {
+          background: var(--glass);
+          border-color: var(--glass-border);
+          box-shadow: var(--glass-shadow);
+          -webkit-backdrop-filter: blur(22px) saturate(1.5);
+          backdrop-filter: blur(22px) saturate(1.5);
+        }
+
+        .hero.glass {
+          background: var(--surface);
+          border-color: var(--border);
+          box-shadow: var(--shadow-card);
+          -webkit-backdrop-filter: none;
+          backdrop-filter: none;
+        }
+
+        .map-wrap > .geometry-note {
+          position: absolute;
+          left: 16px;
+          bottom: 16px;
+          z-index: 2;
+          max-width: min(430px, calc(100% - 408px));
+          margin: 0;
+          padding: 7px 13px;
+          border: 1px solid var(--glass-border);
+          border-radius: 14px;
+          background: var(--glass);
+          box-shadow: var(--glass-shadow);
+        }
+
+        .inspector {
+          position: absolute;
+          right: 16px;
+          top: 16px;
+          z-index: 5;
+          width: min(360px, calc(100% - 32px));
+          max-height: calc(100% - 32px);
+          overflow-y: auto;
+        }
+
+        .map-controls {
+          left: 16px;
+          right: auto;
+          top: 16px;
+          bottom: auto;
+        }
+
+        .compass {
+          left: 184px;
+          right: auto;
+          top: 22px;
+        }
+
+        .workspace {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .agent,
+        .trend {
+          grid-column: 1 / -1;
+        }
+      }
+
+      @media (min-width: 1100px) {
+        .stage {
+          display: block;
+        }
+
+        .map {
+          height: clamp(560px, 70vh, 760px);
+          border-radius: 32px;
+        }
+
+        .hero.glass {
+          position: absolute;
+          left: 18px;
+          top: 18px;
+          z-index: 5;
+          width: 340px;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 18px;
+          padding: 22px;
+          background: var(--glass);
+          border-color: var(--glass-border);
+          box-shadow: var(--glass-shadow);
+          -webkit-backdrop-filter: blur(22px) saturate(1.5);
+          backdrop-filter: blur(22px) saturate(1.5);
+        }
+
+        .hero-recovery {
+          flex-direction: row;
+          align-items: center;
+          border-left: 0;
+          border-top: 1px solid var(--border);
+          padding: 16px 0 0;
+        }
+
+        .legend {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .inspector {
+          right: 18px;
+          top: 18px;
+          width: 372px;
+          max-height: calc(100% - 36px);
+        }
+
+        .map-wrap > .geometry-note {
+          left: 376px;
+          bottom: 18px;
+          max-width: min(430px, calc(100% - 376px - 408px));
+        }
+
+        .map-controls {
+          left: 376px;
+          top: 18px;
+        }
+
+        .compass {
+          left: 544px;
+          top: 24px;
+        }
+
+        .live-line {
+          max-width: 34ch;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .trend {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .trend-plot {
+          flex: 1;
+          min-height: 240px;
+          max-height: 360px;
+        }
+
+        .trend-svg {
+          position: absolute;
+          inset: 0;
+          height: 100%;
+        }
+
+        .workspace {
+          grid-template-columns: repeat(12, minmax(0, 1fr));
+          gap: 18px;
+          margin-top: 18px;
+        }
+
+        .agent {
+          grid-column: 1 / -1;
+          grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+          gap: 22px 40px;
+        }
+
+        .trend {
+          grid-column: span 5;
+        }
+
+        .distribution {
+          grid-column: span 4;
+        }
+
+        .activity {
+          grid-column: span 3;
+        }
+
+        .panel {
+          padding: 26px;
+        }
+      }
+
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+      }
+
+      @keyframes slide-in {
+        from {
+          opacity: 0;
+          transform: translateX(18px);
+        }
+      }
+
+      @keyframes pop {
+        0% {
+          transform: scale(0.9);
+        }
+        55% {
+          transform: scale(1.08);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+
+      @keyframes breathe {
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      @keyframes flash {
+        from {
+          color: var(--gold-text);
+        }
+      }
+
+      @keyframes ripple {
+        from {
+          opacity: 0.7;
+          transform: scale(0.9);
+        }
+        to {
+          opacity: 0;
+          transform: scale(1.35);
+        }
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @media (forced-colors: active) {
+        .scene,
+        .bar,
+        .swatch,
+        .gauge,
+        .trend-svg,
+        .dist-swatch {
+          forced-color-adjust: none;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-delay: 0s !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+
+        .b-body,
+        .bldg:hover .b-body,
+        .bldg.is-hot .b-body,
+        .bldg.is-selected .b-body,
+        .bldg:focus-visible .b-body {
+          transform: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="m16 2-2.3 2.3a3 3 0 0 0 0 4.2l1.8 1.8a3 3 0 0 0 4.2 0L22 8"
+              />
+              <path
+                d="M15 15 3.3 3.3a4.2 4.2 0 0 0 0 6l7.3 7.3c.7.7 2 .7 2.8 0L15 15Zm0 0 7 7"
+              />
+              <path d="m2.1 21.8 6.4-6.3" />
+              <path d="m19 5-7 7" />
+            </svg>
+          </div>
+          <div>
+            <div class="brand-name">Owl Plate</div>
+            <h1 class="brand-title">Campus Rescue Command Center</h1>
+          </div>
+        </div>
+        <div class="topbar-meta">
+          <span class="dataset" id="dataset" data-simulated="false" hidden>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.4"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path
+                d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"
+              />
+              <path d="M12 9v4" />
+              <path d="M12 17h.01" />
+            </svg>
+            <span id="dataset-label"></span>
+            <span id="dataset-flag" hidden>· simulated data</span>
+          </span>
+          <span class="fresh">Updated <time id="checked-time">—</time></span>
+          <span
+            class="live-line"
+            id="status"
+            role="status"
+            aria-live="polite"
+          ></span>
+          <button
+            type="button"
+            class="btn"
+            id="refresh"
+            data-action="refresh_campus_activity"
+            data-busy="false"
+            disabled
+          >
+            <svg
+              class="btn-icon"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M21 12a9 9 0 1 1-2.6-6.4L21 8" />
+              <path d="M21 3v5h-5" />
+            </svg>
+            <svg
+              class="spinner"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <path d="M12 3a9 9 0 1 0 9 9" />
+            </svg>
+            <span>Refresh campus activity</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="error-banner" id="error-box" role="alert" hidden>
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" x2="12" y1="8" y2="12" />
+          <line x1="12" x2="12.01" y1="16" y2="16" />
+        </svg>
+        <span id="error-text"></span>
+      </div>
+
+      <main>
+        <div class="stage">
+          <section class="hero glass" aria-label="Campus summary">
+            <div class="hero-lead">
+              <p class="eyebrow">Marietta campus · food rescue</p>
+              <p class="hero-figure">
+                <span class="num" data-key="available_servings">–</span>
+              </p>
+              <p class="hero-caption" data-series="available">
+                <span class="swatch" aria-hidden="true"></span>Available now
+              </p>
+              <p class="hero-sub">
+                <span class="num" data-key="active_buildings_count">–</span>
+                Buildings with food
+              </p>
+            </div>
+
+            <div class="hero-flow">
+              <div class="flow-head">
+                <span>Servings published</span>
+                <span class="num" data-key="total_published_servings">–</span>
+              </div>
+              <div
+                class="bar"
+                id="summary-bar"
+                role="img"
+                aria-label="Where published servings stand appears here after the first update."
+              >
+                <span class="seg" data-series="available"></span>
+                <span class="seg" data-series="held"></span>
+                <span class="seg" data-series="picked_up"></span>
+                <span class="seg" data-series="pantry_held"></span>
+                <span class="seg" data-series="pantry_transferred"></span>
+              </div>
+              <dl class="legend">
+                <div class="legend-row" data-series="held">
+                  <dt>
+                    <span class="swatch" aria-hidden="true"></span>Student
+                    reservations
+                  </dt>
+                  <dd class="num" data-key="student_reserved_servings">–</dd>
+                </div>
+                <div class="legend-row" data-series="picked_up">
+                  <dt>
+                    <span class="swatch" aria-hidden="true"></span>Completed
+                    pickups
+                  </dt>
+                  <dd class="num" data-key="completed_pickups">–</dd>
+                </div>
+                <div class="legend-row" data-series="pantry_held">
+                  <dt>
+                    <span class="swatch" aria-hidden="true"></span>Pantry
+                    reserved
+                  </dt>
+                  <dd class="num" data-key="pantry_reserved_servings">–</dd>
+                </div>
+                <div class="legend-row" data-series="pantry_transferred">
+                  <dt>
+                    <span class="swatch" aria-hidden="true"></span>Pantry
+                    transfers (simulated)
+                  </dt>
+                  <dd class="num" data-key="pantry_transferred_simulated">–</dd>
+                </div>
+              </dl>
+            </div>
+
+            <div class="hero-recovery">
+              <svg class="gauge" viewBox="0 0 64 64" aria-hidden="true">
+                <circle class="gauge-track" cx="32" cy="32" r="26" />
+                <circle
+                  class="gauge-arc"
+                  id="recovery-arc"
+                  cx="32"
+                  cy="32"
+                  r="26"
+                  transform="rotate(-90 32 32)"
+                />
+              </svg>
+              <div>
+                <p class="recovery-figure">
+                  <span class="num" data-key="student_recovery_percent">–</span
+                  ><span class="unit">%</span>
+                </p>
+                <p class="recovery-label">Student recovery</p>
+              </div>
+            </div>
+          </section>
+
+          <div class="map-wrap">
+            <section class="map" id="map" aria-label="Campus map">
+              <p class="sr-only" id="map-help">
+                Arrow keys move between buildings. Enter selects a building.
+                Plus and minus zoom, zero resets the view.
+              </p>
+              <svg
+                class="scene"
+                id="scene"
+                role="group"
+                aria-label="Campus buildings"
+                aria-describedby="map-help"
+                data-flat="false"
+              >
+                <g id="world">
+                  <g id="ground"></g>
+                  <g id="shadows"></g>
+                  <g id="buildings"></g>
+                </g>
+                <g id="tags" aria-hidden="true"></g>
+              </svg>
+              <p class="map-empty" id="map-empty">
+                Waiting for campus activity…
+              </p>
+              <div
+                class="callout"
+                id="callout"
+                aria-hidden="true"
+                data-open="false"
+              >
+                <span class="callout-name" id="callout-name"></span>
+                <span class="callout-meta" id="callout-meta"></span>
+              </div>
+              <div class="compass glass" aria-hidden="true">
+                <svg
+                  id="compass-arrow"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M12 2 6 20l6-4 6 4L12 2Z" />
+                </svg>
+                N
+              </div>
+              <div
+                class="map-controls glass"
+                role="group"
+                aria-label="Map view"
+              >
+                <button
+                  type="button"
+                  class="icon-btn"
+                  id="zoom-in"
+                  aria-label="Zoom in"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="icon-btn"
+                  id="zoom-out"
+                  aria-label="Zoom out"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M5 12h14" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="icon-btn"
+                  id="zoom-reset"
+                  aria-label="Show the whole campus"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+                  </svg>
+                </button>
+              </div>
+            </section>
+
+            <p class="geometry-note" id="geometry-note">
+              Building footprints are stylized illustrative geometry · positions
+              come from verified campus coordinates.
+            </p>
+
+            <section
+              class="inspector glass"
+              id="inspector"
+              aria-labelledby="insp-title"
+              hidden
+            >
+              <div class="insp-head">
+                <div>
+                  <p class="eyebrow" id="insp-eyebrow">Selected building</p>
+                  <h2 class="insp-title" id="insp-title"></h2>
+                  <p class="insp-line" id="insp-line"></p>
+                </div>
+                <button
+                  type="button"
+                  class="icon-btn"
+                  id="insp-close"
+                  aria-label="Close building details"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M6 6l12 12M18 6 6 18" />
+                  </svg>
+                </button>
+              </div>
+
+              <div class="insp-section">
+                <p class="eyebrow">Food at this building</p>
+                <div class="listing-list" id="insp-listings"></div>
+                <p class="note" id="insp-none" hidden>
+                  No food listed at this building right now.
+                </p>
+              </div>
+
+              <div class="insp-section detail" id="detail" hidden>
+                <span
+                  class="pill"
+                  id="detail-status"
+                  data-tone="neutral"
+                ></span>
+                <h3 class="detail-food" id="detail-food"></h3>
+                <p class="detail-text" id="detail-text"></p>
+                <p class="detail-place">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                  <span id="detail-place"></span>
+                </p>
+
+                <div class="answer-box">
+                  <p class="answer" id="detail-answer"></p>
+                  <button
+                    type="button"
+                    class="btn btn-gold"
+                    id="whats-left"
+                    data-action="whats_left"
+                    data-busy="false"
+                    disabled
+                  >
+                    <svg
+                      class="spinner"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="3"
+                      stroke-linecap="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M12 3a9 9 0 1 0 9 9" />
+                    </svg>
+                    <span id="whats-left-label">What's left?</span>
+                  </button>
+                </div>
+
+                <div class="bar" id="detail-bar" aria-hidden="true">
+                  <span class="seg" data-series="available"></span>
+                  <span class="seg" data-series="held"></span>
+                  <span class="seg" data-series="picked_up"></span>
+                  <span class="seg" data-series="pantry_held"></span>
+                  <span class="seg" data-series="pantry_transferred"></span>
+                </div>
+                <dl class="counts">
+                  <div>
+                    <dt>Total servings</dt>
+                    <dd class="num" data-count="total_servings">–</dd>
+                  </div>
+                  <div data-series="available">
+                    <dt>
+                      <span class="swatch" aria-hidden="true"></span>Available
+                    </dt>
+                    <dd class="num" data-count="available_servings">–</dd>
+                  </div>
+                  <div data-series="held">
+                    <dt>
+                      <span class="swatch" aria-hidden="true"></span>Student
+                      reservations
+                    </dt>
+                    <dd class="num" data-count="held_servings">–</dd>
+                  </div>
+                  <div data-series="picked_up">
+                    <dt>
+                      <span class="swatch" aria-hidden="true"></span>Completed
+                      pickups
+                    </dt>
+                    <dd class="num" data-count="picked_up">–</dd>
+                  </div>
+                  <div data-series="pantry_held">
+                    <dt>
+                      <span class="swatch" aria-hidden="true"></span>Pantry
+                      reserved
+                    </dt>
+                    <dd class="num" data-count="pantry_held">–</dd>
+                  </div>
+                  <div data-series="pantry_transferred">
+                    <dt>
+                      <span class="swatch" aria-hidden="true"></span>Pantry
+                      transfers (simulated)
+                    </dt>
+                    <dd class="num" data-count="pantry_transferred_simulated">
+                      –
+                    </dd>
+                  </div>
+                </dl>
+                <dl class="times">
+                  <div>
+                    <dt>Collection deadline</dt>
+                    <dd><time id="detail-expires">—</time></dd>
+                  </div>
+                  <div>
+                    <dt>Last updated</dt>
+                    <dd><time id="detail-updated">—</time></dd>
+                  </div>
+                </dl>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="workspace">
+          <section
+            class="panel agent"
+            id="agent"
+            data-phase="idle"
+            aria-labelledby="agent-title"
+            tabindex="-1"
+          >
+            <div class="agent-main">
+              <div class="agent-head">
+                <div class="agent-avatar" aria-hidden="true">
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z"
+                    />
+                    <path d="M19 15v4M17 17h4M5 3v3M3.5 4.5h3" />
+                  </svg>
+                </div>
+                <div>
+                  <p class="eyebrow">Working alongside you</p>
+                  <h2 class="agent-title" id="agent-title">Your agent</h2>
+                </div>
+                <span class="agent-chip" id="agent-chip">Standing by</span>
+              </div>
+
+              <div class="agent-body">
+                <div id="agent-invite">
+                  <p class="agent-invite">
+                    Ask your agent what's left across campus.
+                  </p>
+                  <p class="agent-hint">
+                    It reads the live campus picture and answers here in its own
+                    words.
+                  </p>
+                </div>
+
+                <div class="agent-message" id="agent-message" hidden>
+                  <p class="agent-message-text" id="agent-message-text"></p>
+                  <p class="agent-stamp">
+                    From your agent ·
+                    <time id="agent-time"></time>
+                  </p>
+                </div>
+
+                <p class="agent-alert" id="agent-alert" role="alert" hidden></p>
+
+                <p
+                  class="agent-wait"
+                  id="agent-wait"
+                  role="status"
+                  aria-live="polite"
+                  hidden
+                >
+                  <svg
+                    class="spinner"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 3a9 9 0 1 0 9 9" />
+                  </svg>
+                  <span id="agent-wait-text"></span>
+                </p>
+              </div>
+            </div>
+
+            <div class="agent-side">
+              <div id="agent-recs" hidden>
+                <div class="recs-head">
+                  <p class="eyebrow">Recovery recommendations</p>
+                  <button
+                    type="button"
+                    class="btn btn-quiet"
+                    id="dismiss"
+                    data-action="dismiss_recommendations"
+                    disabled
+                  >
+                    Dismiss
+                  </button>
+                </div>
+                <ol class="recs" id="agent-rec-list"></ol>
+              </div>
+
+              <div class="agent-actions">
+                <button
+                  type="button"
+                  class="btn btn-gold"
+                  id="analyze"
+                  data-action="analyze_remaining_food"
+                  disabled
+                >
+                  Analyze remaining food
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-ghost"
+                  id="recommend"
+                  data-action="show_recommendations"
+                  disabled
+                >
+                  Show recovery recommendations
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section
+            class="panel trend"
+            style="--order: 1"
+            aria-labelledby="trend-title"
+          >
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Servings by day</p>
+                <h2 class="panel-title" id="trend-title">Recovery trend</h2>
+              </div>
+              <div class="chart-legend" id="trend-legend" hidden>
+                <span data-series="offered"
+                  ><i class="line-key" aria-hidden="true"></i>Servings
+                  offered</span
+                >
+                <span data-series="picked_up"
+                  ><i class="swatch" aria-hidden="true"></i>Student
+                  pickups</span
+                >
+                <span data-series="pantry_transferred"
+                  ><i class="swatch" aria-hidden="true"></i>Pantry transfers
+                  (simulated)</span
+                >
+                <span data-series="expired"
+                  ><i class="swatch" aria-hidden="true"></i>Expired
+                  unclaimed</span
+                >
+              </div>
+            </div>
+            <div class="trend-plot" id="trend-plot" hidden>
+              <svg
+                class="trend-svg"
+                id="trend-svg"
+                role="img"
+                aria-label="Recovery trend by day"
+              ></svg>
+              <div
+                class="tip"
+                id="trend-tip"
+                aria-hidden="true"
+                data-open="false"
+              ></div>
+            </div>
+            <p class="empty" id="trend-empty">
+              No recovery history for this period yet.
+            </p>
+            <div class="sr-only">
+              <table id="trend-table">
+                <caption>
+                  Recovery trend by day
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Day</th>
+                    <th scope="col">Servings offered</th>
+                    <th scope="col">Student pickups</th>
+                    <th scope="col">Pantry transfers (simulated)</th>
+                    <th scope="col">Expired unclaimed</th>
+                  </tr>
+                </thead>
+                <tbody id="trend-rows"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section
+            class="panel distribution"
+            style="--order: 2"
+            aria-labelledby="dist-title"
+          >
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Where the food is</p>
+                <h2 class="panel-title" id="dist-title">Campus distribution</h2>
+              </div>
+            </div>
+            <div class="dist-list" id="dist-list"></div>
+            <p class="empty" id="dist-empty">
+              No food published on campus right now.
+            </p>
+            <p class="note dist-rest" id="dist-rest" hidden></p>
+          </section>
+
+          <section
+            class="panel activity"
+            style="--order: 3"
+            aria-labelledby="activity-title"
+          >
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Newest first</p>
+                <h2 class="panel-title" id="activity-title">Recent activity</h2>
+              </div>
+            </div>
+            <ol class="timeline" id="timeline"></ol>
+            <p class="empty" id="activity-empty">No recent activity yet.</p>
+          </section>
+        </div>
+      </main>
+
+      <footer>
+        <p class="disclosure">
+          Pantry transfers are simulated · not a
+          <a
+            href="https://campus.kennesaw.edu/current-students/student-affairs/wellbeing/care-services/"
+            target="_blank"
+            rel="noopener noreferrer"
+            >KSU CARE</a
+          >
+          acceptance or
+          <a
+            href="https://campus.kennesaw.edu/offices-services/catering/policies.php"
+            target="_blank"
+            rel="noopener noreferrer"
+            >catering</a
+          >
+          approval
+        </p>
+      </footer>
+    </div>
+
+    <script>
+      "use strict";
+
+      /* ---- Page identity and the only seven requests this page can send ---- */
+
+      const PAGE_ID = "owl-rescue-command-center";
+      let linked = false;
+
+      const ACTIONS = {
+        refresh_campus_activity: () =>
+          It.action("refresh_campus_activity", { page_id: PAGE_ID }),
+        select_building: (buildingId) =>
+          It.action("select_building", {
+            page_id: PAGE_ID,
+            building_id: buildingId,
+          }),
+        inspect_listing: (dropId) =>
+          It.action("inspect_listing", { page_id: PAGE_ID, drop_id: dropId }),
+        whats_left: (dropId) =>
+          It.action("whats_left", { page_id: PAGE_ID, drop_id: dropId }),
+        analyze_remaining_food: () =>
+          It.action("analyze_remaining_food", { page_id: PAGE_ID }),
+        show_recommendations: () =>
+          It.action("show_recommendations", { page_id: PAGE_ID }),
+        dismiss_recommendations: () =>
+          It.action("dismiss_recommendations", { page_id: PAGE_ID }),
+      };
+
+      /* Nothing leaves the page unless the state names this exact page. */
+      async function send(name, detail) {
+        if (!linked || !Object.hasOwn(ACTIONS, name)) return false;
+        try {
+          await ACTIONS[name](detail);
+          return true;
+        } catch (_err) {
+          say(SEND_FAILED_COPY);
+          return false;
+        }
+      }
+
+      /* ---- Copy, limits and lookups ---- */
+
+      const UNLINKED_COPY = "This command center isn't connected yet.";
+      const SEND_FAILED_COPY =
+        "Couldn't send that request. Try again in a moment.";
+      const CHECK_FAILED_COPY =
+        "Couldn't check Owl Plate just now. Try again in a moment.";
+      const AGENT_WAIT_COPY = "Waiting for your agent…";
+      const AGENT_STALLED_COPY =
+        "Still waiting. Check that your agent is open, then try again.";
+      const AGENT_ERROR_COPY = "Your agent couldn't finish. Try again.";
+      const CHECK_WAIT_MS = 12000;
+      const AGENT_WAIT_MS = 20000;
+      const COUNTER_MS = 650;
+      const CHART_MS = 700;
+
+      const SUMMARY_KEYS = [
+        "total_published_servings",
+        "available_servings",
+        "student_reserved_servings",
+        "completed_pickups",
+        "pantry_reserved_servings",
+        "pantry_transferred_simulated",
+        "student_recovery_percent",
+        "active_buildings_count",
+      ];
+      const SUMMARY_PARTS = [
+        "available_servings",
+        "student_reserved_servings",
+        "completed_pickups",
+        "pantry_reserved_servings",
+        "pantry_transferred_simulated",
+      ];
+      const LIST_KEYS = [
+        "campus_buildings",
+        "active_listings",
+        "trend_points",
+        "activity_events",
+        "agent_recommendations",
+      ];
+      const TEXT_KEYS = [
+        "agent_response",
+        "agent_error",
+        "agent_updated_at",
+        "agent_updated_at_iso",
+        "dataset_label",
+        "checked_at",
+        "checked_at_iso",
+        "error",
+      ];
+      const SELECTION_KEYS = [
+        "selected_building_id",
+        "selected_drop_id",
+        "selected_answer",
+      ];
+      const AGENT_STATES = ["idle", "thinking", "ready", "error"];
+      const MAX_RECOMMENDATIONS = 6;
+      const MAX_EVENTS = 12;
+
+      /* The five places a serving can be, in one fixed order everywhere. */
+      const PARTS = [
+        { key: "available_servings", series: "available", label: "Available" },
+        {
+          key: "held_servings",
+          series: "held",
+          label: "Student reservations",
+        },
+        { key: "picked_up", series: "picked_up", label: "Completed pickups" },
+        { key: "pantry_held", series: "pantry_held", label: "Pantry reserved" },
+        {
+          key: "pantry_transferred_simulated",
+          series: "pantry_transferred",
+          label: "Pantry transfers (simulated)",
+        },
+      ];
+      const TREND_STACK = [
+        {
+          key: "student_pickups",
+          series: "picked_up",
+          label: "Student pickups",
+        },
+        {
+          key: "pantry_transfers",
+          series: "pantry_transferred",
+          label: "Pantry transfers (simulated)",
+        },
+        {
+          key: "expired_unclaimed",
+          series: "expired",
+          label: "Expired unclaimed",
+        },
+      ];
+      const TREND_KEYS = ["servings_offered"].concat(
+        TREND_STACK.map((part) => part.key),
+      );
+      const CATEGORY_LABELS = {
+        academic: "Academic",
+        student_life: "Student life",
+        housing: "Housing",
+        other: "Campus building",
+      };
+      const STATUS_LABELS = {
+        live: "Available now",
+        claimed_out: "All servings taken",
+        expired: "Listing ended",
+        draft: "Not published yet",
+      };
+      const EVENT_LABELS = {
+        listing_published: "Food published",
+        reservation_opened: "Student reservation",
+        student_pickup: "Student pickup",
+        pantry_requested: "Pantry requested",
+        pantry_accepted: "Pantry reserved",
+        pantry_rejected: "Pantry declined",
+        pantry_handoff: "Pantry transfer",
+        pantry_expired: "Pantry request ended",
+      };
+      const EVENT_SERIES = {
+        listing_published: "available",
+        reservation_opened: "held",
+        student_pickup: "picked_up",
+        pantry_requested: "pantry_held",
+        pantry_accepted: "pantry_held",
+        pantry_handoff: "pantry_transferred",
+        pantry_rejected: "expired",
+        pantry_expired: "expired",
+      };
+      const MONTHS = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+
+      const NO_MATCH = { matches: false, addEventListener() {} };
+      const media = (query) =>
+        window.matchMedia ? window.matchMedia(query) : NO_MATCH;
+      const reduceMotion = media("(prefers-reduced-motion: reduce)");
+      const narrowScreen = media("(max-width: 719px)");
+      const wideScreen = media("(min-width: 1100px)");
+      const coarsePointer = media("(pointer: coarse)");
+
+      /* ---- Small helpers ---- */
+
+      const byId = (id) => document.getElementById(id);
+      const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
+      const isRecord = (value) =>
+        value !== null && typeof value === "object" && !Array.isArray(value);
+      const words = (value) => (typeof value === "string" ? value.trim() : "");
+      const count = (value) =>
+        Number.isInteger(value) && value >= 0 ? value : null;
+      const whole = (value) => Math.round(value).toLocaleString("en-US");
+      const servings = (value) =>
+        `${whole(value)} ${value === 1 ? "serving" : "servings"}`;
+      const still = () => reduceMotion.matches || document.hidden;
+
+      function setText(node, value) {
+        if (node.textContent !== value) node.textContent = value;
+      }
+
+      function retrigger(node, className) {
+        node.classList.remove(className);
+        void node.getBoundingClientRect();
+        node.classList.add(className);
+      }
+
+      function block(tag, className, value) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (value !== undefined) node.textContent = value;
+        return node;
+      }
+
+      function readable(value) {
+        const plain = words(value).replace(/_/g, " ");
+        return plain ? plain[0].toUpperCase() + plain.slice(1) : "";
+      }
+
+      function stampTime(node, display, iso) {
+        setText(node, words(display) || "—");
+        if (words(iso)) node.setAttribute("datetime", iso);
+        else node.removeAttribute("datetime");
+      }
+
+      /* Shares are drawn only when every part is real and they add up to the total. */
+      function sharesOf(record) {
+        const total = count(record.total_servings);
+        const parts = PARTS.map((part) => count(record[part.key]));
+        if (total === null || total <= 0 || parts.includes(null)) return null;
+        const sum = parts.reduce((running, value) => running + value, 0);
+        return sum === total ? parts.map((value) => value / total) : null;
+      }
+
+      function paintBar(bar, shares) {
+        Array.from(bar.children).forEach((segment, index) => {
+          const share = shares ? shares[index] : 0;
+          segment.hidden = !(share > 0);
+          segment.style.width = `${(share * 100).toFixed(2)}%`;
+        });
+      }
+
+      function newBar() {
+        const bar = block("span", "bar");
+        PARTS.forEach((part) => {
+          const segment = block("span", "seg");
+          segment.dataset.series = part.series;
+          bar.append(segment);
+        });
+        return bar;
+      }
+
+      /* Rebuild a list only when what it shows has changed, so patches don't replay motion. */
+      const lastDrawn = new Map();
+      function changed(name, signature) {
+        if (lastDrawn.get(name) === signature) return false;
+        lastDrawn.set(name, signature);
+        return true;
+      }
+
+      /* ---- Numbers that roll between two real values ---- */
+
+      const counters = new Map();
+
+      function finishCounter(node) {
+        const counter = counters.get(node);
+        if (!counter) return;
+        cancelAnimationFrame(counter.frame);
+        clearTimeout(counter.timer);
+        counter.shown = counter.goal;
+        setText(node, counter.format(counter.goal, counter.goal));
+      }
+
+      function forgetCounter(node) {
+        finishCounter(node);
+        counters.delete(node);
+      }
+
+      /* A first reading appears as-is; only later changes roll. */
+      function showNumber(node, value, format = whole, popNode = node) {
+        if (value === null || value === undefined) {
+          forgetCounter(node);
+          setText(node, "–");
+          return;
+        }
+        let counter = counters.get(node);
+        if (!counter) {
+          counter = { shown: value, goal: value, frame: 0, timer: 0, format };
+          counters.set(node, counter);
+          setText(node, format(value, value));
+          return;
+        }
+        if (counter.goal === value) return;
+        cancelAnimationFrame(counter.frame);
+        clearTimeout(counter.timer);
+        counter.goal = value;
+        if (still()) {
+          finishCounter(node);
+          return;
+        }
+        const from = counter.shown;
+        const startedAt = performance.now();
+        const step = (now) => {
+          const progress = clamp((now - startedAt) / COUNTER_MS, 0, 1);
+          if (progress >= 1) {
+            finishCounter(node);
+            return;
+          }
+          const eased = 1 - Math.pow(1 - progress, 4);
+          counter.shown = from + (value - from) * eased;
+          setText(node, format(counter.shown, value));
+          counter.frame = requestAnimationFrame(step);
+        };
+        retrigger(popNode, "is-popped");
+        counter.timer = setTimeout(() => finishCounter(node), COUNTER_MS + 300);
+        counter.frame = requestAnimationFrame(step);
+      }
+
+      function percent(value, goal) {
+        return Number.isInteger(goal) ? whole(value) : value.toFixed(1);
+      }
+
+      /* ---- Last good state: patches merge, bad values never replace good ones ---- */
+
+      const store = {
+        page_id: null,
+        campus_buildings: [],
+        active_listings: [],
+        trend_points: [],
+        activity_events: [],
+        agent_recommendations: [],
+        selected_building_id: null,
+        selected_drop_id: null,
+        selected_listing: null,
+        selected_answer: null,
+        agent_status: "idle",
+        agent_response: "",
+        agent_error: "",
+        agent_updated_at: "",
+        agent_updated_at_iso: "",
+        dataset_label: "",
+        dataset_is_simulated: false,
+        checked_at: "",
+        checked_at_iso: "",
+        ok: true,
+        error: "",
+      };
+
+      function absorb(next) {
+        if (Object.hasOwn(next, "page_id")) store.page_id = next.page_id;
+        SUMMARY_KEYS.forEach((key) => {
+          const value = next[key];
+          if (Number.isFinite(value) && value >= 0) store[key] = value;
+        });
+        LIST_KEYS.forEach((key) => {
+          if (Array.isArray(next[key])) store[key] = next[key].filter(isRecord);
+        });
+        TEXT_KEYS.forEach((key) => {
+          if (typeof next[key] === "string") store[key] = next[key];
+        });
+        SELECTION_KEYS.forEach((key) => {
+          if (typeof next[key] === "string" || next[key] === null) {
+            store[key] = next[key];
+          }
+        });
+        if (isRecord(next.selected_listing) || next.selected_listing === null) {
+          store.selected_listing = next.selected_listing;
+        }
+        if (AGENT_STATES.includes(next.agent_status)) {
+          store.agent_status = next.agent_status;
+        }
+        if (typeof next.dataset_is_simulated === "boolean") {
+          store.dataset_is_simulated = next.dataset_is_simulated;
+        }
+        if (typeof next.ok === "boolean") store.ok = next.ok;
+      }
+
+      function campusBuildings() {
+        return store.campus_buildings.filter(
+          (building) =>
+            words(building.id) &&
+            Number.isFinite(building.latitude) &&
+            Number.isFinite(building.longitude) &&
+            Math.abs(building.latitude) < 85 &&
+            Math.abs(building.longitude) <= 180,
+        );
+      }
+
+      function campusListings() {
+        return store.active_listings.filter((listing) =>
+          words(listing.drop_id),
+        );
+      }
+
+      function buildingById(id) {
+        return campusBuildings().find((building) => building.id === id) || null;
+      }
+
+      function listingsAt(buildingId) {
+        return campusListings().filter(
+          (listing) => listing.building_id === buildingId,
+        );
+      }
+
+      function liveListingCount(building) {
+        if (Array.isArray(building.active_listings)) {
+          return building.active_listings.length;
+        }
+        return count(building.active_listings) || 0;
+      }
+
+      function buildingName(building) {
+        return words(building.name) || "Campus building";
+      }
+
+      function categoryLabel(building) {
+        return (
+          CATEGORY_LABELS[building.category] ||
+          readable(building.category) ||
+          CATEGORY_LABELS.other
+        );
+      }
+
+      function buildingSummary(building) {
+        const available = count(building.available_servings);
+        const live = liveListingCount(building);
+        if (live > 0 && available !== null) {
+          return `${servings(available)} available · ${live} ${live === 1 ? "listing" : "listings"}`;
+        }
+        if (listingsAt(building.id).length > 0) return "Recent listing ended";
+        return "No food right now";
+      }
+
+      /* ---- Status line, freshness, dataset label and the error banner ---- */
+
+      const statusLine = byId("status");
+      const checkedTime = byId("checked-time");
+      const datasetChip = byId("dataset");
+      const errorBox = byId("error-box");
+      const refreshButton = byId("refresh");
+      let refreshWait = null;
+
+      function say(message) {
+        setText(statusLine, message);
+      }
+
+      function renderChrome() {
+        stampTime(checkedTime, store.checked_at, store.checked_at_iso);
+        const label = words(store.dataset_label);
+        datasetChip.hidden = !label;
+        datasetChip.dataset.simulated = String(store.dataset_is_simulated);
+        setText(byId("dataset-label"), label);
+        byId("dataset-flag").hidden = !store.dataset_is_simulated;
+
+        const message = words(store.error);
+        const failed = store.ok === false || message.length > 0;
+        errorBox.hidden = !failed;
+        setText(byId("error-text"), failed ? message || CHECK_FAILED_COPY : "");
+        return failed;
+      }
+
+      function clearRefreshWait() {
+        if (refreshWait === null) return;
+        clearTimeout(refreshWait);
+        refreshWait = null;
+      }
+
+      refreshButton.addEventListener("click", async () => {
+        if (!linked || refreshWait !== null) return;
+        refreshWait = setTimeout(() => {
+          refreshWait = null;
+          syncControls();
+          say("Still checking… Try again in a moment.");
+        }, CHECK_WAIT_MS);
+        syncControls();
+        say("Checking campus activity…");
+        if (!(await send("refresh_campus_activity"))) {
+          clearRefreshWait();
+          syncControls();
+        }
+      });
+
+      /* ---- Campus summary ---- */
+
+      const summaryNodes = {};
+      SUMMARY_KEYS.forEach((key) => {
+        summaryNodes[key] = document.querySelector(`[data-key="${key}"]`);
+      });
+      const summaryBar = byId("summary-bar");
+      const recoveryArc = byId("recovery-arc");
+      const GAUGE_LENGTH = 2 * Math.PI * 26;
+
+      function renderSummary() {
+        SUMMARY_KEYS.forEach((key) => {
+          const format = key === "student_recovery_percent" ? percent : whole;
+          showNumber(summaryNodes[key], store[key], format);
+        });
+
+        const total = store.total_published_servings;
+        const parts = SUMMARY_PARTS.map((key) => store[key]);
+        const known = total > 0 && parts.every((value) => value !== undefined);
+        const sum = known ? parts.reduce((running, v) => running + v, 0) : 0;
+        const shares =
+          known && sum <= total ? parts.map((value) => value / total) : null;
+        paintBar(summaryBar, shares);
+        summaryBar.setAttribute(
+          "aria-label",
+          shares
+            ? `Of ${servings(total)} published: ${PARTS.map((part, index) => `${part.label} ${whole(parts[index])}`).join(", ")}.`
+            : "Where published servings stand appears here after the first update.",
+        );
+
+        const recovered = store.student_recovery_percent;
+        const arc =
+          recovered === undefined
+            ? 0
+            : (clamp(recovered, 0, 100) / 100) * GAUGE_LENGTH;
+        recoveryArc.style.strokeDasharray = `${arc.toFixed(2)} ${GAUGE_LENGTH.toFixed(2)}`;
+      }
+
+      /* ---- Isometric campus map ---- */
+
+      const EARTH_RADIUS_M = 6378137;
+      const RADIAN = Math.PI / 180;
+      /* A true isometric view: the ground turned 45°, then tipped toward the viewer. */
+      const ISO = { turn: Math.SQRT1_2, tip: 0.5774, rise: 0.8165 };
+      const MAX_ZOOM = 6;
+      const TAG_LIFT = 16;
+
+      const mapBox = byId("map");
+      const scene = byId("scene");
+      const layers = {
+        world: byId("world"),
+        ground: byId("ground"),
+        shadows: byId("shadows"),
+        buildings: byId("buildings"),
+        tags: byId("tags"),
+      };
+      const mapEmpty = byId("map-empty");
+      const callout = byId("callout");
+      const campus = {
+        width: 0,
+        height: 0,
+        flat: false,
+        fit: { scale: 1, x: 0, y: 0 },
+        items: new Map(),
+        roving: null,
+        hitRadius: 0,
+      };
+      const view = { k: 1, x: 0, y: 0 };
+      const aim = { k: 1, x: 0, y: 0 };
+      let viewFrame = 0;
+      let calloutFor = null;
+
+      function shape(tag, attributes) {
+        const node = document.createElementNS(scene.namespaceURI, tag);
+        Object.entries(attributes || {}).forEach(([name, value]) => {
+          node.setAttribute(name, value);
+        });
+        return node;
+      }
+
+      /* Web Mercator metres for a verified latitude and longitude. */
+      function mercator(latitude, longitude) {
+        return {
+          x: EARTH_RADIUS_M * longitude * RADIAN,
+          y:
+            EARTH_RADIUS_M *
+            Math.log(Math.tan(Math.PI / 4 + (latitude * RADIAN) / 2)),
+        };
+      }
+
+      /* Ground metres (east, north, up) to scene units; narrow screens get a flat plan. */
+      function project(east, north, up) {
+        if (campus.flat) return [east, -north];
+        return [
+          (east + north) * ISO.turn,
+          (east - north) * ISO.turn * ISO.tip - up * ISO.rise,
+        ];
+      }
+
+      function points(corners) {
+        return corners
+          .map(([east, north, up]) => {
+            const [x, y] = project(east, north, up || 0);
+            return `${x.toFixed(2)},${y.toFixed(2)}`;
+          })
+          .join(" ");
+      }
+
+      /* A steady 0–1 value per building, so stylized shapes never change between patches. */
+      function steady(id, salt) {
+        let hash = 2166136261 ^ salt;
+        for (let index = 0; index < id.length; index += 1) {
+          hash = Math.imul(hash ^ id.charCodeAt(index), 16777619);
+        }
+        return ((hash >>> 0) % 1000) / 1000;
+      }
+
+      const FOOTPRINT = {
+        academic: { half: 25, height: 27 },
+        student_life: { half: 27, height: 16 },
+        housing: { half: 18, height: 21 },
+        other: { half: 21, height: 17 },
+      };
+
+      /* Positions come straight from the coordinates; only the box around each is styled. */
+      function placeBuildings(buildings) {
+        const lats = buildings.map((building) => building.latitude);
+        const lngs = buildings.map((building) => building.longitude);
+        const midLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+        const midLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+        const origin = mercator(midLat, midLng);
+        const trueScale = Math.cos(midLat * RADIAN);
+        const placed = buildings.map((building) => {
+          const spot = mercator(building.latitude, building.longitude);
+          return {
+            building,
+            east: (spot.x - origin.x) * trueScale,
+            north: (spot.y - origin.y) * trueScale,
+          };
+        });
+        placed.forEach((item) => {
+          item.gap = placed.reduce((nearest, other) => {
+            if (other === item) return nearest;
+            return Math.min(
+              nearest,
+              Math.hypot(other.east - item.east, other.north - item.north),
+            );
+          }, Infinity);
+        });
+        return placed;
+      }
+
+      function fitCampus(placed) {
+        const inset = {
+          left: wideScreen.matches ? 388 : 22,
+          right: 22,
+          top: narrowScreen.matches ? 58 : 84,
+          bottom: 66,
+        };
+        const flatPoints = placed.map((item) =>
+          project(item.east, item.north, 0),
+        );
+        const xs = flatPoints.map((point) => point[0]);
+        const ys = flatPoints.map((point) => point[1]);
+        const margin = 46;
+        const left = Math.min(...xs) - margin;
+        const right = Math.max(...xs) + margin;
+        const top = Math.min(...ys) - margin;
+        const bottom = Math.max(...ys) + margin;
+        const roomX = Math.max(campus.width - inset.left - inset.right, 120);
+        const roomY = Math.max(campus.height - inset.top - inset.bottom, 120);
+        const scale = Math.min(
+          roomX / (right - left),
+          roomY / (bottom - top),
+          3,
+        );
+        campus.fit = {
+          scale,
+          x: inset.left + roomX / 2 - ((left + right) / 2) * scale,
+          y: inset.top + roomY / 2 - ((top + bottom) / 2) * scale,
+        };
+      }
+
+      function sizeBuilding(item) {
+        const { building } = item;
+        const style = FOOTPRINT[building.category] || FOOTPRINT.other;
+        const lean = steady(building.id, 1);
+        const room = item.gap * 0.34;
+        const floor = campus.flat ? 4.5 / campus.fit.scale : 5;
+        const half = style.half * (0.9 + 0.2 * steady(building.id, 2));
+        item.halfEast = Math.max(
+          Math.min(half * (0.82 + 0.4 * lean), room),
+          floor,
+        );
+        item.halfNorth = Math.max(
+          Math.min(half * (1.22 - 0.4 * lean), room),
+          floor,
+        );
+        const height = style.height * (0.85 + 0.35 * steady(building.id, 3));
+        item.height = campus.flat
+          ? 0
+          : Math.min(height, Math.min(item.halfEast, item.halfNorth) * 2.6);
+      }
+
+      function drawGround(placed) {
+        const reach = 70;
+        const west = Math.min(...placed.map((item) => item.east)) - reach;
+        const east = Math.max(...placed.map((item) => item.east)) + reach;
+        const south = Math.min(...placed.map((item) => item.north)) - reach;
+        const north = Math.max(...placed.map((item) => item.north)) + reach;
+        const slab = campus.flat ? 0 : -9;
+        const nodes = [];
+        if (!campus.flat) {
+          nodes.push(
+            shape("polygon", {
+              class: "ground-left",
+              points: points([
+                [west, south, 0],
+                [east, south, 0],
+                [east, south, slab],
+                [west, south, slab],
+              ]),
+            }),
+            shape("polygon", {
+              class: "ground-right",
+              points: points([
+                [east, south, 0],
+                [east, north, 0],
+                [east, north, slab],
+                [east, south, slab],
+              ]),
+            }),
+          );
+        }
+        nodes.push(
+          shape("polygon", {
+            class: "ground-top",
+            points: points([
+              [west, south],
+              [east, south],
+              [east, north],
+              [west, north],
+            ]),
+          }),
+        );
+        const lines = [];
+        for (let x = Math.ceil(west / 100) * 100; x < east; x += 100) {
+          lines.push(`M${points([[x, south]])} L${points([[x, north]])}`);
+        }
+        for (let y = Math.ceil(south / 100) * 100; y < north; y += 100) {
+          lines.push(`M${points([[west, y]])} L${points([[east, y]])}`);
+        }
+        nodes.push(shape("path", { class: "ground-grid", d: lines.join(" ") }));
+        layers.ground.replaceChildren(...nodes);
+      }
+
+      function drawBuilding(item) {
+        const {
+          building,
+          east,
+          north,
+          halfEast: w,
+          halfNorth: d,
+          height,
+        } = item;
+        const west = east - w;
+        const right = east + w;
+        const south = north - d;
+        const top = north + d;
+        const cast = height * 0.55;
+
+        item.shadow = shape("polygon", {
+          class: "b-shadow",
+          points: points([
+            [west, south],
+            [right, south],
+            [right + cast, south + cast * 0.45],
+            [right + cast, top + cast * 0.45],
+            [west + cast, top + cast * 0.45],
+            [west, top],
+          ]),
+        });
+        const glow = Math.max(w, d) * 0.7 + 5;
+        item.halo = shape("polygon", {
+          class: "b-halo",
+          points: points([
+            [west - glow, south - glow],
+            [right + glow, south - glow],
+            [right + glow, top + glow],
+            [west - glow, top + glow],
+          ]),
+        });
+
+        const node = shape("g", {
+          class: "bldg",
+          role: "button",
+          tabindex: "-1",
+          "data-id": building.id,
+          "data-category": words(building.category) || "other",
+        });
+        const pad = campus.flat ? 2.5 / campus.fit.scale : 3;
+        const ring = shape("polygon", {
+          class: "b-ring",
+          points: points([
+            [west - pad, south - pad],
+            [right + pad, south - pad],
+            [right + pad, top + pad],
+            [west - pad, top + pad],
+          ]),
+        });
+        const body = shape("g", { class: "b-body" });
+        if (height > 0) {
+          body.append(
+            shape("polygon", {
+              class: "b-face b-left",
+              points: points([
+                [west, south, 0],
+                [right, south, 0],
+                [right, south, height],
+                [west, south, height],
+              ]),
+            }),
+            shape("polygon", {
+              class: "b-face b-right",
+              points: points([
+                [right, south, 0],
+                [right, top, 0],
+                [right, top, height],
+                [right, south, height],
+              ]),
+            }),
+          );
+        }
+        body.append(
+          shape("polygon", {
+            class: "b-face b-top",
+            points: points([
+              [west, south, height],
+              [right, south, height],
+              [right, top, height],
+              [west, top, height],
+            ]),
+          }),
+        );
+        if (height > 0 && Math.min(w, d) > 9) {
+          const floors = Math.max(1, Math.round(height / 5.5));
+          const detail = [];
+          for (let level = 1; level < floors; level += 1) {
+            const up = (height * level) / floors;
+            detail.push(
+              `M${points([[west, south, up]])} L${points([[right, south, up]])} L${points([[right, top, up]])}`,
+            );
+          }
+          const inset = Math.min(w, d) * 0.28;
+          detail.push(
+            `M${points([
+              [west + inset, south + inset, height],
+              [right - inset, south + inset, height],
+              [right - inset, top - inset, height],
+              [west + inset, top - inset, height],
+            ]).replace(/ /g, " L")} Z`,
+          );
+          body.append(
+            shape("path", { class: "b-detail", d: detail.join(" ") }),
+          );
+        }
+        const [hitX, hitY] = project(east, north, height / 2);
+        item.hit = shape("circle", {
+          class: "b-hit",
+          cx: hitX,
+          cy: hitY,
+          r: 1,
+        });
+        node.append(item.hit, ring, body);
+        item.node = node;
+        item.roof = project(east, north, height);
+        item.depth = project(east, north, 0)[1];
+      }
+
+      function drawTag(item) {
+        const tag = shape("g", { class: "tag", "data-id": item.building.id });
+        const pill = shape("g", { class: "tag-pill" });
+        item.tagRect = shape("rect", { y: -TAG_LIFT - 24, height: 24, rx: 12 });
+        item.tagText = shape("text", { x: 0, y: -TAG_LIFT - 12 });
+        pill.append(item.tagRect, item.tagText);
+        tag.append(
+          shape("line", {
+            class: "tag-stem",
+            x1: 0,
+            y1: -2,
+            x2: 0,
+            y2: -TAG_LIFT,
+          }),
+          pill,
+        );
+        item.tag = tag;
+        item.tagPill = pill;
+      }
+
+      /* Geometry is rebuilt only when the buildings, the viewport or the layout mode change. */
+      function buildScene() {
+        const buildings = campusBuildings();
+        const box = mapBox.getBoundingClientRect();
+        campus.width = box.width;
+        campus.height = box.height;
+        campus.flat = narrowScreen.matches;
+        scene.dataset.flat = String(campus.flat);
+        scene.setAttribute("viewBox", `0 0 ${box.width} ${box.height}`);
+        const compassTurn = campus.flat ? 0 : 60;
+        byId("compass-arrow").style.transform = `rotate(${compassTurn}deg)`;
+
+        const focusedId =
+          document.activeElement && scene.contains(document.activeElement)
+            ? document.activeElement.dataset.id
+            : null;
+        hideCallout();
+        campus.items.forEach((item) => forgetCounter(item.tagText));
+        campus.items.clear();
+        mapEmpty.hidden = buildings.length > 0;
+        if (buildings.length === 0 || box.width === 0) {
+          Object.values(layers).forEach((layer) => {
+            if (layer !== layers.world) layer.replaceChildren();
+          });
+          return;
+        }
+
+        const placed = placeBuildings(buildings);
+        fitCampus(placed);
+        placed.forEach((item) => {
+          sizeBuilding(item);
+          drawBuilding(item);
+          drawTag(item);
+          campus.items.set(item.building.id, item);
+        });
+        placed.sort((a, b) => a.depth - b.depth);
+        drawGround(placed);
+        layers.shadows.replaceChildren(
+          ...placed.map((item) => item.halo),
+          ...placed.map((item) => item.shadow),
+        );
+        layers.buildings.replaceChildren(...placed.map((item) => item.node));
+        layers.tags.replaceChildren(...placed.map((item) => item.tag));
+        campus.hitRadius = 0;
+        clampView(aim);
+        Object.assign(view, aim);
+        dressBuildings();
+        paintView();
+        if (focusedId && campus.items.has(focusedId)) {
+          campus.items.get(focusedId).node.focus({ preventScroll: true });
+        }
+      }
+
+      /* Counts, gold highlights, labels and selection: everything a patch can change. */
+      function dressBuildings() {
+        if (!campus.items.has(campus.roving)) campus.roving = null;
+        let firstActive = null;
+        campus.items.forEach((item, id) => {
+          const building = buildingById(id) || item.building;
+          item.building = building;
+          const available = count(building.available_servings);
+          const active = liveListingCount(building) > 0;
+          const recent = !active && listingsAt(id).length > 0;
+          const selected = selection.buildingId === id;
+          item.node.classList.toggle("is-active", active);
+          item.node.classList.toggle("is-recent", recent);
+          item.node.classList.toggle("is-selected", selected);
+          item.halo.classList.toggle("is-active", active);
+          item.node.setAttribute("aria-pressed", String(selected));
+          item.node.setAttribute(
+            "aria-label",
+            `${buildingName(building)}. ${categoryLabel(building)}. ${buildingSummary(building)}.`,
+          );
+          item.tag.style.display = active && available !== null ? "" : "none";
+          if (active && available !== null) {
+            const width = 22 + String(whole(available)).length * 8.5;
+            item.tagRect.setAttribute("x", (-width / 2).toFixed(1));
+            item.tagRect.setAttribute("width", width.toFixed(1));
+            showNumber(item.tagText, available, whole, item.tagPill);
+            if (!firstActive) firstActive = id;
+          }
+        });
+        const home =
+          (campus.items.has(selection.buildingId) && selection.buildingId) ||
+          campus.roving ||
+          firstActive ||
+          campus.items.keys().next().value ||
+          null;
+        setRoving(home);
+      }
+
+      /* One tab stop for the whole map; arrow keys travel between buildings. */
+      function setRoving(id) {
+        campus.roving = id;
+        campus.items.forEach((item, key) => {
+          item.node.setAttribute("tabindex", key === id ? "0" : "-1");
+        });
+      }
+
+      function screenPoint(pair) {
+        const scale = campus.fit.scale * view.k;
+        return [
+          pair[0] * scale + campus.fit.x * view.k + view.x,
+          pair[1] * scale + campus.fit.y * view.k + view.y,
+        ];
+      }
+
+      function clampView(target) {
+        const slack = 90;
+        target.k = clamp(target.k, 1, MAX_ZOOM);
+        target.x = clamp(
+          target.x,
+          campus.width * (1 - target.k) - slack,
+          slack,
+        );
+        target.y = clamp(
+          target.y,
+          campus.height * (1 - target.k) - slack,
+          slack,
+        );
+      }
+
+      function paintView() {
+        const scale = campus.fit.scale * view.k;
+        const x = campus.fit.x * view.k + view.x;
+        const y = campus.fit.y * view.k + view.y;
+        layers.world.setAttribute(
+          "transform",
+          `translate(${x.toFixed(2)} ${y.toFixed(2)}) scale(${scale.toFixed(4)})`,
+        );
+        campus.items.forEach((item) => {
+          const [tagX, tagY] = screenPoint(item.roof);
+          item.tag.setAttribute(
+            "transform",
+            `translate(${tagX.toFixed(1)} ${tagY.toFixed(1)})`,
+          );
+        });
+        /* Every building keeps a comfortable target on screen, however far out the view is. */
+        const reach = (campus.flat || coarsePointer.matches ? 22 : 12) / scale;
+        if (Math.abs(reach - campus.hitRadius) > campus.hitRadius * 0.02) {
+          campus.hitRadius = reach;
+          campus.items.forEach((item) => item.hit.setAttribute("r", reach));
+        }
+        scene.classList.toggle("is-zoomed", aim.k > 1.02);
+        byId("zoom-out").disabled = aim.k <= 1.001;
+        byId("zoom-in").disabled = aim.k >= MAX_ZOOM - 0.001;
+        if (calloutFor) placeCallout();
+      }
+
+      function glide(immediate) {
+        if (immediate || still()) {
+          cancelAnimationFrame(viewFrame);
+          viewFrame = 0;
+          Object.assign(view, aim);
+          paintView();
+          return;
+        }
+        if (viewFrame) return;
+        const step = () => {
+          viewFrame = 0;
+          const settled =
+            Math.abs(aim.k - view.k) < 0.002 &&
+            Math.abs(aim.x - view.x) < 0.4 &&
+            Math.abs(aim.y - view.y) < 0.4;
+          if (settled) {
+            Object.assign(view, aim);
+          } else {
+            view.k += (aim.k - view.k) * 0.2;
+            view.x += (aim.x - view.x) * 0.2;
+            view.y += (aim.y - view.y) * 0.2;
+            viewFrame = requestAnimationFrame(step);
+          }
+          paintView();
+        };
+        viewFrame = requestAnimationFrame(step);
+      }
+
+      function zoomAbout(x, y, factor, immediate) {
+        const k = clamp(aim.k * factor, 1, MAX_ZOOM);
+        const ratio = k / aim.k;
+        aim.x = x - (x - aim.x) * ratio;
+        aim.y = y - (y - aim.y) * ratio;
+        aim.k = k;
+        clampView(aim);
+        glide(immediate);
+      }
+
+      function mapCentre() {
+        const left = wideScreen.matches ? 388 : 0;
+        return [left + (campus.width - left) / 2, campus.height / 2];
+      }
+
+      function resetView() {
+        Object.assign(aim, { k: 1, x: 0, y: 0 });
+        glide(false);
+      }
+
+      /* Slide the view just enough that a chosen building is not under a panel or off screen. */
+      function reveal(id) {
+        const item = campus.items.get(id);
+        if (!item) return;
+        const scale = campus.fit.scale * aim.k;
+        const x = item.roof[0] * scale + campus.fit.x * aim.k + aim.x;
+        const y = item.roof[1] * scale + campus.fit.y * aim.k + aim.y;
+        const inspectorOpen = !inspector.hidden && !narrowScreen.matches;
+        const left = (wideScreen.matches ? 388 : 0) + 40;
+        const right = campus.width - (inspectorOpen ? 470 : 40);
+        const top = 110;
+        const bottom = campus.height - 70;
+        const dx = x < left ? left - x : x > right ? right - x : 0;
+        const dy = y < top ? top - y : y > bottom ? bottom - y : 0;
+        if (dx === 0 && dy === 0) return;
+        aim.x += dx;
+        aim.y += dy;
+        glide(false);
+      }
+
+      function placeCallout() {
+        const item = campus.items.get(calloutFor);
+        if (!item) return;
+        const [x, y] = screenPoint(item.roof);
+        const lift = item.tag.style.display === "none" ? 12 : TAG_LIFT + 32;
+        const half = callout.offsetWidth / 2;
+        const left = clamp(x, half + 8, campus.width - half - 8);
+        const top = Math.max(y - lift, callout.offsetHeight + 8);
+        callout.style.left = `${left.toFixed(1)}px`;
+        callout.style.top = `${top.toFixed(1)}px`;
+      }
+
+      function showCallout(id) {
+        const item = campus.items.get(id);
+        if (!item) return;
+        calloutFor = id;
+        setText(byId("callout-name"), buildingName(item.building));
+        setText(
+          byId("callout-meta"),
+          `${categoryLabel(item.building)} · ${buildingSummary(item.building)}`,
+        );
+        placeCallout();
+        callout.dataset.open = "true";
+      }
+
+      function hideCallout() {
+        calloutFor = null;
+        callout.dataset.open = "false";
+      }
+
+      /* With no building under the pointer, the note returns to the focused building, if any. */
+      function restCallout() {
+        const focused = buildingAt(document.activeElement);
+        if (focused && scene.contains(document.activeElement))
+          showCallout(focused);
+        else hideCallout();
+      }
+
+      function buildingAt(target) {
+        const node =
+          target instanceof Element ? target.closest(".bldg, .tag") : null;
+        return node && campus.items.has(node.dataset.id)
+          ? node.dataset.id
+          : null;
+      }
+
+      /* Pointer: drag to pan, pinch or wheel to zoom, tap or click to select. */
+      const touches = new Map();
+      let drag = null;
+      let pinch = null;
+      let dragged = false;
+
+      function touchSpan() {
+        const [a, b] = Array.from(touches.values());
+        return {
+          distance: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+          x: (a.x + b.x) / 2,
+          y: (a.y + b.y) / 2,
+        };
+      }
+
+      scene.addEventListener("pointerdown", (event) => {
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        dragged = false;
+        if (touches.size === 1) {
+          drag = {
+            x: event.clientX,
+            y: event.clientY,
+            viewX: aim.x,
+            viewY: aim.y,
+          };
+        } else if (touches.size === 2) {
+          drag = null;
+          pinch = { ...touchSpan(), k: aim.k };
+        }
+      });
+
+      scene.addEventListener("pointermove", (event) => {
+        if (!touches.has(event.pointerId)) {
+          const id =
+            event.pointerType === "mouse" ? buildingAt(event.target) : null;
+          if (id) showCallout(id);
+          else restCallout();
+          return;
+        }
+        touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        const box = scene.getBoundingClientRect();
+        if (pinch && touches.size === 2) {
+          const span = touchSpan();
+          const factor = (pinch.k * (span.distance / pinch.distance)) / aim.k;
+          zoomAbout(span.x - box.left, span.y - box.top, factor, true);
+          dragged = true;
+          return;
+        }
+        if (!drag) return;
+        const dx = event.clientX - drag.x;
+        const dy = event.clientY - drag.y;
+        if (!dragged && Math.hypot(dx, dy) < 5) return;
+        if (!dragged) {
+          dragged = true;
+          hideCallout();
+          scene.classList.add("is-dragging");
+          scene.setPointerCapture(event.pointerId);
+        }
+        aim.x = drag.viewX + dx;
+        aim.y = drag.viewY + dy;
+        clampView(aim);
+        glide(true);
+      });
+
+      function endPointer(event) {
+        touches.delete(event.pointerId);
+        if (touches.size < 2) pinch = null;
+        if (touches.size === 0) {
+          drag = null;
+          scene.classList.remove("is-dragging");
+        }
+      }
+      scene.addEventListener("pointerup", endPointer);
+      scene.addEventListener("pointercancel", endPointer);
+      scene.addEventListener("pointerleave", (event) => {
+        if (event.pointerType === "mouse") restCallout();
+      });
+
+      scene.addEventListener("click", (event) => {
+        if (dragged) {
+          dragged = false;
+          return;
+        }
+        const id = buildingAt(event.target);
+        if (id) chooseBuilding(id);
+      });
+
+      /* The wheel zooms while the map fills the view; otherwise the page keeps scrolling. */
+      scene.addEventListener(
+        "wheel",
+        (event) => {
+          if (campus.items.size === 0) return;
+          const pinching = event.ctrlKey || event.metaKey;
+          const zoomingOut = event.deltaY > 0;
+          if (
+            !pinching &&
+            (window.scrollY > 8 || (zoomingOut && aim.k <= 1.001))
+          ) {
+            return;
+          }
+          event.preventDefault();
+          const box = scene.getBoundingClientRect();
+          const unit = event.deltaMode === 1 ? 16 : 1;
+          const power = -event.deltaY * unit * (pinching ? 0.012 : 0.0022);
+          zoomAbout(
+            event.clientX - box.left,
+            event.clientY - box.top,
+            Math.exp(clamp(power, -0.6, 0.6)),
+            false,
+          );
+        },
+        { passive: false },
+      );
+
+      byId("zoom-in").addEventListener("click", () => {
+        zoomAbout(...mapCentre(), 1.6, false);
+      });
+      byId("zoom-out").addEventListener("click", () => {
+        zoomAbout(...mapCentre(), 1 / 1.6, false);
+      });
+      byId("zoom-reset").addEventListener("click", resetView);
+
+      /* Keyboard: the nearest building in the direction of the arrow key. */
+      const ARROWS = {
+        ArrowLeft: [-1, 0],
+        ArrowRight: [1, 0],
+        ArrowUp: [0, -1],
+        ArrowDown: [0, 1],
+      };
+
+      function neighbour(id, [dx, dy]) {
+        const from = campus.items.get(id);
+        if (!from) return null;
+        let best = null;
+        let bestCost = Infinity;
+        campus.items.forEach((item, key) => {
+          if (item === from) return;
+          const x = item.roof[0] - from.roof[0];
+          const y = item.roof[1] - from.roof[1];
+          const along = x * dx + y * dy;
+          if (along <= 0) return;
+          const across = Math.abs(x * dy - y * dx);
+          const cost = along + across * 2.4;
+          if (cost < bestCost) {
+            bestCost = cost;
+            best = key;
+          }
+        });
+        return best;
+      }
+
+      scene.addEventListener("keydown", (event) => {
+        const id = buildingAt(event.target);
+        if (event.key === "+" || event.key === "=") {
+          zoomAbout(...mapCentre(), 1.6, false);
+        } else if (event.key === "-" || event.key === "_") {
+          zoomAbout(...mapCentre(), 1 / 1.6, false);
+        } else if (event.key === "0") {
+          resetView();
+        } else if (id && (event.key === "Enter" || event.key === " ")) {
+          chooseBuilding(id);
+        } else if (id && ARROWS[event.key]) {
+          const next = neighbour(id, ARROWS[event.key]);
+          if (next) {
+            setRoving(next);
+            campus.items.get(next).node.focus({ preventScroll: true });
+            reveal(next);
+          }
+        } else {
+          return;
+        }
+        event.preventDefault();
+      });
+
+      scene.addEventListener("focusin", (event) => {
+        const id = buildingAt(event.target);
+        if (!id) return;
+        setRoving(id);
+        showCallout(id);
+      });
+      scene.addEventListener("focusout", hideCallout);
+
+      let resizeFrame = 0;
+      function scheduleScene() {
+        cancelAnimationFrame(resizeFrame);
+        resizeFrame = requestAnimationFrame(() => {
+          const box = mapBox.getBoundingClientRect();
+          const sameSize =
+            Math.abs(box.width - campus.width) < 1 &&
+            Math.abs(box.height - campus.height) < 1;
+          if (sameSize && campus.flat === narrowScreen.matches) return;
+          buildScene();
+        });
+      }
+      if (typeof ResizeObserver === "function") {
+        new ResizeObserver(scheduleScene).observe(mapBox);
+      } else {
+        window.addEventListener("resize", scheduleScene);
+      }
+
+      function renderMap() {
+        const signature = JSON.stringify(
+          campusBuildings().map((building) => [
+            building.id,
+            building.latitude,
+            building.longitude,
+            building.category,
+          ]),
+        );
+        if (changed("scene", signature)) buildScene();
+        else dressBuildings();
+      }
+
+      /* ---- Selection and the inspector ---- */
+
+      const inspector = byId("inspector");
+      const listingList = byId("insp-listings");
+      const detail = byId("detail");
+      const answerLine = byId("detail-answer");
+      const leftButton = byId("whats-left");
+      const leftLabel = byId("whats-left-label");
+      const countNodes = {};
+      document.querySelectorAll("[data-count]").forEach((node) => {
+        countNodes[node.dataset.count] = node;
+      });
+      /* What the person is looking at; the state's selection is adopted whenever it changes. */
+      const selection = { buildingId: null, dropId: null };
+      const adopted = { building: undefined, drop: undefined };
+      let leftWait = null;
+
+      function listingById(dropId) {
+        return campusListings().find((item) => item.drop_id === dropId) || null;
+      }
+
+      function currentListing() {
+        if (!selection.dropId) return null;
+        const chosen = store.selected_listing;
+        if (chosen && chosen.drop_id === selection.dropId) return chosen;
+        return listingById(selection.dropId);
+      }
+
+      function adoptSelection() {
+        const buildingMoved = store.selected_building_id !== adopted.building;
+        const dropMoved = store.selected_drop_id !== adopted.drop;
+        adopted.building = store.selected_building_id;
+        adopted.drop = store.selected_drop_id;
+        if (
+          buildingMoved &&
+          store.selected_building_id !== selection.buildingId
+        ) {
+          selection.buildingId = store.selected_building_id;
+          selection.dropId = null;
+        }
+        if (dropMoved) selection.dropId = store.selected_drop_id;
+        const listing = currentListing();
+        if (selection.dropId && !listing) selection.dropId = null;
+        if (dropMoved && listing && words(listing.building_id)) {
+          selection.buildingId = listing.building_id;
+        }
+      }
+
+      function clearLeftWait() {
+        if (leftWait === null) return;
+        clearTimeout(leftWait);
+        leftWait = null;
+      }
+
+      function chooseBuilding(id) {
+        const building = buildingById(id);
+        if (!building) return;
+        if (selection.buildingId !== id) selection.dropId = null;
+        selection.buildingId = id;
+        clearLeftWait();
+        renderSelection();
+        if (linked) say(`${buildingName(building)} selected.`);
+        if (narrowScreen.matches) {
+          inspector.scrollIntoView({
+            block: "nearest",
+            behavior: still() ? "auto" : "smooth",
+          });
+        } else {
+          reveal(id);
+        }
+        send("select_building", id);
+      }
+
+      function chooseListing(dropId) {
+        if (!listingById(dropId)) return;
+        selection.dropId = dropId;
+        clearLeftWait();
+        renderSelection();
+        send("inspect_listing", dropId);
+      }
+
+      function closeInspector() {
+        const id = selection.buildingId;
+        selection.buildingId = null;
+        selection.dropId = null;
+        clearLeftWait();
+        renderSelection();
+        const item = campus.items.get(id);
+        if (item) item.node.focus({ preventScroll: true });
+      }
+      byId("insp-close").addEventListener("click", closeInspector);
+      inspector.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") closeInspector();
+      });
+
+      listingList.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-listing]");
+        if (button) chooseListing(button.dataset.listing);
+      });
+
+      function statusTone(status) {
+        if (status === "live") return "success";
+        if (status === "claimed_out") return "gold";
+        return "neutral";
+      }
+
+      function statusLabel(listing) {
+        return STATUS_LABELS[listing.status] || readable(listing.status);
+      }
+
+      function placeLine(listing, building) {
+        const name =
+          words(listing.building_name) ||
+          (building ? buildingName(building) : "");
+        const room = words(listing.room);
+        return room ? `${name} · Room ${room}` : name;
+      }
+
+      function answerFor(listing) {
+        const fresh = words(store.selected_answer);
+        if (fresh && store.selected_drop_id === listing.drop_id) return fresh;
+        return words(listing.answer);
+      }
+
+      function renderListings(listings) {
+        const signature = JSON.stringify([
+          selection.buildingId,
+          listings.map((listing) => [
+            listing.drop_id,
+            listing.food,
+            listing.room,
+            listing.status,
+            listing.available_servings,
+            listing.total_servings,
+          ]),
+        ]);
+        if (changed("listings", signature)) {
+          listingList.replaceChildren(
+            ...listings.map((listing) => {
+              const button = block("button", "listing-btn");
+              button.type = "button";
+              button.dataset.listing = listing.drop_id;
+              const available = count(listing.available_servings);
+              const total = count(listing.total_servings);
+              const room = words(listing.room);
+              button.append(
+                block(
+                  "span",
+                  "listing-food",
+                  words(listing.food) || "Shared food",
+                ),
+                block(
+                  "span",
+                  "listing-meta",
+                  [statusLabel(listing), room ? `Room ${room}` : ""]
+                    .filter(Boolean)
+                    .join(" · "),
+                ),
+                block(
+                  "span",
+                  "listing-count num",
+                  available !== null && total !== null
+                    ? `${whole(available)} of ${whole(total)} left`
+                    : "",
+                ),
+              );
+              return button;
+            }),
+          );
+        }
+        listingList.querySelectorAll("button").forEach((button) => {
+          button.setAttribute(
+            "aria-pressed",
+            String(button.dataset.listing === selection.dropId),
+          );
+        });
+        byId("insp-none").hidden = listings.length > 0;
+      }
+
+      function renderDetail(listing, building) {
+        const opened =
+          detail.hidden || detail.dataset.listing !== listing.drop_id;
+        detail.hidden = false;
+        detail.dataset.listing = listing.drop_id;
+        if (opened) {
+          Object.values(countNodes).forEach(forgetCounter);
+          retrigger(detail, "detail");
+        }
+        const status = byId("detail-status");
+        setText(status, statusLabel(listing));
+        status.hidden = !statusLabel(listing);
+        status.dataset.tone = statusTone(listing.status);
+        setText(byId("detail-food"), words(listing.food) || "Shared food");
+        const text = byId("detail-text");
+        setText(text, words(listing.description));
+        text.hidden = !words(listing.description);
+        setText(byId("detail-place"), placeLine(listing, building));
+
+        const answer =
+          answerFor(listing) || "Tap “What's left?” for a fresh count.";
+        if (!opened && answerLine.textContent !== answer && !still()) {
+          retrigger(answerLine, "is-fresh");
+        }
+        setText(answerLine, answer);
+
+        Object.keys(countNodes).forEach((key) => {
+          showNumber(countNodes[key], count(listing[key]));
+        });
+        paintBar(byId("detail-bar"), sharesOf(listing));
+        stampTime(
+          byId("detail-expires"),
+          listing.expires_at,
+          listing.expires_at_iso,
+        );
+        stampTime(
+          byId("detail-updated"),
+          listing.updated_at,
+          listing.updated_at_iso,
+        );
+      }
+
+      function renderInspector() {
+        const building = selection.buildingId
+          ? buildingById(selection.buildingId)
+          : null;
+        const listing = currentListing();
+        if (!building && !listing) {
+          inspector.hidden = true;
+          detail.hidden = true;
+          return;
+        }
+        inspector.hidden = false;
+        setText(
+          byId("insp-eyebrow"),
+          building
+            ? `Selected · ${categoryLabel(building)}`
+            : "Selected listing",
+        );
+        setText(
+          byId("insp-title"),
+          building ? buildingName(building) : words(listing.building_name),
+        );
+        setText(byId("insp-line"), building ? buildingSummary(building) : "");
+        const listings = building ? listingsAt(building.id) : [listing];
+        renderListings(listings);
+        if (listing) renderDetail(listing, building);
+        else detail.hidden = true;
+      }
+
+      function renderSelection() {
+        renderInspector();
+        dressBuildings();
+        markDistribution();
+        syncControls();
+      }
+
+      leftButton.addEventListener("click", async () => {
+        const listing = currentListing();
+        if (!linked || !listing || leftWait !== null) return;
+        leftWait = setTimeout(() => {
+          leftWait = null;
+          syncControls();
+          say("Still checking… Tap to try again.");
+        }, CHECK_WAIT_MS);
+        syncControls();
+        say("Checking…");
+        if (!(await send("whats_left", listing.drop_id))) {
+          clearLeftWait();
+          syncControls();
+        }
+      });
+
+      /* ---- Agent panel: only what the paired agent wrote is ever shown as its words ---- */
+
+      const agentPanel = byId("agent");
+      const agentMessage = byId("agent-message");
+      const agentMessageText = byId("agent-message-text");
+      const agentRecs = byId("agent-recs");
+      const agentRecList = byId("agent-rec-list");
+      const agentWait = byId("agent-wait");
+      const agentAlert = byId("agent-alert");
+      const analyzeButton = byId("analyze");
+      const recommendButton = byId("recommend");
+      const dismissButton = byId("dismiss");
+      const AGENT_CHIPS = {
+        idle: "Standing by",
+        waiting: "Thinking",
+        stalled: "Still waiting",
+        ready: "Answered",
+        error: "Needs another try",
+      };
+      const agent = {
+        asked: false,
+        stalled: false,
+        timer: null,
+        mark: "",
+        dismissed: "",
+      };
+
+      function recommendations() {
+        return store.agent_recommendations
+          .filter((item) => words(item.title) || words(item.detail))
+          .slice(0, MAX_RECOMMENDATIONS);
+      }
+
+      function recommendationMark() {
+        return JSON.stringify(
+          recommendations().map((item) => [item.title, item.detail]),
+        );
+      }
+
+      /* A fingerprint of everything the agent can write, to tell a new answer from an old one. */
+      function agentMark() {
+        return JSON.stringify([
+          store.agent_status,
+          store.agent_updated_at_iso,
+          store.agent_response,
+          store.agent_error,
+          recommendationMark(),
+        ]);
+      }
+
+      function stopAgentTimer() {
+        if (agent.timer === null) return;
+        clearTimeout(agent.timer);
+        agent.timer = null;
+      }
+
+      function startAgentTimer() {
+        stopAgentTimer();
+        agent.timer = setTimeout(() => {
+          agent.timer = null;
+          agent.asked = false;
+          agent.stalled = true;
+          renderAgent();
+          syncControls();
+        }, AGENT_WAIT_MS);
+      }
+
+      function settleAgent() {
+        const thinking = store.agent_status === "thinking";
+        if (agent.asked && !thinking && agentMark() !== agent.mark) {
+          agent.asked = false;
+        }
+        if (!agent.asked && !thinking) {
+          stopAgentTimer();
+          agent.stalled = false;
+        } else if (agent.timer === null && !agent.stalled) {
+          startAgentTimer();
+        }
+        if (recommendations().length === 0) agent.dismissed = "";
+      }
+
+      function agentPhase() {
+        if (agent.stalled) return "stalled";
+        if (agent.asked || store.agent_status === "thinking") return "waiting";
+        return store.agent_status;
+      }
+
+      function renderAgent() {
+        const phase = agentPhase();
+        const busy = phase === "waiting" || phase === "stalled";
+        agentPanel.dataset.phase = phase;
+        setText(byId("agent-chip"), AGENT_CHIPS[phase]);
+
+        const answered = store.agent_response.trim().length > 0;
+        agentMessage.hidden = !answered;
+        setText(agentMessageText, store.agent_response);
+        stampTime(
+          byId("agent-time"),
+          store.agent_updated_at,
+          store.agent_updated_at_iso,
+        );
+
+        const mark = recommendationMark();
+        const shown = mark !== agent.dismissed ? recommendations() : [];
+        agentRecs.hidden = shown.length === 0;
+        if (changed("recommendations", JSON.stringify([mark, shown.length]))) {
+          agentRecList.replaceChildren(
+            ...shown.map((item, index) => {
+              const card = block("li", "rec");
+              card.style.setProperty("--order", String(index));
+              const number = block("span", "rec-index", String(index + 1));
+              number.setAttribute("aria-hidden", "true");
+              card.append(
+                number,
+                block("p", "rec-title", words(item.title)),
+                block("p", "rec-detail", words(item.detail)),
+              );
+              return card;
+            }),
+          );
+        }
+
+        byId("agent-invite").hidden =
+          answered || shown.length > 0 || busy || phase === "error";
+        agentWait.hidden = !busy;
+        setText(
+          byId("agent-wait-text"),
+          phase === "stalled"
+            ? AGENT_STALLED_COPY
+            : busy
+              ? AGENT_WAIT_COPY
+              : "",
+        );
+        agentAlert.hidden = phase !== "error";
+        setText(
+          agentAlert,
+          phase === "error" ? words(store.agent_error) || AGENT_ERROR_COPY : "",
+        );
+      }
+
+      async function askAgent(name) {
+        if (!linked || agent.asked) return;
+        agent.asked = true;
+        agent.stalled = false;
+        agent.mark = agentMark();
+        if (name === "show_recommendations") agent.dismissed = "";
+        startAgentTimer();
+        renderAgent();
+        syncControls();
+        if (!(await send(name))) {
+          agent.asked = false;
+          stopAgentTimer();
+          renderAgent();
+          syncControls();
+        }
+      }
+
+      analyzeButton.addEventListener("click", () => {
+        askAgent("analyze_remaining_food");
+      });
+      recommendButton.addEventListener("click", () => {
+        askAgent("show_recommendations");
+      });
+      dismissButton.addEventListener("click", () => {
+        if (!linked) return;
+        agent.dismissed = recommendationMark();
+        renderAgent();
+        (analyzeButton.disabled ? agentPanel : analyzeButton).focus();
+        send("dismiss_recommendations");
+      });
+
+      /* ---- Recovery trend ---- */
+
+      const trendPlot = byId("trend-plot");
+      const trendSvg = byId("trend-svg");
+      const trendTip = byId("trend-tip");
+      const trend = {
+        points: [],
+        shown: new Map(),
+        frame: 0,
+        layout: null,
+        hover: -1,
+      };
+
+      function trendPoints() {
+        return store.trend_points.filter(
+          (point) =>
+            words(point.date) &&
+            TREND_KEYS.every((key) => count(point[key]) !== null),
+        );
+      }
+
+      function dayLabel(date) {
+        const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(date);
+        const month = match ? MONTHS[Number(match[2]) - 1] : null;
+        return month ? `${month} ${Number(match[3])}` : date;
+      }
+
+      function axisTop(peak) {
+        const rough = Math.max(peak, 4) / 4;
+        const power = Math.pow(10, Math.floor(Math.log10(rough)));
+        const step =
+          [1, 2, 5, 10].find((size) => size * power >= rough) * power;
+        return { step, top: Math.ceil(Math.max(peak, 4) / step) * step };
+      }
+
+      /* A column segment: square at the baseline, rounded only at the very top of the stack. */
+      function columnPath(x, y, width, height, rounded) {
+        const r = rounded ? Math.min(4, width / 2, height) : 0;
+        return `M${x},${y + height} V${y + r} Q${x},${y} ${x + r},${y} H${x + width - r} Q${x + width},${y} ${x + width},${y + r} V${y + height} Z`;
+      }
+
+      function drawTrend(values) {
+        const points = trend.points;
+        const width = Math.max(trendPlot.clientWidth, 260);
+        const height = trendSvg.clientHeight || 240;
+        const pad = { left: 36, right: 10, top: 12, bottom: 26 };
+        const plotW = width - pad.left - pad.right;
+        const plotH = height - pad.top - pad.bottom;
+        const peak = points.reduce((highest, point) => {
+          const stack = TREND_STACK.reduce(
+            (sum, part) => sum + point[part.key],
+            0,
+          );
+          return Math.max(highest, stack, point.servings_offered);
+        }, 0);
+        const axis = axisTop(peak);
+        const band = plotW / points.length;
+        const column = clamp(band * 0.46, 5, 24);
+        const yOf = (value) => pad.top + plotH - (value / axis.top) * plotH;
+        const xOf = (index) => pad.left + band * (index + 0.5);
+        trend.layout = { pad, band, width, height, count: points.length };
+        trendSvg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+
+        const nodes = [];
+        for (let tick = 0; tick <= axis.top; tick += axis.step) {
+          const y = yOf(tick);
+          nodes.push(
+            shape("line", {
+              class: "t-grid",
+              x1: pad.left,
+              x2: width - pad.right,
+              y1: y,
+              y2: y,
+            }),
+          );
+          const label = shape("text", {
+            class: "t-axis",
+            x: pad.left - 8,
+            y: y + 4,
+            "text-anchor": "end",
+          });
+          label.textContent = whole(tick);
+          nodes.push(label);
+        }
+        const every = Math.max(
+          1,
+          Math.ceil(points.length / Math.max(1, Math.floor(plotW / 58))),
+        );
+        points.forEach((point, index) => {
+          nodes.push(
+            shape("rect", {
+              class: index === trend.hover ? "t-band is-on" : "t-band",
+              x: pad.left + band * index,
+              y: pad.top,
+              width: band,
+              height: plotH,
+            }),
+          );
+          if (index % every === 0 || index === points.length - 1) {
+            const late = index === points.length - 1 && index % every !== 0;
+            if (late && band * (index % every) < 44) return;
+            const label = shape("text", {
+              class: "t-axis",
+              x: xOf(index),
+              y: height - 6,
+              "text-anchor": "middle",
+            });
+            label.textContent = dayLabel(point.date);
+            nodes.push(label);
+          }
+        });
+
+        const line = values.map(
+          (value, index) =>
+            `${xOf(index).toFixed(1)},${yOf(value.servings_offered).toFixed(1)}`,
+        );
+        if (line.length > 1) {
+          nodes.push(
+            shape("path", {
+              class: "t-area",
+              d: `M${xOf(0).toFixed(1)},${yOf(0)} L${line.join(" L")} L${xOf(line.length - 1).toFixed(1)},${yOf(0)} Z`,
+            }),
+          );
+        }
+        values.forEach((value, index) => {
+          const present = TREND_STACK.filter((part) => value[part.key] > 0.01);
+          let base = yOf(0);
+          present.forEach((part, order) => {
+            const tall = (value[part.key] / axis.top) * plotH;
+            const gap = order > 0 && tall > 3 ? 2 : 0;
+            const node = shape("path", {
+              class: "t-col",
+              d: columnPath(
+                xOf(index) - column / 2,
+                base - tall,
+                column,
+                Math.max(tall - gap, 0.5),
+                order === present.length - 1,
+              ),
+            });
+            node.dataset.series = part.series;
+            nodes.push(node);
+            base -= tall;
+          });
+        });
+        if (line.length > 1) {
+          nodes.push(
+            shape("path", { class: "t-line", d: `M${line.join(" L")}` }),
+          );
+        }
+        const focus = trend.hover >= 0 ? trend.hover : values.length - 1;
+        if (values[focus]) {
+          nodes.push(
+            shape("circle", {
+              class: "t-dot",
+              cx: xOf(focus),
+              cy: yOf(values[focus].servings_offered),
+              r: 4.5,
+            }),
+          );
+        }
+        trendSvg.replaceChildren(...nodes);
+      }
+
+      function trendTable(points) {
+        byId("trend-rows").replaceChildren(
+          ...points.map((point) => {
+            const row = block("tr");
+            const day = block("th", "", dayLabel(point.date));
+            day.scope = "row";
+            row.append(
+              day,
+              ...TREND_KEYS.map((key) => block("td", "", whole(point[key]))),
+            );
+            return row;
+          }),
+        );
+      }
+
+      function renderTrend(resized) {
+        const points = trendPoints();
+        const empty = points.length === 0;
+        byId("trend-empty").hidden = !empty;
+        trendPlot.hidden = empty;
+        byId("trend-legend").hidden = empty;
+        const fresh = changed(
+          "trend",
+          JSON.stringify(
+            points.map((point) =>
+              [point.date].concat(TREND_KEYS.map((key) => point[key])),
+            ),
+          ),
+        );
+        if (!fresh && !resized) return;
+        cancelAnimationFrame(trend.frame);
+        trend.points = points;
+        hideTrendTip();
+        if (empty) {
+          trend.shown.clear();
+          trendSvg.replaceChildren();
+          byId("trend-rows").replaceChildren();
+          return;
+        }
+        if (fresh) trendTable(points);
+        const settle = () => {
+          trend.shown = new Map(points.map((point) => [point.date, point]));
+          drawTrend(points);
+        };
+        if (!fresh || still()) {
+          settle();
+          return;
+        }
+        /* Columns grow from where they stood; a day seen for the first time grows from zero. */
+        const from = points.map((point) => trend.shown.get(point.date) || {});
+        const startedAt = performance.now();
+        const step = (now) => {
+          const progress = clamp((now - startedAt) / CHART_MS, 0, 1);
+          if (progress >= 1) {
+            settle();
+            return;
+          }
+          const eased = 1 - Math.pow(1 - progress, 3);
+          drawTrend(
+            points.map((point, index) => {
+              const mixed = {};
+              TREND_KEYS.forEach((key) => {
+                const start = from[index][key] || 0;
+                mixed[key] = start + (point[key] - start) * eased;
+              });
+              return mixed;
+            }),
+          );
+          trend.frame = requestAnimationFrame(step);
+        };
+        trend.frame = requestAnimationFrame(step);
+      }
+
+      function hideTrendTip() {
+        trendTip.dataset.open = "false";
+        if (trend.hover === -1) return;
+        trend.hover = -1;
+        if (trend.points.length > 0 && trend.layout) drawTrend(trend.points);
+      }
+
+      function showTrendTip(event) {
+        const layout = trend.layout;
+        if (!layout || layout.count === 0) return;
+        const box = trendSvg.getBoundingClientRect();
+        const x = event.clientX - box.left - layout.pad.left;
+        const index = clamp(Math.floor(x / layout.band), 0, layout.count - 1);
+        const point = trend.points[index];
+        if (!point) return;
+        if (trend.hover !== index) {
+          trend.hover = index;
+          drawTrend(trend.points);
+          const rows = [block("span", "tip-date", dayLabel(point.date))];
+          [
+            {
+              key: "servings_offered",
+              series: "offered",
+              label: "Servings offered",
+            },
+          ]
+            .concat(TREND_STACK)
+            .forEach((part) => {
+              const row = block("span", "tip-row");
+              row.dataset.series = part.series;
+              row.append(
+                block("i", "line-key"),
+                block("b", "", whole(point[part.key])),
+                block("span", "", part.label),
+              );
+              rows.push(row);
+            });
+          trendTip.replaceChildren(...rows);
+        }
+        const centre = layout.pad.left + layout.band * (index + 0.5);
+        const tipWidth = trendTip.offsetWidth;
+        const onLeft = centre + 14 + tipWidth > layout.width;
+        trendTip.style.left = `${(onLeft ? centre - 14 - tipWidth : centre + 14).toFixed(1)}px`;
+        trendTip.style.top = "8px";
+        trendTip.dataset.open = "true";
+      }
+
+      trendSvg.addEventListener("pointermove", showTrendTip);
+      trendSvg.addEventListener("pointerdown", showTrendTip);
+      trendSvg.addEventListener("pointerleave", hideTrendTip);
+      if (typeof ResizeObserver === "function") {
+        new ResizeObserver(() => {
+          const layout = trend.layout;
+          if (!layout) return;
+          const moved =
+            Math.abs(trendPlot.clientWidth - layout.width) > 1 ||
+            Math.abs(trendSvg.clientHeight - layout.height) > 1;
+          if (moved) renderTrend(true);
+        }).observe(trendPlot);
+      }
+
+      /* ---- Campus distribution ---- */
+
+      const distList = byId("dist-list");
+
+      function renderDistribution() {
+        const buildings = campusBuildings();
+        const rows = buildings
+          .filter(
+            (building) =>
+              count(building.total_servings) > 0 ||
+              liveListingCount(building) > 0,
+          )
+          .sort(
+            (a, b) =>
+              (count(b.available_servings) || 0) -
+                (count(a.available_servings) || 0) ||
+              (count(b.total_servings) || 0) - (count(a.total_servings) || 0) ||
+              buildingName(a).localeCompare(buildingName(b)),
+          );
+        byId("dist-empty").hidden = rows.length > 0;
+        const rest = buildings.length - rows.length;
+        const restNote = byId("dist-rest");
+        restNote.hidden = rows.length === 0 || rest <= 0;
+        setText(
+          restNote,
+          `${whole(rest)} other verified ${rest === 1 ? "building has" : "buildings have"} no food right now.`,
+        );
+        const signature = JSON.stringify(
+          rows.map((building) => [
+            building.id,
+            building.name,
+            liveListingCount(building),
+            building.total_servings,
+            ...PARTS.map((part) => building[part.key]),
+          ]),
+        );
+        if (changed("distribution", signature)) {
+          const most = Math.max(
+            ...rows.map((building) => count(building.total_servings) || 0),
+            1,
+          );
+          distList.replaceChildren(
+            ...rows.map((building) => {
+              const row = block("button", "dist-row");
+              row.type = "button";
+              row.dataset.building = building.id;
+              row.dataset.active = String(liveListingCount(building) > 0);
+              const available = count(building.available_servings);
+              const total = count(building.total_servings);
+              const figure = block("span", "dist-figure");
+              if (available !== null && total !== null) {
+                figure.append(
+                  block("b", "", whole(available)),
+                  ` of ${whole(total)} available`,
+                );
+              }
+              const track = block("span", "dist-track");
+              const bar = newBar();
+              bar.style.width = `${(((total || 0) / most) * 100).toFixed(1)}%`;
+              paintBar(bar, sharesOf(building));
+              track.append(bar);
+              const swatch = block("span", "dist-swatch");
+              swatch.setAttribute("aria-hidden", "true");
+              row.append(
+                swatch,
+                block("span", "dist-name", buildingName(building)),
+                figure,
+                track,
+              );
+              return row;
+            }),
+          );
+        }
+        markDistribution();
+      }
+
+      function markDistribution() {
+        distList.querySelectorAll("button").forEach((row) => {
+          row.setAttribute(
+            "aria-pressed",
+            String(row.dataset.building === selection.buildingId),
+          );
+        });
+      }
+
+      function warmBuilding(event) {
+        const row = event.target.closest
+          ? event.target.closest(".dist-row")
+          : null;
+        const warm = event.type === "pointerover" || event.type === "focusin";
+        campus.items.forEach((item, id) => {
+          item.node.classList.toggle(
+            "is-hot",
+            Boolean(row) && warm && id === row.dataset.building,
+          );
+        });
+      }
+      ["pointerover", "pointerout", "focusin", "focusout"].forEach((type) => {
+        distList.addEventListener(type, warmBuilding);
+      });
+      distList.addEventListener("click", (event) => {
+        const row = event.target.closest(".dist-row");
+        if (row) chooseBuilding(row.dataset.building);
+      });
+
+      /* ---- Recent activity ---- */
+
+      function eventTitle(event) {
+        const label =
+          EVENT_LABELS[event.kind] || readable(event.kind) || "Update";
+        const simulated =
+          event.is_simulated === true ||
+          words(event.kind).startsWith("pantry_");
+        return simulated ? `${label} (simulated)` : label;
+      }
+
+      function renderActivity() {
+        const events = store.activity_events.slice(0, MAX_EVENTS);
+        byId("activity-empty").hidden = events.length > 0;
+        const signature = JSON.stringify(
+          events.map((event) => [
+            event.kind,
+            event.occurred_at_iso,
+            event.occurred_at,
+            event.food,
+            event.building_name,
+            event.servings,
+            event.is_simulated,
+          ]),
+        );
+        if (!changed("activity", signature)) return;
+        byId("timeline").replaceChildren(
+          ...events.map((event, index) => {
+            const row = block("li", "event");
+            row.style.setProperty("--order", String(index));
+            if (EVENT_SERIES[event.kind])
+              row.dataset.series = EVENT_SERIES[event.kind];
+            const time = block("time", "event-time");
+            stampTime(time, event.occurred_at, event.occurred_at_iso);
+            const amount = count(event.servings);
+            row.append(
+              block("span", "event-title", eventTitle(event)),
+              time,
+              block(
+                "span",
+                "event-detail",
+                [
+                  words(event.food),
+                  words(event.building_name),
+                  amount === null ? "" : servings(amount),
+                ]
+                  .filter(Boolean)
+                  .join(" · "),
+              ),
+            );
+            return row;
+          }),
+        );
+      }
+
+      /* ---- Controls and the single state handler ---- */
+
+      function syncControls() {
+        const refreshing = refreshWait !== null;
+        refreshButton.disabled = !linked || refreshing;
+        refreshButton.dataset.busy = String(refreshing);
+        const checking = leftWait !== null;
+        leftButton.disabled = !linked || checking || !currentListing();
+        leftButton.dataset.busy = String(checking);
+        setText(leftLabel, checking ? "Checking…" : "What's left?");
+        analyzeButton.disabled = !linked || agent.asked;
+        recommendButton.disabled = !linked || agent.asked;
+        dismissButton.disabled = !linked;
+      }
+
+      function handleState(state) {
+        const next = isRecord(state) ? state : {};
+        const wasWaiting = refreshWait !== null || leftWait !== null;
+        absorb(next);
+        linked = store.page_id === PAGE_ID;
+        clearRefreshWait();
+        clearLeftWait();
+        adoptSelection();
+        settleAgent();
+
+        const failed = renderChrome();
+        renderSummary();
+        renderMap();
+        renderInspector();
+        renderAgent();
+        renderTrend(false);
+        renderDistribution();
+        renderActivity();
+        syncControls();
+
+        if (!linked) say(UNLINKED_COPY);
+        else if (wasWaiting)
+          say(failed ? "Couldn't refresh right now." : "Updated");
+        else if (statusLine.textContent === UNLINKED_COPY) say("");
+      }
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden)
+          counters.forEach((_counter, node) => finishCounter(node));
+      });
+      narrowScreen.addEventListener("change", scheduleScene);
+      wideScreen.addEventListener("change", scheduleScene);
+
+      if (typeof It !== "undefined" && typeof It.onState === "function") {
+        It.onState(handleState);
+      } else {
+        say(UNLINKED_COPY);
+      }
+    </script>
+  </body>
+</html>
