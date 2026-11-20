@@ -4,7 +4,7 @@ import io
 import os
 from typing import Protocol
 
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from services.api.providers.gemini import GeminiVision
 from services.api.providers.openrouter import OpenRouterVision
@@ -22,16 +22,23 @@ class VisionProvider(Protocol):
 
 
 def validate_photo(photo: bytes) -> bytes:
-    """Decode and re-encode food photos to strip metadata without storing uploads."""
+    """Decode and re-encode food photos so only clean, upright pixels ever leave this call.
+
+    Orientation is applied from EXIF before every metadata block (EXIF, GPS, XMP, ICC,
+    comments) is dropped by re-encoding a bounded RGB JPEG from the pixels alone.
+    """
     if not photo or len(photo) > 10 * 1024 * 1024:
         raise ValueError("Upload a JPEG or PNG smaller than 10 MiB")
     try:
         with Image.open(io.BytesIO(photo)) as image:
             if image.format not in {"JPEG", "PNG"} or image.width * image.height > 20_000_000:
                 raise ValueError("Unsupported image format or dimensions")
-            image.thumbnail((1024, 1024))
+            upright = ImageOps.exif_transpose(image)
+            upright.thumbnail((1024, 1024))
+            clean = Image.new("RGB", upright.size)
+            clean.paste(upright.convert("RGB"))
             output = io.BytesIO()
-            image.convert("RGB").save(output, format="JPEG", quality=85)
+            clean.save(output, format="JPEG", quality=85)
             return output.getvalue()
     except (UnidentifiedImageError, OSError, Image.DecompressionBombError):
         raise ValueError("Upload a valid JPEG or PNG") from None

@@ -106,14 +106,20 @@ function loadFixturesModule() {
   return { fixtures: fixturesExports, store };
 }
 
-test("getVisionSourceLabel maps openrouter to 'Live Gemini via OpenRouter', gemini to 'Live Gemini', and fixture to 'Saved demo estimate'", () => {
+test("getVisionSourceLabel uses consumer copy without provider or model names, and never presents a sample as this photo", () => {
   const helpers = loadHostHelpers();
+  assert.equal(helpers.getVisionSourceLabel("openrouter"), "AI photo estimate");
+  assert.equal(helpers.getVisionSourceLabel("gemini"), "AI photo estimate");
   assert.equal(
-    helpers.getVisionSourceLabel("openrouter"),
-    "Live Gemini via OpenRouter",
+    helpers.getVisionSourceLabel("fixture"),
+    "Sample estimate (not from your photo)",
   );
-  assert.equal(helpers.getVisionSourceLabel("gemini"), "Live Gemini");
-  assert.equal(helpers.getVisionSourceLabel("fixture"), "Saved demo estimate");
+  for (const source of ["openrouter", "gemini", "fixture"]) {
+    assert.doesNotMatch(
+      helpers.getVisionSourceLabel(source),
+      /gemini|openrouter|fixture|live|demo/i,
+    );
+  }
   assert.equal(helpers.isLiveVisionSource("openrouter"), true);
   assert.equal(helpers.isLiveVisionSource("gemini"), true);
   assert.equal(helpers.isLiveVisionSource("fixture"), false);
@@ -425,7 +431,7 @@ test("resolveDefaultHostBuildingId prefers verified campus buildings by default 
   );
 });
 
-test("formatHostDropLocation uses drop.building.name or directory match, and falls back to building_code for rehearsal", () => {
+test("formatHostDropLocation uses drop.building.name or directory match, and never shows a raw building code", () => {
   const helpers = loadHostHelpers();
   const sampleBuilding = {
     id: "ksu-marietta-atrium-building",
@@ -466,7 +472,15 @@ test("formatHostDropLocation uses drop.building.name or directory match, and fal
       room: "214",
       building: null,
     }),
-    "DEMO-ORIGIN, Room 214",
+    "Rehearsal location, Room 214",
+  );
+  assert.equal(
+    helpers.formatHostDropLocation({
+      building_code: "ksu-marietta-unknown-building",
+      room: "",
+      building: null,
+    }),
+    "Campus pickup",
   );
 });
 

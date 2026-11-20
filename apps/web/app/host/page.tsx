@@ -1,29 +1,28 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, Suspense } from "react";
+import React, {
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useSearchParams } from "next/navigation";
-import { DemoHeader } from "../../components/DemoHeader";
-import { AllergenListDisplay } from "../../components/AllergenBadge";
-import { PushOptIn } from "../../components/PushOptIn";
-import {
-  BuildingSelector,
-  type RehearsalOption,
-} from "../../components/BuildingSelector";
-import { HostPantryCard } from "../../components/HostPantryCard";
-import {
-  ALLERGENS,
-  ALLERGEN_WARNING_TEXT,
-  DIETS,
-  PICKUP_CONFIRMATION_NOTICE,
-  RELIGIOUS_DIETS,
-  type Allergen,
-  type Building,
-  type Diet,
-  type DropEdit,
-  type DropResponse,
-  type HostPantryReferralResponse,
-  type HostPickupReview,
-  type SafetyReview,
+import { LayoutList, Plus } from "lucide-react";
+import { AppShell } from "../../components/ui/AppShell";
+import { DetailSkeleton } from "../../components/ui/Skeleton";
+import type { RehearsalOption } from "../../components/BuildingSelector";
+import { HostStepIndicator } from "../../components/host/HostStepIndicator";
+import { HostPhotoStep } from "../../components/host/HostPhotoStep";
+import { HostReviewStep } from "../../components/host/HostReviewStep";
+import { HostListingDashboard } from "../../components/host/HostListingDashboard";
+import { HostListingsView } from "../../components/host/HostListingsView";
+import type {
+  Building,
+  DropEdit,
+  DropResponse,
+  HostPantryReferralResponse,
+  HostPickupReview,
 } from "../../lib/types/api";
 import {
   confirmHostPantryHandoff,
@@ -31,33 +30,31 @@ import {
   decideHostPickupReview,
   getBuildings,
   getDrop,
-  getActiveDrop,
+  getHostDrops,
   getHostPantryReferral,
   getHostPickupReviews,
   publishDrop,
   requestHostPantryReferral,
   updateDrop,
-  INITIAL_DATA_SOURCE,
-  type DataSourceMode,
 } from "../../lib/api-client";
 import { filterVerifiedBuildings } from "../../lib/buildings";
 import { usePushOptIn } from "../../lib/push";
-import { formatRemainingTime } from "../../lib/time";
 import {
+  buildHostSafetyReview,
   buildPickupCompanionUrl,
-  formatHostCounts,
-  formatHostDropLocation,
-  getVisionSourceLabel,
   HOST_POLL_INTERVAL_MS,
   HOST_REHEARSAL_CODE,
-  isLiveVisionSource,
+  HOST_REHEARSAL_LOCATION_LABEL,
+  hostWizardStepNumber,
+  initialHostReviewForm,
+  isHostRehearsalView,
+  pickActiveHostDropId,
   resolveDefaultHostBuildingId,
-  resolveHostReviewActionGuard,
   resolveHostStep,
+  resolveHostStepAfterRefresh,
   restoreHostDropState,
-  shouldPollHostCounts,
   shouldPollHostPantryReferral,
-  shouldPollHostPickupReviews,
+  type HostReviewForm,
   type HostViewStep,
 } from "./host-helpers";
 
@@ -66,22 +63,34 @@ const HOST_CREDENTIAL = "demo-host" as const;
 const HOST_REHEARSAL_OPTIONS: ReadonlyArray<RehearsalOption> = [
   {
     id: HOST_REHEARSAL_CODE,
-    label: "Demo origin (DEMO-ORIGIN)",
-    description:
-      "Synthetic rehearsal origin at placeholder (0, 0) for scripted A–E or 4-visitor demo areas.",
+    label: HOST_REHEARSAL_LOCATION_LABEL,
+    description: "Scripted rehearsal only. Not a real campus building.",
   },
 ];
+
+type HostView = "share" | "listings";
+
+function errorText(err: unknown, fallback: string): string {
+  return err instanceof Error && err.message ? err.message : fallback;
+}
+
+function isCampusFeed(drop: DropResponse): boolean {
+  return (drop.distribution_mode ?? "seeded_waves") === "campus_feed";
+}
 
 function HostPageContent() {
   const searchParams = useSearchParams();
   const linkedDropId = searchParams.get("drop");
+  const rehearsal = isHostRehearsalView(searchParams.get("rehearsal"));
+  const rehearsalOptions = rehearsal ? HOST_REHEARSAL_OPTIONS : [];
 
-  const [sourceMode, setSourceMode] =
-    useState<DataSourceMode>(INITIAL_DATA_SOURCE);
+  const [view, setView] = useState<HostView>("share");
+  const [restoring, setRestoring] = useState<boolean>(true);
   const [drop, setDrop] = useState<DropResponse | null>(null);
   const [viewStep, setViewStep] = useState<HostViewStep>("upload");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [hostNote, setHostNote] = useState<string>("");
+  const [form, setForm] = useState<HostReviewForm | null>(null);
   const [linkedDropError, setLinkedDropError] = useState<string | null>(null);
   const [pickupReviews, setPickupReviews] = useState<HostPickupReview[]>([]);
   const [reviewError, setReviewError] = useState<string | null>(null);
@@ -90,31 +99,14 @@ function HostPageContent() {
   const [pantryError, setPantryError] = useState<string | null>(null);
   const [nowTick, setNowTick] = useState<number>(() => Date.now());
 
-  const hostPush = usePushOptIn(HOST_CREDENTIAL, { role: "host" });
+  const [hostDrops, setHostDrops] = useState<DropResponse[] | null>(null);
+  const [hostDropsLoading, setHostDropsLoading] = useState<boolean>(false);
+  const [hostDropsError, setHostDropsError] = useState<string | null>(null);
 
-  // Verified campus buildings directory
   const [buildings, setBuildings] = useState<Building[]>([]);
+  const buildingsRef = useRef<Building[]>([]);
   const [buildingsLoading, setBuildingsLoading] = useState<boolean>(true);
   const [buildingsError, setBuildingsError] = useState<string | null>(null);
-
-  // Host review form state
-  const [servingsFinal, setServingsFinal] = useState<number>(2);
-  const [allergensFinal, setAllergensFinal] = useState<Allergen[]>([
-    "dairy",
-    "gluten",
-  ]);
-  const [dietTagsFinal, setDietTagsFinal] = useState<Diet[]>([]);
-  const [buildingCode, setBuildingCode] = useState<string>(HOST_REHEARSAL_CODE);
-  const [room, setRoom] = useState<string>("214");
-  const [pickupInstructions, setPickupInstructions] = useState<string>("");
-  const expiresInMinutes = 45;
-  const [safetyReview, setSafetyReview] = useState<SafetyReview>({
-    covered_and_temperature_safe: false,
-    served_within_two_hours: false,
-    untouched: false,
-    ingredient_information_checked: false,
-    religious_diets_confirmed: false,
-  });
 
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -123,12 +115,11 @@ function HostPageContent() {
     null,
   );
 
-  // Tick every second while viewing counts so review hold timers stay current
+  const hostPush = usePushOptIn(HOST_CREDENTIAL, { role: "host" });
+
   useEffect(() => {
     if (viewStep !== "counts") return;
-    const timer = setInterval(() => {
-      setNowTick(Date.now());
-    }, 1000);
+    const timer = setInterval(() => setNowTick(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [viewStep]);
 
@@ -137,16 +128,11 @@ function HostPageContent() {
     setBuildingsError(null);
     try {
       const res = await getBuildings();
-      setSourceMode(res.source);
       const verified = filterVerifiedBuildings(res.data.buildings);
+      buildingsRef.current = verified;
       setBuildings(verified);
-      setBuildingCode((prev) => resolveDefaultHostBuildingId(prev, verified));
     } catch (err) {
-      setBuildingsError(
-        err instanceof Error
-          ? err.message
-          : "Could not load Marietta campus buildings.",
-      );
+      setBuildingsError(errorText(err, "Could not load campus buildings."));
     } finally {
       setBuildingsLoading(false);
     }
@@ -156,116 +142,119 @@ function HostPageContent() {
     void loadCampusBuildings();
   }, [loadCampusBuildings]);
 
-  const syncFormFromDrop = useCallback(
-    (d: DropResponse, currentBuildings: ReadonlyArray<Building>) => {
-      setServingsFinal(d.servings_final);
-      setAllergensFinal([...d.allergens_final]);
-      setDietTagsFinal([...d.diet_tags_final]);
-      setBuildingCode(
-        resolveDefaultHostBuildingId(d.building_code, currentBuildings),
-      );
-      setRoom(d.room);
-      setPickupInstructions(d.pickup_instructions ?? "");
-      if (d.safety_review) {
-        setSafetyReview({ ...d.safety_review });
-      } else {
-        setSafetyReview({
-          covered_and_temperature_safe: false,
-          served_within_two_hours: false,
-          untouched: false,
-          ingredient_information_checked: false,
-          religious_diets_confirmed: false,
-        });
-      }
+  const loadHostDrops = useCallback(async () => {
+    setHostDropsLoading(true);
+    setHostDropsError(null);
+    try {
+      const res = await getHostDrops(HOST_CREDENTIAL);
+      setHostDrops(res.data.drops);
+    } catch (err) {
+      setHostDropsError(errorText(err, "Could not load your listings."));
+    } finally {
+      setHostDropsLoading(false);
+    }
+  }, []);
+
+  const loadDropExtras = useCallback(async (d: DropResponse) => {
+    const [reviews, pantry] = await Promise.allSettled([
+      getHostPickupReviews(d.id, HOST_CREDENTIAL),
+      isCampusFeed(d)
+        ? getHostPantryReferral(d.id, HOST_CREDENTIAL)
+        : Promise.resolve(null),
+    ]);
+    if (reviews.status === "fulfilled")
+      setPickupReviews(reviews.value.data.reviews);
+    if (pantry.status === "fulfilled")
+      setPantryData(pantry.value?.data ?? null);
+  }, []);
+
+  /** Make a drop the one on screen, seeding Review from it when it is a draft. */
+  const openDrop = useCallback(
+    (d: DropResponse, step: HostViewStep) => {
+      setDrop(d);
+      setViewStep(step);
+      setForm(initialHostReviewForm(d, buildingsRef.current));
+      setPickupReviews([]);
+      setPantryData(null);
+      setPantryError(null);
+      setReviewError(null);
+      if (step === "counts") void loadDropExtras(d);
     },
-    [],
+    [loadDropExtras],
   );
 
-  const loadPickupReviewsForDrop = useCallback(async (dropId: string) => {
-    try {
-      const res = await getHostPickupReviews(dropId, HOST_CREDENTIAL);
-      setSourceMode(res.source);
-      setPickupReviews(res.data.reviews);
-    } catch {
-      // Keep existing queued reviews displayed on transient poll failure
-    }
-  }, []);
-
-  const loadPantryReferralForDrop = useCallback(async (dropId: string) => {
-    try {
-      const res = await getHostPantryReferral(dropId, HOST_CREDENTIAL);
-      setSourceMode(res.source);
-      setPantryData(res.data);
-    } catch {
-      // Keep existing pantry card state (and safe static policy fallback) on transient poll failure
-    }
-  }, []);
-
-  // Restore active drop on mount (or /host?drop=<UUID> deep link via backend ACL)
+  // Restore the host's newest open listing (or a /host?drop=<id> deep link) from
+  // their own listings, so no presenter endpoint is needed to recover the dashboard.
   useEffect(() => {
     let active = true;
+    setRestoring(true);
     setLinkedDropError(null);
     restoreHostDropState(
-      () => getActiveDrop(HOST_CREDENTIAL),
+      async () => {
+        const res = await getHostDrops(HOST_CREDENTIAL);
+        return {
+          data: { drop_id: pickActiveHostDropId(res.data.drops) },
+          source: res.source,
+        };
+      },
       (dropId) => getDrop(dropId, HOST_CREDENTIAL),
       linkedDropId,
     )
       .then((restored) => {
         if (!active) return;
-        setSourceMode(restored.source);
-        setDrop(restored.drop);
-        setViewStep(restored.step);
         setLinkedDropError(restored.linkedDropError ?? null);
         if (restored.drop) {
-          syncFormFromDrop(restored.drop, buildings);
-          if (restored.step === "counts") {
-            void loadPickupReviewsForDrop(restored.drop.id);
-            if (
-              (restored.drop.distribution_mode ?? "seeded_waves") ===
-              "campus_feed"
-            ) {
-              void loadPantryReferralForDrop(restored.drop.id);
-            } else {
-              setPantryData(null);
-            }
-          }
+          openDrop(restored.drop, restored.step);
         } else {
-          setPickupReviews([]);
-          setPantryData(null);
-          setPantryError(null);
+          setDrop(null);
+          setViewStep("upload");
         }
       })
       .catch((err) => {
         if (active)
-          setErrorMessage(
-            err instanceof Error ? err.message : "Failed to load current drop",
-          );
+          setErrorMessage(errorText(err, "Could not load your listing."));
+      })
+      .finally(() => {
+        if (active) setRestoring(false);
       });
     return () => {
       active = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    syncFormFromDrop,
-    linkedDropId,
-    loadPickupReviewsForDrop,
-    loadPantryReferralForDrop,
-  ]);
+  }, [linkedDropId, openDrop]);
 
-  // Poll GET /drops/{id}, pickup reviews, and campus-feed pantry referral (demo-host) every 2 s while counts panel is open
+  // Once buildings arrive, move a restored draft off the rehearsal placeholder.
+  useEffect(() => {
+    if (buildings.length === 0) return;
+    setForm((prev) =>
+      prev
+        ? {
+            ...prev,
+            buildingId: resolveDefaultHostBuildingId(
+              prev.buildingId,
+              buildings,
+            ),
+          }
+        : prev,
+    );
+  }, [buildings]);
+
+  useEffect(() => {
+    if (view === "listings") void loadHostDrops();
+  }, [view, loadHostDrops]);
+
+  // Keep the published listing's counts, review queue and pantry card fresh.
   const activeDropId = drop?.id ?? null;
   const activeDropStatus = drop?.status ?? null;
   const activeDropMode = drop?.distribution_mode ?? null;
-
   useEffect(() => {
     if (
+      view !== "share" ||
       !activeDropId ||
       viewStep !== "counts" ||
       (activeDropStatus !== "live" && activeDropStatus !== "claimed_out")
     ) {
       return;
     }
-
     const pollPantry = shouldPollHostPantryReferral(
       {
         status: activeDropStatus,
@@ -273,7 +262,6 @@ function HostPageContent() {
       },
       viewStep,
     );
-
     let cancelled = false;
     const poll = async () => {
       const [dropResult, reviewsResult, pantryResult] =
@@ -286,9 +274,9 @@ function HostPageContent() {
         ]);
       if (cancelled) return;
       if (dropResult.status === "fulfilled") {
-        setSourceMode(dropResult.value.source);
-        setDrop(dropResult.value.data);
-        setViewStep(resolveHostStep(dropResult.value.data));
+        const next = dropResult.value.data;
+        setDrop(next);
+        setViewStep((prev) => resolveHostStepAfterRefresh(prev, next));
       }
       if (reviewsResult.status === "fulfilled") {
         setPickupReviews(reviewsResult.value.data.reviews);
@@ -297,186 +285,126 @@ function HostPageContent() {
         setPantryData(pantryResult.value.data);
       }
     };
-
     void poll();
-    const intervalId = setInterval(() => {
-      void poll();
-    }, HOST_POLL_INTERVAL_MS);
-
+    const intervalId = setInterval(() => void poll(), HOST_POLL_INTERVAL_MS);
     return () => {
       cancelled = true;
       clearInterval(intervalId);
     };
-  }, [activeDropId, activeDropStatus, activeDropMode, viewStep]);
+  }, [view, activeDropId, activeDropStatus, activeDropMode, viewStep]);
 
-  const removedEstimatedAllergens = drop
-    ? drop.vision.allergens_likely.filter(
-        (alg) => !allergensFinal.includes(alg),
-      )
-    : [];
-  const requiresIngredientCheck = removedEstimatedAllergens.length > 0;
-
-  const selectedReligiousDiets = dietTagsFinal.filter((d) =>
-    RELIGIOUS_DIETS.includes(d),
-  );
-  const requiresReligiousConfirmation = selectedReligiousDiets.length > 0;
-  const pickupCompanionUrl = drop ? buildPickupCompanionUrl(drop.id) : null;
-
-  const firstThreeSafetyChecked =
-    safetyReview.covered_and_temperature_safe &&
-    safetyReview.served_within_two_hours &&
-    safetyReview.untouched;
-
-  const canPublish =
-    firstThreeSafetyChecked &&
-    (!requiresIngredientCheck || safetyReview.ingredient_information_checked) &&
-    (!requiresReligiousConfirmation || safetyReview.religious_diets_confirmed);
-
-  const toggleAllergen = (alg: Allergen) => {
-    setAllergensFinal((prev) =>
-      prev.includes(alg) ? prev.filter((item) => item !== alg) : [...prev, alg],
-    );
-  };
-
-  const toggleDiet = (diet: Diet) => {
-    setDietTagsFinal((prev) =>
-      prev.includes(diet)
-        ? prev.filter((item) => item !== diet)
-        : [...prev, diet],
-    );
+  const clearMessages = () => {
+    setStatusMessage(null);
+    setErrorMessage(null);
+    setVisionErrorMessage(null);
   };
 
   const submitPhotoUpload = async () => {
     setBusyAction("upload");
-    setErrorMessage(null);
-    setVisionErrorMessage(null);
-    setStatusMessage(null);
+    clearMessages();
     try {
-      if (!selectedFile)
-        throw new Error("Select a JPEG or PNG food photo first.");
+      if (!selectedFile) throw new Error("Choose a JPEG or PNG photo first.");
       const res = await createDrop(selectedFile, hostNote, HOST_CREDENTIAL);
-      setDrop(res.data);
-      setViewStep(resolveHostStep(res.data));
-      setSourceMode(res.source);
-      syncFormFromDrop(res.data, buildings);
-      setStatusMessage(
-        `Estimate ready (${getVisionSourceLabel(res.data.vision_source)}). Confirm details and food safety below.`,
-      );
+      openDrop(res.data, resolveHostStep(res.data));
     } catch (err) {
-      // Never show or fabricate an estimate when POST /drops fails
+      // Never show or invent an estimate when POST /drops fails.
       setDrop(null);
       setViewStep("upload");
-      const msg = err instanceof Error ? err.message : "Failed to create drop";
-      setVisionErrorMessage(msg);
-      setErrorMessage(msg);
+      setVisionErrorMessage(
+        errorText(err, "We couldn't analyze that photo. Please try again."),
+      );
     } finally {
       setBusyAction(null);
     }
   };
 
-  const handleUploadPhoto = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await submitPhotoUpload();
-  };
-
-  const handleShareAnotherDrop = () => {
+  const startNewListing = () => {
+    setView("share");
     setDrop(null);
+    setForm(null);
     setViewStep("upload");
+    setSelectedFile(null);
+    setHostNote("");
     setPickupReviews([]);
     setPantryData(null);
     setPantryError(null);
-    setStatusMessage(null);
-    setErrorMessage(null);
-    setVisionErrorMessage(null);
+    setReviewError(null);
+    clearMessages();
   };
 
-  const buildDropEditPayload = (): DropEdit => ({
-    servings_final: servingsFinal,
-    allergens_final: allergensFinal,
-    diet_tags_final: dietTagsFinal,
-    building_code: buildingCode.trim() || HOST_REHEARSAL_CODE,
-    room: room.trim(),
-    pickup_instructions: pickupInstructions.trim(),
-    expires_in_minutes: expiresInMinutes,
-    safety_review: safetyReview,
+  const buildDropEditPayload = (
+    d: DropResponse,
+    f: HostReviewForm,
+  ): DropEdit => ({
+    servings_final: f.servings,
+    allergens_final: f.allergens,
+    diet_tags_final: f.diets,
+    building_code: f.buildingId.trim() || HOST_REHEARSAL_CODE,
+    room: f.room.trim(),
+    pickup_instructions: f.pickupInstructions.trim(),
+    expires_in_minutes: f.expiresInMinutes,
+    safety_review: buildHostSafetyReview(
+      f.safety,
+      d.vision.allergens_likely,
+      f.allergens,
+      f.diets,
+    ),
   });
 
   const handlePublishDrop = async () => {
-    if (!drop) return;
+    if (!drop || !form) return;
     setBusyAction("publish");
-    setErrorMessage(null);
-    setPantryError(null);
-    setStatusMessage(null);
+    clearMessages();
     try {
       const patched = await updateDrop(
         drop.id,
-        buildDropEditPayload(),
+        buildDropEditPayload(drop, form),
         HOST_CREDENTIAL,
       );
       const published = await publishDrop(patched.data.id, HOST_CREDENTIAL);
-      setDrop(published.data);
-      setViewStep(resolveHostStep(published.data));
-      setSourceMode(published.source);
+      openDrop(published.data, resolveHostStep(published.data));
+      setSelectedFile(null);
       setStatusMessage(
-        `Got it. About ${published.data.servings_final} servings. We'll send it to the right people.`,
+        `Your listing is live with ${published.data.servings_final} servings.`,
       );
-      await loadPickupReviewsForDrop(published.data.id);
-      if (
-        (published.data.distribution_mode ?? "seeded_waves") === "campus_feed"
-      ) {
-        await loadPantryReferralForDrop(published.data.id);
-      } else {
-        setPantryData(null);
-      }
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to publish drop",
-      );
+      setErrorMessage(errorText(err, "Could not publish this listing."));
     } finally {
       setBusyAction(null);
     }
   };
 
-  const refreshHostDropAndPantry = useCallback(async (dropId: string) => {
+  const refreshDropAndPantry = useCallback(async (dropId: string) => {
     const [dropRes, pantryRes] = await Promise.allSettled([
       getDrop(dropId, HOST_CREDENTIAL),
       getHostPantryReferral(dropId, HOST_CREDENTIAL),
     ]);
     if (dropRes.status === "fulfilled") {
-      setSourceMode(dropRes.value.source);
-      setDrop(dropRes.value.data);
-      setViewStep(resolveHostStep(dropRes.value.data));
+      const next = dropRes.value.data;
+      setDrop(next);
+      setViewStep((prev) => resolveHostStepAfterRefresh(prev, next));
     }
-    if (pantryRes.status === "fulfilled") {
-      setPantryData(pantryRes.value.data);
-    }
+    if (pantryRes.status === "fulfilled") setPantryData(pantryRes.value.data);
   }, []);
 
   const handleRequestPantryReferral = async (servings: number) => {
     if (!drop) return;
     setBusyAction("pantry:request");
     setPantryError(null);
-    setErrorMessage(null);
+    clearMessages();
     try {
       await requestHostPantryReferral(
         drop.id,
-        {
-          servings,
-          demo_policy_acknowledged: true,
-        },
+        { servings, demo_policy_acknowledged: true },
         HOST_CREDENTIAL,
       );
-      await refreshHostDropAndPantry(drop.id);
+      await refreshDropAndPantry(drop.id);
       setStatusMessage(
-        "Demo pantry referral requested. No request was sent to KSU CARE; review in the demo coordinator page (/pantry).",
+        "Demo pantry referral requested. Nothing was sent to KSU CARE.",
       );
     } catch (err) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : "Could not request demo pantry referral.";
-      setPantryError(msg);
-      await refreshHostDropAndPantry(drop.id);
+      setPantryError(errorText(err, "Could not request the demo referral."));
+      await refreshDropAndPantry(drop.id);
     } finally {
       setBusyAction(null);
     }
@@ -486,27 +414,36 @@ function HostPageContent() {
     if (!drop) return;
     setBusyAction("pantry:handoff");
     setPantryError(null);
-    setErrorMessage(null);
+    clearMessages();
     try {
       await confirmHostPantryHandoff(
         drop.id,
         { demo_handoff_confirmed: true },
         HOST_CREDENTIAL,
       );
-      await refreshHostDropAndPantry(drop.id);
+      await refreshDropAndPantry(drop.id);
       setStatusMessage(
-        "Simulated pantry handoff confirmed. Pantry transfers updated separately from student pickups.",
+        "Simulated pantry handoff recorded, separately from student pickups.",
       );
     } catch (err) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : "Could not confirm simulated pantry handoff.";
-      setPantryError(msg);
-      await refreshHostDropAndPantry(drop.id);
+      setPantryError(
+        errorText(err, "Could not confirm the simulated handoff."),
+      );
+      await refreshDropAndPantry(drop.id);
     } finally {
       setBusyAction(null);
     }
+  };
+
+  const refreshDropAndReviews = async (dropId: string) => {
+    const [dropRes, reviewsRes] = await Promise.all([
+      getDrop(dropId, HOST_CREDENTIAL),
+      getHostPickupReviews(dropId, HOST_CREDENTIAL),
+    ]);
+    const next = dropRes.data;
+    setDrop(next);
+    setViewStep((prev) => resolveHostStepAfterRefresh(prev, next));
+    setPickupReviews(reviewsRes.data.reviews);
   };
 
   const handleReviewDecision = async (
@@ -516,7 +453,7 @@ function HostPageContent() {
     if (!drop) return;
     setBusyAction(`review:${verificationId}:${decision}`);
     setReviewError(null);
-    setErrorMessage(null);
+    clearMessages();
     try {
       await decideHostPickupReview(
         drop.id,
@@ -524,131 +461,109 @@ function HostPageContent() {
         decision,
         HOST_CREDENTIAL,
       );
-      const [dropRes, reviewsRes] = await Promise.all([
-        getDrop(drop.id, HOST_CREDENTIAL),
-        getHostPickupReviews(drop.id, HOST_CREDENTIAL),
-      ]);
-      setSourceMode(dropRes.source);
-      setDrop(dropRes.data);
-      setViewStep(resolveHostStep(dropRes.data));
-      setPickupReviews(reviewsRes.data.reviews);
+      await refreshDropAndReviews(drop.id);
       setStatusMessage(
         decision === "approve"
-          ? "Pickup approved by human override. Aggregate counts updated."
-          : "Pickup review rejected. The student's hold remains active to retry a clearer photo.",
+          ? "Pickup approved. Counts updated."
+          : "We asked the student to retake their photo. Their hold stays active.",
       );
     } catch (err) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : "Could not submit pickup review decision.";
-      setReviewError(msg);
-      // Refresh drop and reviews so stale/expired/superseded state is reflected
+      setReviewError(errorText(err, "Could not save your decision."));
       try {
-        const [dropRes, reviewsRes] = await Promise.all([
-          getDrop(drop.id, HOST_CREDENTIAL),
-          getHostPickupReviews(drop.id, HOST_CREDENTIAL),
-        ]);
-        setSourceMode(dropRes.source);
-        setDrop(dropRes.data);
-        setViewStep(resolveHostStep(dropRes.data));
-        setPickupReviews(reviewsRes.data.reviews);
+        await refreshDropAndReviews(drop.id);
       } catch {
-        // Ignore refresh error
+        // Keep the current queue on screen if the refresh also fails.
       }
     } finally {
       setBusyAction(null);
     }
   };
 
-  const currentStep = viewStep === "upload" ? 1 : viewStep === "review" ? 2 : 3;
-  const formattedCounts = drop ? formatHostCounts(drop.counts) : null;
-  const isPollingCounts = shouldPollHostCounts(drop, viewStep);
-  const isPollingReviews = shouldPollHostPickupReviews(drop, viewStep);
+  const openListing = (d: DropResponse) => {
+    clearMessages();
+    setLinkedDropError(null);
+    setView("share");
+    openDrop(d, resolveHostStep(d));
+  };
+
   const nowIso = new Date(nowTick).toISOString();
+  const wizardStep = hostWizardStepNumber(viewStep);
+
+  const viewSwitcher = (
+    <div
+      role="tablist"
+      aria-label="Host views"
+      className="grid grid-cols-2 gap-1 rounded-full bg-surface-subtle p-1"
+    >
+      <button
+        type="button"
+        role="tab"
+        aria-selected={view === "share"}
+        data-testid="host-view-share"
+        onClick={() => setView("share")}
+        className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-4 text-sm font-bold transition ${
+          view === "share"
+            ? "bg-surface text-ink shadow-card"
+            : "text-ink-muted"
+        }`}
+      >
+        <Plus size={16} aria-hidden="true" />
+        Share food
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={view === "listings"}
+        data-testid="host-view-listings"
+        onClick={() => setView("listings")}
+        className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-4 text-sm font-bold transition ${
+          view === "listings"
+            ? "bg-surface text-ink shadow-card"
+            : "text-ink-muted"
+        }`}
+      >
+        <LayoutList size={16} aria-hidden="true" />
+        My listings
+      </button>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-owl-black text-zinc-100">
-      <DemoHeader sourceMode={sourceMode} isDemo={drop?.is_demo ?? true} />
-
-      <main className="mx-auto max-w-md space-y-5 px-4 pb-10 pt-5 sm:max-w-2xl">
-        {/* Step Header */}
-        <section className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h1 className="text-2xl font-extrabold tracking-tight text-white">
-              Share leftover food
-            </h1>
-            <span className="rounded-full border border-zinc-700 bg-owl-slate px-2.5 py-0.5 text-xs font-semibold text-zinc-300">
-              Hosts see counts only
-            </span>
-          </div>
-
-          <ol
-            aria-label="Host posting steps"
-            className="grid grid-cols-3 gap-2 text-center text-xs font-bold"
-          >
-            <li
-              className={`rounded-xl border px-2.5 py-2 ${
-                currentStep === 1
-                  ? "border-owl-gold bg-owl-gold/15 text-owl-gold"
-                  : "border-zinc-800 bg-owl-slate text-zinc-400"
-              }`}
-            >
-              1. Photo
-            </li>
-            <li
-              className={`rounded-xl border px-2.5 py-2 ${
-                currentStep === 2
-                  ? "border-owl-gold bg-owl-gold/15 text-owl-gold"
-                  : "border-zinc-800 bg-owl-slate text-zinc-400"
-              }`}
-            >
-              2. Review &amp; publish
-            </li>
-            <li
-              className={`rounded-xl border px-2.5 py-2 ${
-                currentStep === 3
-                  ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
-                  : "border-zinc-800 bg-owl-slate text-zinc-400"
-              }`}
-            >
-              3. Pickup counts
-            </li>
-          </ol>
-        </section>
-
-        {/* Optional Host Push Notification Opt-In / Opt-Out */}
-        <PushOptIn
-          role="host"
-          state={hostPush.state}
-          onEnable={() => void hostPush.enable()}
-          onDisable={() => void hostPush.disable()}
-        />
+    <AppShell variant="host" maxWidth="md">
+      <div data-testid="host-page" className="space-y-5">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-extrabold tracking-tight">
+            Share leftover food
+          </h1>
+          <p className="text-sm text-ink-muted">
+            Post your event&apos;s extra food so students nearby can grab it.
+          </p>
+        </div>
+        {viewSwitcher}
 
         {linkedDropError && (
-          <div
+          <p
             role="alert"
             data-testid="host-deep-link-error"
-            className="rounded-xl border border-amber-500/40 bg-amber-950/30 px-4 py-3 text-sm text-amber-200"
+            className="rounded-2xl bg-warning-tint px-4 py-3 text-sm text-warning"
           >
             {linkedDropError}
-          </div>
+          </p>
         )}
-
         {statusMessage && (
-          <div
+          <p
+            role="status"
             data-testid="host-status-message"
-            className="rounded-xl border border-emerald-500/40 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200"
+            className="rounded-2xl bg-success-tint px-4 py-3 text-sm text-success"
           >
             {statusMessage}
-          </div>
+          </p>
         )}
-
         {visionErrorMessage && (
           <div
-            data-testid="vision-error"
             role="alert"
-            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-500/50 bg-rose-950/40 px-4 py-3 text-sm text-rose-100"
+            data-testid="vision-error"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-danger-tint px-4 py-3 text-sm text-danger"
           >
             <span>{visionErrorMessage}</span>
             <button
@@ -656,865 +571,97 @@ function HostPageContent() {
               data-testid="vision-retry-button"
               disabled={busyAction !== null || !selectedFile}
               onClick={() => void submitPhotoUpload()}
-              className="min-h-[44px] rounded-xl border border-rose-400/60 bg-rose-900/60 px-4 py-2 text-xs font-bold text-white transition hover:bg-rose-800 disabled:opacity-50"
+              className="consumer-button-secondary min-h-11 px-4 text-xs"
             >
-              {busyAction === "upload" ? "Retrying..." : "Retry"}
+              {busyAction === "upload" ? "Retrying…" : "Try again"}
             </button>
           </div>
         )}
-
-        {errorMessage && !visionErrorMessage && (
-          <div
+        {errorMessage && (
+          <p
             role="alert"
             data-testid="host-error-message"
-            className="rounded-xl border border-rose-500/40 bg-rose-950/30 px-4 py-3 text-sm text-rose-200"
+            className="rounded-2xl bg-danger-tint px-4 py-3 text-sm text-danger"
           >
             {errorMessage}
-          </div>
+          </p>
         )}
 
-        {/* STEP 1: PHOTO */}
-        {viewStep === "upload" && (
-          <section className="space-y-5 rounded-2xl border border-zinc-800 bg-owl-slate p-5 shadow-lg">
-            <div className="space-y-1">
-              <h2 className="text-lg font-extrabold text-white">
-                Snap one food photo
-              </h2>
-              <p className="text-xs text-zinc-400">
-                Show the food trays only (no people). Temporary photos are
-                removed within 24 hours.
-              </p>
-            </div>
+        {view === "listings" ? (
+          <HostListingsView
+            drops={hostDrops}
+            loading={hostDropsLoading}
+            error={hostDropsError}
+            authToken={HOST_CREDENTIAL}
+            buildings={buildings}
+            onOpen={openListing}
+            onNew={startNewListing}
+            onRefresh={() => void loadHostDrops()}
+          />
+        ) : restoring ? (
+          <DetailSkeleton />
+        ) : (
+          <>
+            <HostStepIndicator current={wizardStep} />
 
-            <form onSubmit={handleUploadPhoto} className="space-y-5">
-              {/* Big photo picker */}
-              <div>
-                <label
-                  htmlFor="food-photo-input"
-                  className="flex min-h-[120px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-owl-gold/50 bg-owl-black/70 p-5 text-center transition hover:border-owl-gold"
-                >
-                  <span className="text-sm font-extrabold text-owl-gold">
-                    {selectedFile
-                      ? `Selected: ${selectedFile.name}`
-                      : "Tap to choose or take a food photo"}
-                  </span>
-                  <span className="mt-1 text-xs text-zinc-400">
-                    JPEG or PNG up to 10 MiB
-                  </span>
-                </label>
-                <input
-                  id="food-photo-input"
-                  data-testid="food-photo-input"
-                  type="file"
-                  required
-                  accept="image/jpeg,image/png"
-                  onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
-                  className="mt-2 block w-full text-xs text-zinc-300 file:mr-3 file:min-h-[44px] file:rounded-xl file:border-0 file:bg-zinc-800 file:px-3.5 file:py-2 file:text-xs file:font-bold file:text-owl-gold hover:file:bg-zinc-700"
-                />
-              </div>
-
-              {/* Optional note */}
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="host-note-input"
-                  className="block text-sm font-bold text-white"
-                >
-                  Optional note
-                </label>
-                <input
-                  id="host-note-input"
-                  data-testid="host-note-input"
-                  type="text"
-                  value={hostNote}
-                  onChange={(e) => setHostNote(e.target.value)}
-                  placeholder='e.g. "one tray is vegetarian"'
-                  className="min-h-[48px] w-full rounded-xl border border-zinc-700 bg-owl-black px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-owl-gold focus:outline-none"
-                />
-              </div>
-
-              {/* ONE primary action button: Get estimate */}
-              <button
-                type="submit"
-                data-testid="analyze-photo-button"
-                disabled={busyAction !== null}
-                className="min-h-[52px] w-full rounded-xl bg-owl-gold px-5 py-3.5 text-base font-extrabold text-owl-black shadow-md transition hover:bg-owl-goldDark disabled:opacity-50"
-              >
-                {busyAction === "upload"
-                  ? "Getting estimate..."
-                  : "Get estimate"}
-              </button>
-            </form>
-          </section>
-        )}
-
-        {/* STEP 2: REVIEW & PUBLISH */}
-        {drop && viewStep === "review" && (
-          <section className="space-y-6 rounded-2xl border border-zinc-800 bg-owl-slate p-5 shadow-lg">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-extrabold text-white">
-                Review &amp; publish
-              </h2>
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  data-testid="vision-source-label"
-                  className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
-                    isLiveVisionSource(drop.vision_source)
-                      ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-300"
-                      : "border-amber-400/40 bg-amber-500/15 text-amber-300"
-                  }`}
-                >
-                  {getVisionSourceLabel(drop.vision_source)}
-                </span>
-                <span
-                  data-testid="host-drop-status"
-                  className="rounded-full bg-owl-black px-2.5 py-1 text-xs font-bold uppercase text-owl-gold"
-                >
-                  {drop.status}
-                </span>
-              </div>
-            </div>
-
-            {/* Editable Servings */}
-            <div className="space-y-2 rounded-xl border border-zinc-800 bg-owl-black/60 p-4">
-              <div className="flex items-center justify-between">
-                <label
-                  htmlFor="servings-input"
-                  className="text-sm font-bold text-white"
-                >
-                  Estimated servings
-                </label>
-                <span className="text-xs text-zinc-400">
-                  AI range: {drop.vision.servings_low}–
-                  {drop.vision.servings_high}
-                </span>
-              </div>
-              <div className="flex items-center gap-3 pt-1">
-                <button
-                  type="button"
-                  data-testid="servings-decrement"
-                  onClick={() => setServingsFinal((s) => Math.max(1, s - 1))}
-                  className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-zinc-700 bg-owl-black text-lg font-bold text-zinc-200 hover:bg-zinc-800"
-                >
-                  −
-                </button>
-                <input
-                  id="servings-input"
-                  type="number"
-                  data-testid="servings-input"
-                  min={1}
-                  max={500}
-                  value={servingsFinal}
-                  onChange={(e) =>
-                    setServingsFinal(
-                      Math.min(500, Math.max(1, Number(e.target.value) || 1)),
-                    )
-                  }
-                  className="min-h-[44px] w-24 rounded-xl border border-zinc-700 bg-owl-black px-3 py-2 text-center text-lg font-extrabold text-white"
-                />
-                <button
-                  type="button"
-                  data-testid="servings-increment"
-                  onClick={() => setServingsFinal((s) => Math.min(500, s + 1))}
-                  className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-zinc-700 bg-owl-black text-lg font-bold text-zinc-200 hover:bg-zinc-800"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-
-            {/* Estimated items and notes: shown as estimated; servings, allergens and diets below are what the host edits */}
-            <div className="space-y-3 rounded-xl border border-zinc-800 bg-owl-black/60 p-4">
-              <div className="space-y-1.5">
-                <div className="text-xs font-bold uppercase tracking-wide text-zinc-300">
-                  Estimated items
-                </div>
-                <ul className="space-y-1 text-sm text-white">
-                  {drop.vision.items.map((item, idx) => (
-                    <li key={`${item.name}-${idx}`}>
-                      {item.name}{" "}
-                      <span className="text-zinc-400">
-                        (~{item.count_estimate} {item.portion_unit})
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                {drop.vision.notes && (
-                  <p
-                    data-testid="vision-notes"
-                    className="text-xs italic text-zinc-400"
-                  >
-                    {drop.vision.notes}
-                  </p>
-                )}
-                <p className="text-xs text-zinc-500">
-                  Adjust servings, allergens and diet tags below before
-                  publishing.
-                </p>
-              </div>
-
-              {drop.vision.confidence < 0.6 && (
-                <p className="rounded-lg bg-amber-500/20 p-2.5 text-xs text-amber-200">
-                  Low vision confidence (&lt;60%): all 9 common allergens were
-                  flagged for safety.
-                </p>
-              )}
-
-              {/* Pickup Building, Room & Pickup Instructions */}
-              <div className="space-y-4 border-t border-zinc-800/80 pt-3">
-                <BuildingSelector
-                  buildings={buildings}
-                  value={buildingCode}
-                  onChange={setBuildingCode}
-                  loading={buildingsLoading}
-                  error={buildingsError}
-                  onRetry={() => void loadCampusBuildings()}
-                  testIdPrefix="host"
-                  rehearsalOptions={HOST_REHEARSAL_OPTIONS}
-                  allowCustomRehearsalCode={true}
-                  customRehearsalInputId="building-code-input"
-                  label="Pickup building (Marietta campus)"
-                  helperText="Select a verified Marietta campus building, or choose the explicit synthetic rehearsal origin below."
-                />
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label
-                      htmlFor="room-input"
-                      className="block text-xs font-semibold text-zinc-300"
-                    >
-                      Room
-                    </label>
-                    <input
-                      id="room-input"
-                      data-testid="room-input"
-                      type="text"
-                      maxLength={80}
-                      value={room}
-                      onChange={(e) => setRoom(e.target.value)}
-                      placeholder="214"
-                      className="mt-1 min-h-[44px] w-full rounded-xl border border-zinc-700 bg-owl-black px-3 py-2 text-sm text-white focus:border-owl-gold focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="pickup-instructions-input"
-                      className="block text-xs font-semibold text-zinc-300"
-                    >
-                      Pickup instructions{" "}
-                      <span className="font-normal text-zinc-400">
-                        (optional)
-                      </span>
-                    </label>
-                    <input
-                      id="pickup-instructions-input"
-                      data-testid="pickup-instructions-input"
-                      type="text"
-                      maxLength={500}
-                      value={pickupInstructions}
-                      onChange={(e) => setPickupInstructions(e.target.value)}
-                      placeholder='e.g. "2nd floor lobby table by the east stairs"'
-                      className="mt-1 min-h-[44px] w-full rounded-xl border border-zinc-700 bg-owl-black px-3 py-2 text-sm text-white placeholder:text-zinc-500 focus:border-owl-gold focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Allergen Chips with "may contain, confirm with host" */}
-            <div className="space-y-2.5">
-              <div className="flex flex-wrap items-center justify-between gap-1">
-                <span className="text-sm font-bold text-white">
-                  Allergens ({ALLERGEN_WARNING_TEXT})
-                </span>
-                <span className="text-xs text-amber-300">
-                  AI flagged:{" "}
-                  {drop.vision.allergens_likely.join(", ") || "none"}
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {ALLERGENS.map((alg) => {
-                  const checked = allergensFinal.includes(alg);
-                  const wasEstimated =
-                    drop.vision.allergens_likely.includes(alg);
-                  return (
-                    <button
-                      key={alg}
-                      type="button"
-                      data-testid={`allergen-toggle-${alg}`}
-                      onClick={() => toggleAllergen(alg)}
-                      className={`min-h-[44px] rounded-xl border px-3.5 py-2 text-xs font-semibold transition ${
-                        checked
-                          ? "border-amber-400 bg-amber-500/20 text-amber-100"
-                          : "border-zinc-700 bg-owl-black text-zinc-400 hover:border-zinc-600"
-                      }`}
-                    >
-                      {checked ? "✓ " : "+ "}
-                      {alg.replace("_", " ")}
-                      {wasEstimated ? " (AI)" : ""}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <AllergenListDisplay
-                allergens={allergensFinal}
-                notice={drop.allergen_notice}
-                title="Active allergen notice"
-                compact={true}
+            {viewStep === "upload" && (
+              <HostPhotoStep
+                selectedFile={selectedFile}
+                onFileChange={setSelectedFile}
+                hostNote={hostNote}
+                onHostNoteChange={setHostNote}
+                busy={busyAction === "upload"}
+                onSubmit={() => void submitPhotoUpload()}
               />
-            </div>
+            )}
 
-            {/* Diet Tags Editor */}
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-1">
-                <span className="text-sm font-bold text-white">
-                  Dietary tags
-                </span>
-                <span className="text-xs text-zinc-400">
-                  Halal, Kosher &amp; Pork-Free require host confirmation
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {DIETS.map((diet) => {
-                  const checked = dietTagsFinal.includes(diet);
-                  return (
-                    <button
-                      key={diet}
-                      type="button"
-                      data-testid={`diet-toggle-${diet}`}
-                      onClick={() => toggleDiet(diet)}
-                      className={`min-h-[44px] rounded-xl border px-3.5 py-2 text-xs font-semibold transition ${
-                        checked
-                          ? "border-emerald-400 bg-emerald-500/20 text-emerald-100"
-                          : "border-zinc-700 bg-owl-black text-zinc-400 hover:border-zinc-600"
-                      }`}
-                    >
-                      {checked ? "✓ " : "+ "}
-                      {diet.replace("_", " ")}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Safety Checks Gating ONE Publish Button */}
-            <div className="space-y-3 rounded-xl border border-zinc-700 bg-owl-black/80 p-4">
-              <h3 className="text-sm font-bold text-owl-gold">
-                Required food safety checks
-              </h3>
-
-              <label className="flex min-h-[44px] cursor-pointer items-center gap-3 text-xs text-zinc-200">
-                <input
-                  type="checkbox"
-                  data-testid="safety-check-covered"
-                  checked={safetyReview.covered_and_temperature_safe}
-                  onChange={(e) =>
-                    setSafetyReview((s) => ({
-                      ...s,
-                      covered_and_temperature_safe: e.target.checked,
-                    }))
-                  }
-                  className="h-5 w-5 shrink-0 rounded border-zinc-600 accent-owl-gold"
-                />
-                <span>
-                  <strong>Covered &amp; temperature safe:</strong> Kept covered
-                  at a safe holding temperature.
-                </span>
-              </label>
-
-              <label className="flex min-h-[44px] cursor-pointer items-center gap-3 text-xs text-zinc-200">
-                <input
-                  type="checkbox"
-                  data-testid="safety-check-two-hours"
-                  checked={safetyReview.served_within_two_hours}
-                  onChange={(e) =>
-                    setSafetyReview((s) => ({
-                      ...s,
-                      served_within_two_hours: e.target.checked,
-                    }))
-                  }
-                  className="h-5 w-5 shrink-0 rounded border-zinc-600 accent-owl-gold"
-                />
-                <span>
-                  <strong>Served within 2 hours:</strong> Food was set out
-                  within the last two hours.
-                </span>
-              </label>
-
-              <label className="flex min-h-[44px] cursor-pointer items-center gap-3 text-xs text-zinc-200">
-                <input
-                  type="checkbox"
-                  data-testid="safety-check-untouched"
-                  checked={safetyReview.untouched}
-                  onChange={(e) =>
-                    setSafetyReview((s) => ({
-                      ...s,
-                      untouched: e.target.checked,
-                    }))
-                  }
-                  className="h-5 w-5 shrink-0 rounded border-zinc-600 accent-owl-gold"
-                />
-                <span>
-                  <strong>Untouched trays:</strong> Shared event trays only, not
-                  from individual plates.
-                </span>
-              </label>
-
-              <label
-                className={`flex min-h-[44px] cursor-pointer items-center gap-3 rounded-lg p-2 text-xs ${
-                  requiresIngredientCheck
-                    ? "border border-amber-500/50 bg-amber-950/30 text-amber-100"
-                    : "text-zinc-300"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  data-testid="safety-check-ingredients"
-                  checked={safetyReview.ingredient_information_checked}
-                  onChange={(e) =>
-                    setSafetyReview((s) => ({
-                      ...s,
-                      ingredient_information_checked: e.target.checked,
-                    }))
-                  }
-                  className="h-5 w-5 shrink-0 rounded border-zinc-600 accent-owl-gold"
-                />
-                <span>
-                  <strong>Ingredient label checked:</strong> Required when
-                  removing an AI-flagged allergen
-                  {requiresIngredientCheck
-                    ? ` (removed: ${removedEstimatedAllergens.join(", ")})`
-                    : "."}
-                </span>
-              </label>
-
-              <label
-                className={`flex min-h-[44px] cursor-pointer items-center gap-3 rounded-lg p-2 text-xs ${
-                  requiresReligiousConfirmation
-                    ? "border border-emerald-500/50 bg-emerald-950/30 text-emerald-100"
-                    : "text-zinc-300"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  data-testid="safety-check-religious"
-                  checked={safetyReview.religious_diets_confirmed}
-                  onChange={(e) =>
-                    setSafetyReview((s) => ({
-                      ...s,
-                      religious_diets_confirmed: e.target.checked,
-                    }))
-                  }
-                  className="h-5 w-5 shrink-0 rounded border-zinc-600 accent-owl-gold"
-                />
-                <span>
-                  <strong>Religious diet confirmed:</strong> Required for halal,
-                  kosher, or pork_free
-                  {requiresReligiousConfirmation
-                    ? ` (selected: ${selectedReligiousDiets.join(", ")})`
-                    : "."}
-                </span>
-              </label>
-            </div>
-
-            {/* ONE Primary Publish Button + quiet secondary start over */}
-            <div className="space-y-2.5 pt-1">
-              <button
-                type="button"
-                data-testid="publish-drop-button"
-                disabled={busyAction !== null || !canPublish}
-                onClick={() => void handlePublishDrop()}
-                className="min-h-[52px] w-full rounded-xl bg-owl-gold px-5 py-3.5 text-base font-extrabold text-owl-black shadow-md transition hover:bg-owl-goldDark disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {busyAction === "publish" ? "Publishing..." : "Publish"}
-              </button>
-
-              {!canPublish && (
-                <p
-                  data-testid="publish-validation-hint"
-                  className="text-center text-xs text-amber-300"
-                >
-                  Confirm the required safety checks above to publish.
-                </p>
-              )}
-
-              <button
-                type="button"
-                data-testid="share-another-drop-button"
-                onClick={handleShareAnotherDrop}
-                className="min-h-[44px] w-full rounded-xl border border-zinc-800 bg-transparent px-4 py-2 text-xs font-semibold text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200"
-              >
-                Share another drop
-              </button>
-            </div>
-          </section>
-        )}
-
-        {/* STEP 3: PICKUP COUNTS */}
-        {drop && viewStep === "counts" && formattedCounts && (
-          <section
-            data-testid="host-drop-panel"
-            className="space-y-6 rounded-2xl border border-zinc-800 bg-owl-slate p-5 shadow-xl"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h2 className="text-xl font-extrabold text-white">
-                  Pickup counts
-                </h2>
-                <p
-                  data-testid="host-drop-location"
-                  className="mt-0.5 text-xs text-zinc-300"
-                >
-                  {formatHostDropLocation(drop, buildings)}
-                  {isPollingCounts && (
-                    <span className="ml-2 text-emerald-400">
-                      • Auto-refreshing
-                    </span>
-                  )}
-                </p>
-                {drop.pickup_instructions?.trim() && (
-                  <p
-                    data-testid="host-pickup-instructions"
-                    className="mt-1 text-xs text-zinc-400"
-                  >
-                    Pickup note: {drop.pickup_instructions.trim()}
-                  </p>
-                )}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span
-                  data-testid="vision-source-label"
-                  className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
-                    isLiveVisionSource(drop.vision_source)
-                      ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-300"
-                      : "border-amber-400/40 bg-amber-500/15 text-amber-300"
-                  }`}
-                >
-                  {getVisionSourceLabel(drop.vision_source)}
-                </span>
-                <span
-                  data-testid="host-drop-status"
-                  className={`rounded-full px-2.5 py-1 text-xs font-bold uppercase ${
-                    drop.status === "claimed_out"
-                      ? "bg-sky-500/20 text-sky-300"
-                      : "bg-emerald-500/20 text-emerald-300"
-                  }`}
-                >
-                  {drop.status}
-                </span>
-              </div>
-            </div>
-
-            {/* Big count tiles with number-only text inside testids; student pickups and pantry transfers remain strictly separate */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-emerald-500/30 bg-owl-black/80 p-4 text-center">
-                <div
-                  data-testid="host-count-available"
-                  className="text-4xl font-extrabold text-emerald-400"
-                >
-                  {formattedCounts.available}
-                </div>
-                <div className="mt-1 text-xs font-bold uppercase tracking-wide text-zinc-400">
-                  Available
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-amber-500/30 bg-owl-black/80 p-4 text-center">
-                <div
-                  data-testid="host-count-held"
-                  className="text-4xl font-extrabold text-amber-400"
-                >
-                  {formattedCounts.held}
-                </div>
-                <div className="mt-1 text-xs font-bold uppercase tracking-wide text-zinc-400">
-                  Student held
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-sky-500/30 bg-owl-black/80 p-4 text-center">
-                <div
-                  data-testid="host-count-picked-up"
-                  className="text-4xl font-extrabold text-sky-400"
-                >
-                  {formattedCounts.pickedUp}
-                </div>
-                <div className="mt-1 text-xs font-bold uppercase tracking-wide text-zinc-400">
-                  Student pickups
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-purple-500/30 bg-owl-black/80 p-4 text-center">
-                <div
-                  data-testid="host-count-pantry-held"
-                  className="text-4xl font-extrabold text-purple-300"
-                >
-                  {formattedCounts.pantryHeld}
-                </div>
-                <div className="mt-1 text-xs font-bold uppercase tracking-wide text-zinc-400">
-                  Pantry reserved
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-fuchsia-500/30 bg-owl-black/80 p-4 text-center">
-                <div
-                  data-testid="host-count-pantry-transferred"
-                  className="text-4xl font-extrabold text-fuchsia-300"
-                >
-                  {formattedCounts.pantryTransferred}
-                </div>
-                <div className="mt-1 text-xs font-bold uppercase tracking-wide text-zinc-400">
-                  Pantry transfers
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-zinc-700 bg-owl-black/80 p-4 text-center">
-                <div
-                  data-testid="host-count-total"
-                  className="text-4xl font-extrabold text-white"
-                >
-                  {formattedCounts.total}
-                </div>
-                <div className="mt-1 text-xs font-bold uppercase tracking-wide text-zinc-400">
-                  Total
-                </div>
-              </div>
-            </div>
-
-            {/* Donate remaining food (Simulation-only CARE Pantry fallback) */}
-            <HostPantryCard
-              drop={drop}
-              pantryData={pantryData}
-              pantryError={pantryError}
-              busyAction={busyAction}
-              nowIso={nowIso}
-              onRequestReferral={handleRequestPantryReferral}
-              onConfirmHandoff={handleConfirmPantryHandoff}
-            />
-
-            {/* De-identified Host Pickup Review Queue */}
-            <div
-              data-testid="host-pickup-reviews-panel"
-              className="space-y-3 rounded-xl border border-zinc-800 bg-owl-black/70 p-4"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h3 className="text-sm font-extrabold text-white">
-                    De-identified pickup review requests ({pickupReviews.length}
-                    )
-                  </h3>
-                  <p className="text-xs text-zinc-400">
-                    Pickup photos are not retained and student identities are
-                    hidden. You see the de-identified AI food-match assessment
-                    and listing metadata only.
-                  </p>
-                </div>
-                {isPollingReviews && (
-                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300">
-                    Live queue
-                  </span>
-                )}
-              </div>
-
-              {reviewError && (
-                <div
-                  role="alert"
-                  data-testid="host-review-error"
-                  className="rounded-lg border border-rose-500/40 bg-rose-950/30 px-3 py-2 text-xs text-rose-200"
-                >
-                  {reviewError}
-                </div>
-              )}
-
-              {pickupReviews.length === 0 ? (
-                <p
-                  data-testid="host-pickup-reviews-empty"
-                  className="rounded-lg border border-zinc-800 bg-owl-slate/60 px-3 py-2.5 text-xs text-zinc-400"
-                >
-                  No queued pickup reviews right now. When a student requests
-                  help on an uncertain photo match, a de-identified card will
-                  appear here.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {pickupReviews.map((rev) => {
-                    const guard = resolveHostReviewActionGuard(rev, nowIso);
-                    const holdLeft = formatRemainingTime(
-                      rev.held_until,
-                      nowIso,
-                    );
-                    const confidencePct =
-                      rev.confidence !== null && rev.confidence !== undefined
-                        ? `${Math.round(rev.confidence * 100)}%`
-                        : "N/A";
-                    const isApproving =
-                      busyAction === `review:${rev.id}:approve`;
-                    const isRejecting =
-                      busyAction === `review:${rev.id}:reject`;
-
-                    return (
-                      <article
-                        key={rev.id}
-                        data-testid={`host-review-card-${rev.id}`}
-                        data-match-status={rev.match_status}
-                        className="space-y-2.5 rounded-xl border border-amber-500/30 bg-owl-slate p-3.5 text-xs"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span
-                              data-testid={`host-review-match-${rev.id}`}
-                              className={`rounded-full px-2.5 py-0.5 text-[11px] font-extrabold uppercase ${
-                                rev.match_status === "inconsistent"
-                                  ? "bg-rose-500/20 text-rose-300"
-                                  : "bg-amber-500/20 text-amber-300"
-                              }`}
-                            >
-                              {rev.match_status} match ({confidencePct})
-                            </span>
-                            <span
-                              data-testid={`host-review-source-${rev.id}`}
-                              className="rounded-full border border-zinc-700 bg-owl-black px-2 py-0.5 text-[11px] font-semibold text-zinc-300"
-                            >
-                              {getVisionSourceLabel(rev.source)}
-                            </span>
-                          </div>
-                          <span
-                            data-testid={`host-review-hold-left-${rev.id}`}
-                            className="rounded-full bg-owl-black px-2.5 py-0.5 text-[11px] font-bold text-owl-gold"
-                          >
-                            Hold: {holdLeft}
-                          </span>
-                        </div>
-
-                        {rev.explanation && (
-                          <p
-                            data-testid={`host-review-explanation-${rev.id}`}
-                            className="leading-relaxed text-zinc-200"
-                          >
-                            {rev.explanation}
-                          </p>
-                        )}
-
-                        <p
-                          data-testid={`host-review-notice-${rev.id}`}
-                          className="rounded-lg border border-amber-500/25 bg-amber-950/20 px-2.5 py-1.5 text-[11px] text-amber-200"
-                        >
-                          {rev.notice || PICKUP_CONFIRMATION_NOTICE}
-                        </p>
-
-                        {guard.staleReason && (
-                          <p
-                            data-testid={`host-review-guard-${rev.id}`}
-                            className="rounded-lg border border-rose-500/30 bg-rose-950/30 px-2.5 py-1.5 text-[11px] font-semibold text-rose-200"
-                          >
-                            {guard.staleReason}
-                          </p>
-                        )}
-
-                        <div className="grid grid-cols-2 gap-2 pt-1">
-                          <button
-                            type="button"
-                            data-testid={`host-review-approve-${rev.id}`}
-                            disabled={busyAction !== null || !guard.canAct}
-                            onClick={() =>
-                              void handleReviewDecision(rev.id, "approve")
-                            }
-                            className="min-h-[42px] rounded-xl bg-emerald-400 px-3 py-2 text-xs font-extrabold text-owl-black transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            {isApproving
-                              ? "Approving..."
-                              : "Approve pickup (human override)"}
-                          </button>
-                          <button
-                            type="button"
-                            data-testid={`host-review-reject-${rev.id}`}
-                            disabled={busyAction !== null || !guard.canAct}
-                            onClick={() =>
-                              void handleReviewDecision(rev.id, "reject")
-                            }
-                            className="min-h-[42px] rounded-xl border border-zinc-700 bg-owl-black px-3 py-2 text-xs font-bold text-zinc-200 transition hover:border-rose-400 hover:text-rose-200 disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            {isRejecting ? "Rejecting..." : "Reject"}
-                          </button>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-xl border border-owl-gold/30 bg-owl-black/60 p-4">
-              {pickupCompanionUrl ? (
-                <a
-                  data-testid="open-pickup-companion"
-                  href={pickupCompanionUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex min-h-[48px] w-full items-center justify-center rounded-xl bg-owl-gold px-5 py-3 text-center text-sm font-extrabold text-owl-black transition hover:bg-amber-300"
-                >
-                  Open pickup companion
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  data-testid="open-pickup-companion"
-                  disabled
-                  className="min-h-[48px] w-full cursor-not-allowed rounded-xl border border-zinc-700 bg-zinc-900 px-5 py-3 text-sm font-bold text-zinc-500"
-                >
-                  Open pickup companion
-                </button>
-              )}
-              <p className="mt-2 text-xs text-zinc-400">
-                Opens the paired It host screen for this drop. It receives the
-                drop ID and aggregate counts only.
-                {!pickupCompanionUrl &&
-                  " Pair It on the presentation Mac and configure its site URL first."}
-              </p>
-            </div>
-
-            {/* Summary of shared food & allergen notice */}
-            <div className="space-y-3 rounded-xl border border-zinc-800 bg-owl-black/60 p-4">
-              <ul className="space-y-1 text-sm text-zinc-100">
-                {drop.vision.items.map((item, idx) => (
-                  <li
-                    key={`${item.name}-${idx}`}
-                    className="flex items-center justify-between gap-2"
-                  >
-                    <span className="font-medium">{item.name}</span>
-                    <span className="text-xs text-zinc-400">
-                      ~{item.count_estimate} {item.portion_unit}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-
-              <AllergenListDisplay
-                allergens={drop.allergens_final}
-                notice={drop.allergen_notice}
-                title="Allergens"
-                compact={true}
+            {drop && form && viewStep === "review" && (
+              <HostReviewStep
+                drop={drop}
+                form={form}
+                onChange={(patch) =>
+                  setForm((prev) => (prev ? { ...prev, ...patch } : prev))
+                }
+                authToken={HOST_CREDENTIAL}
+                buildings={buildings}
+                buildingsLoading={buildingsLoading}
+                buildingsError={buildingsError}
+                onRetryBuildings={() => void loadCampusBuildings()}
+                rehearsalOptions={rehearsalOptions}
+                busy={busyAction === "publish"}
+                onPublish={() => void handlePublishDrop()}
+                onStartOver={startNewListing}
               />
+            )}
 
-              <p className="text-xs text-zinc-400">
-                Hosts see aggregate counts only. Student names and individual
-                statuses are never shown.
-              </p>
-            </div>
-
-            {/* Secondary action: Share another drop */}
-            <button
-              type="button"
-              data-testid="share-another-drop-button"
-              onClick={handleShareAnotherDrop}
-              className="min-h-[48px] w-full rounded-xl border border-zinc-700 bg-owl-black px-5 py-3 text-sm font-bold text-owl-gold transition hover:border-owl-gold hover:bg-zinc-900"
-            >
-              Share another drop
-            </button>
-          </section>
+            {drop && viewStep === "counts" && (
+              <HostListingDashboard
+                drop={drop}
+                authToken={HOST_CREDENTIAL}
+                buildings={buildings}
+                nowIso={nowIso}
+                pickupReviews={pickupReviews}
+                reviewError={reviewError}
+                busyAction={busyAction}
+                onDecideReview={(id, decision) =>
+                  void handleReviewDecision(id, decision)
+                }
+                pantryData={pantryData}
+                pantryError={pantryError}
+                onRequestReferral={handleRequestPantryReferral}
+                onConfirmHandoff={handleConfirmPantryHandoff}
+                pushState={hostPush.state}
+                onEnablePush={() => void hostPush.enable()}
+                onDisablePush={() => void hostPush.disable()}
+                companionUrl={buildPickupCompanionUrl(drop.id)}
+                onShareAnother={startNewListing}
+                onOpenListings={() => setView("listings")}
+              />
+            )}
+          </>
         )}
-      </main>
-    </div>
+      </div>
+    </AppShell>
   );
 }
 
@@ -1522,9 +669,9 @@ export default function HostPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-owl-black p-6 text-sm text-zinc-400">
-          Loading...
-        </div>
+        <AppShell variant="host" maxWidth="md">
+          <DetailSkeleton />
+        </AppShell>
       }
     >
       <HostPageContent />

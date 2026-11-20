@@ -1,6 +1,6 @@
 """Persist private state separately from the frozen public response models."""
 
-from sqlalchemy import JSON, Column, UniqueConstraint
+from sqlalchemy import JSON, Column, LargeBinary, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -161,3 +161,17 @@ class PantryReferral(SQLModel, table=True):
     transferred_servings: int = 0
     created_at: str
     updated_at: str
+
+
+class DropPhoto(SQLModel, table=True):
+    """The sanitized host listing photo for one drop, kept only until its deadline.
+
+    ``content`` is the metadata-free JPEG re-encoded from the host's upload; raw uploads
+    and private pickup photos are never stored. ``expires_at`` is the purge deadline, never
+    later than the drop's creation plus 24 hours.
+    """
+
+    drop_id: str = Field(primary_key=True, foreign_key="drop.id")
+    content: bytes = Field(sa_column=Column(LargeBinary, nullable=False))
+    created_at: str
+    expires_at: str

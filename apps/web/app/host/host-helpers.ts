@@ -1,10 +1,14 @@
 import type {
+  Allergen,
   Building,
   Counts,
+  Diet,
   DropResponse,
+  DropStatus,
   HostPickupReview,
   PickupMatchStatus,
   PickupVerificationSource,
+  SafetyReview,
   VisionSource,
 } from "../../lib/types/api";
 import { filterVerifiedBuildings } from "../../lib/buildings";
@@ -14,6 +18,31 @@ export type HostViewStep = "upload" | "review" | "counts";
 export const HOST_POLL_INTERVAL_MS = 2000;
 
 export const HOST_REHEARSAL_CODE = "DEMO-ORIGIN";
+
+/** Consumer label for the synthetic rehearsal origin; the raw code is never shown. */
+export const HOST_REHEARSAL_LOCATION_LABEL = "Rehearsal location";
+
+/** Shown at the point of capture so hosts photograph trays, never people. */
+export const HOST_PHOTO_PRIVACY_NOTICE =
+  "Snap food trays only — avoid capturing faces or people. Photos are automatically deleted when the drop expires (max 24 hours).";
+
+export const HOST_WIZARD_STEPS = [
+  { step: 1, label: "Photo" },
+  { step: 2, label: "Review" },
+  { step: 3, label: "Publish" },
+] as const;
+
+/** Pickup windows the host may choose; the API accepts 1–120 minutes. */
+export const HOST_EXPIRY_OPTIONS: ReadonlyArray<number> = [30, 45, 60, 90, 120];
+export const HOST_DEFAULT_EXPIRY_MINUTES = 45;
+export const HOST_MIN_SERVINGS = 1;
+export const HOST_MAX_SERVINGS = 500;
+
+const RELIGIOUS_DIET_TAGS: ReadonlyArray<Diet> = [
+  "halal",
+  "kosher",
+  "pork_free",
+];
 
 const DROP_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -50,8 +79,9 @@ export function formatHostDropLocation(
   const matched =
     drop.building?.name?.trim() ||
     buildings.find((b) => b.id === drop.building_code)?.name?.trim() ||
-    drop.building_code.trim() ||
-    HOST_REHEARSAL_CODE;
+    (drop.building_code.trim() === HOST_REHEARSAL_CODE
+      ? HOST_REHEARSAL_LOCATION_LABEL
+      : "Campus pickup");
   const room = drop.room?.trim();
   return room ? `${matched}, Room ${room}` : matched;
 }
@@ -80,16 +110,14 @@ export function buildPickupCompanionUrl(
 }
 
 /**
- * Maps DropResponse.vision_source ("openrouter" | "gemini" | "fixture") to the exact Contract v2.2 UI badge label.
+ * Maps DropResponse.vision_source to consumer copy. Provider and model names stay on
+ * technical admin screens; a sample estimate never claims to describe this photo.
  */
 export function getVisionSourceLabel(visionSource: VisionSource): string {
-  if (visionSource === "openrouter") {
-    return "Live Gemini via OpenRouter";
+  if (visionSource === "openrouter" || visionSource === "gemini") {
+    return "AI photo estimate";
   }
-  if (visionSource === "gemini") {
-    return "Live Gemini";
-  }
-  return "Saved demo estimate";
+  return "Sample estimate (not from your photo)";
 }
 
 /**
@@ -282,9 +310,9 @@ export function formatHostReviewSourceLabel(
   source: PickupVerificationSource,
 ): string {
   if (source === "openrouter") {
-    return "Live Gemini via OpenRouter";
+    return "Photo assessment";
   }
-  return "Simulated demo assessment";
+  return "Sample assessment";
 }
 
 /**
@@ -364,4 +392,218 @@ export function resolveHostReviewActionGuard(
     canAct: true,
     staleReason: null,
   };
+}
+
+/** Keep the servings stepper inside the API's 1–500 bound, whatever the input. */
+export function clampHostServings(value: number): number {
+  if (!Number.isFinite(value)) return HOST_MIN_SERVINGS;
+  return Math.min(
+    HOST_MAX_SERVINGS,
+    Math.max(HOST_MIN_SERVINGS, Math.trunc(value)),
+  );
+}
+
+/** Maps the internal view step to the 1–3 wizard position shown to hosts. */
+export function hostWizardStepNumber(step: HostViewStep): 1 | 2 | 3 {
+  if (step === "upload") return 1;
+  if (step === "review") return 2;
+  return 3;
+}
+
+/**
+ * After a refresh, keep a host on their listing dashboard when it ends so they see the
+ * final counts, instead of silently jumping back to a blank upload form.
+ */
+export function resolveHostStepAfterRefresh(
+  previous: HostViewStep,
+  drop: DropResponse | null,
+): HostViewStep {
+  if (drop?.status === "expired" && previous === "counts") return "counts";
+  return resolveHostStep(drop);
+}
+
+/** True when the page was opened for presenter rehearsal (`/host?rehearsal=1`). */
+export function isHostRehearsalView(param: string | null | undefined): boolean {
+  return param === "1" || param === "true";
+}
+
+/** Plain-language status for hosts; raw enum values stay out of the UI. */
+export function formatHostStatusLabel(status: DropStatus): string {
+  switch (status) {
+    case "draft":
+      return "Draft";
+    case "live":
+      return "Live";
+    case "claimed_out":
+      return "All reserved";
+    default:
+      return "Ended";
+  }
+}
+
+export function hostStatusTone(
+  status: DropStatus,
+): "neutral" | "success" | "warning" | "gold" {
+  if (status === "live") return "success";
+  if (status === "claimed_out") return "gold";
+  if (status === "draft") return "warning";
+  return "neutral";
+}
+
+/** A short human title from the estimated items. */
+export function summarizeHostListing(
+  drop: Pick<DropResponse, "vision">,
+): string {
+  const names = drop.vision.items
+    .map((item) => item.name.trim())
+    .filter(Boolean);
+  if (names.length === 0) return "Shared food";
+  if (names.length <= 2) return names.join(" & ");
+  return `${names.slice(0, 2).join(", ")} +${names.length - 2} more`;
+}
+
+/** Split the host's own listings into ones still in progress and ended history. */
+export function partitionHostDrops<T extends Pick<DropResponse, "status">>(
+  drops: ReadonlyArray<T>,
+): { active: T[]; past: T[] } {
+  return {
+    active: drops.filter((d) => d.status !== "expired"),
+    past: drops.filter((d) => d.status === "expired"),
+  };
+}
+
+/** The newest listing the host can still act on, given a newest-first list. */
+export function pickActiveHostDropId(
+  drops: ReadonlyArray<Pick<DropResponse, "id" | "status">>,
+): string | null {
+  return drops.find((d) => d.status !== "expired")?.id ?? null;
+}
+
+export type HostListingAction = "resume" | "manage" | null;
+
+/** Drafts resume in Review, published listings open their dashboard, ended ones are history. */
+export function resolveHostListingAction(
+  drop: Pick<DropResponse, "status">,
+): HostListingAction {
+  if (drop.status === "draft") return "resume";
+  if (drop.status === "live" || drop.status === "claimed_out") return "manage";
+  return null;
+}
+
+/** AI-flagged allergens the host has removed; removing one needs an ingredient check. */
+export function removedEstimatedAllergens(
+  estimated: ReadonlyArray<Allergen>,
+  selected: ReadonlyArray<Allergen>,
+): Allergen[] {
+  return estimated.filter((alg) => !selected.includes(alg));
+}
+
+export function selectedReligiousDiets(diets: ReadonlyArray<Diet>): Diet[] {
+  return diets.filter((d) => RELIGIOUS_DIET_TAGS.includes(d));
+}
+
+/**
+ * Build the safety review the API receives. Conditional confirmations are only sent
+ * while they are required, so a stale checkbox never asserts something the host no
+ * longer reviewed.
+ */
+export function buildHostSafetyReview(
+  review: SafetyReview,
+  estimated: ReadonlyArray<Allergen>,
+  selectedAllergens: ReadonlyArray<Allergen>,
+  diets: ReadonlyArray<Diet>,
+): SafetyReview {
+  const needsIngredients =
+    removedEstimatedAllergens(estimated, selectedAllergens).length > 0;
+  const needsReligious = selectedReligiousDiets(diets).length > 0;
+  return {
+    covered_and_temperature_safe: review.covered_and_temperature_safe,
+    served_within_two_hours: review.served_within_two_hours,
+    untouched: review.untouched,
+    ingredient_information_checked:
+      needsIngredients && Boolean(review.ingredient_information_checked),
+    religious_diets_confirmed:
+      needsReligious && Boolean(review.religious_diets_confirmed),
+  };
+}
+
+/** Publish is allowed only once every required confirmation is checked. */
+export function canPublishHostReview(
+  review: SafetyReview,
+  estimated: ReadonlyArray<Allergen>,
+  selectedAllergens: ReadonlyArray<Allergen>,
+  diets: ReadonlyArray<Diet>,
+): boolean {
+  const built = buildHostSafetyReview(
+    review,
+    estimated,
+    selectedAllergens,
+    diets,
+  );
+  const needsIngredients =
+    removedEstimatedAllergens(estimated, selectedAllergens).length > 0;
+  const needsReligious = selectedReligiousDiets(diets).length > 0;
+  return (
+    built.covered_and_temperature_safe &&
+    built.served_within_two_hours &&
+    built.untouched &&
+    (!needsIngredients || Boolean(built.ingredient_information_checked)) &&
+    (!needsReligious || Boolean(built.religious_diets_confirmed))
+  );
+}
+
+/** Everything the host edits in Review; sent as one DropEdit on publish. */
+export interface HostReviewForm {
+  servings: number;
+  allergens: Allergen[];
+  diets: Diet[];
+  buildingId: string;
+  room: string;
+  pickupInstructions: string;
+  expiresInMinutes: number;
+  safety: SafetyReview;
+}
+
+const EMPTY_SAFETY: SafetyReview = {
+  covered_and_temperature_safe: false,
+  served_within_two_hours: false,
+  untouched: false,
+  ingredient_information_checked: false,
+  religious_diets_confirmed: false,
+};
+
+/** Seed the Review form from a draft (or resumed) drop. */
+export function initialHostReviewForm(
+  drop: Pick<
+    DropResponse,
+    | "servings_final"
+    | "allergens_final"
+    | "diet_tags_final"
+    | "building_code"
+    | "room"
+    | "pickup_instructions"
+    | "safety_review"
+  >,
+  buildings: ReadonlyArray<Building>,
+  expiresInMinutes: number = HOST_DEFAULT_EXPIRY_MINUTES,
+): HostReviewForm {
+  return {
+    servings: clampHostServings(drop.servings_final),
+    allergens: [...drop.allergens_final],
+    diets: [...drop.diet_tags_final],
+    buildingId: resolveDefaultHostBuildingId(drop.building_code, buildings),
+    room: drop.room ?? "",
+    pickupInstructions: drop.pickup_instructions ?? "",
+    expiresInMinutes: HOST_EXPIRY_OPTIONS.includes(expiresInMinutes)
+      ? expiresInMinutes
+      : HOST_DEFAULT_EXPIRY_MINUTES,
+    safety: { ...EMPTY_SAFETY, ...(drop.safety_review ?? {}) },
+  };
+}
+
+/** Toggle one value in a tag list without mutating the original. */
+export function toggleTag<T>(list: ReadonlyArray<T>, value: T): T[] {
+  return list.includes(value)
+    ? list.filter((item) => item !== value)
+    : [...list, value];
 }

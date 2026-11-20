@@ -477,3 +477,74 @@ export function summarizeReviewedSafetyAssertions(
   }
   return items;
 }
+
+export interface PantryInventoryTile {
+  key:
+    | "available"
+    | "held"
+    | "picked_up"
+    | "pantry_held"
+    | "accepted"
+    | "pantry_transferred";
+  label: string;
+  value: number;
+  group: "student" | "pantry";
+}
+
+/**
+ * The coordinator's inventory view. Student holds and pickups stay apart from pantry
+ * allocations; "Accepted servings" is the referral's historical acceptance and is
+ * labelled separately from currently reserved pantry stock.
+ */
+export function buildPantryInventoryTiles(
+  counts: Counts | null | undefined,
+  acceptedServings: number,
+): PantryInventoryTile[] {
+  const c = normalizeCounts(counts);
+  return [
+    {
+      key: "available",
+      label: "Available",
+      value: c.available,
+      group: "student",
+    },
+    { key: "held", label: "Student holds", value: c.held, group: "student" },
+    {
+      key: "picked_up",
+      label: "Student pickups",
+      value: c.picked_up,
+      group: "student",
+    },
+    {
+      key: "pantry_held",
+      label: "Pantry reserved",
+      value: c.pantry_held,
+      group: "pantry",
+    },
+    {
+      key: "accepted",
+      label: "Accepted servings",
+      value: toSafeNonNegInt(acceptedServings),
+      group: "pantry",
+    },
+    {
+      key: "pantry_transferred",
+      label: "Pantry transfers",
+      value: c.pantry_transferred,
+      group: "pantry",
+    },
+  ];
+}
+
+/** A short food title for a referral card, from the host's estimated items. */
+export function summarizePantryFood(
+  drop: Pick<DropResponse, "vision">,
+): string {
+  const names = drop.vision.items
+    .map((item) => item.name.trim())
+    .filter(Boolean);
+  if (names.length === 0) return "Shared food";
+  return names.length <= 2
+    ? names.join(" & ")
+    : `${names.slice(0, 2).join(", ")} +${names.length - 2} more`;
+}

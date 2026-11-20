@@ -1,11 +1,9 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import { Check, MapPin, Search } from "lucide-react";
 import type { Building } from "../lib/types/api";
-import {
-  formatBuildingMetaBadge,
-  groupVerifiedBuildings,
-} from "../lib/buildings";
+import { groupVerifiedBuildings } from "../lib/buildings";
 
 export interface RehearsalOption {
   id: string;
@@ -28,20 +26,23 @@ export interface BuildingSelectorProps {
   onRetry?: () => void;
   /** Prefix for generated testids (e.g. "host" or "join") */
   testIdPrefix: "host" | "join";
-  /** Explicit synthetic rehearsal options kept separate from verified campus buildings */
+  /**
+   * Explicit synthetic rehearsal options, kept apart from verified buildings. Pass these
+   * only on presenter rehearsal screens; consumer screens never see them.
+   */
   rehearsalOptions?: ReadonlyArray<RehearsalOption>;
-  /** Optional custom testid generator for rehearsal options (defaults to `${testIdPrefix}-area-${id}`) */
+  /** Optional custom testid generator for rehearsal options (defaults to `${testIdPrefix}-rehearsal-option-${id}`) */
   getRehearsalOptionTestId?: (id: string) => string;
-  /** Whether to allow typing a custom rehearsal code when rehearsal section is expanded (for host legacy input) */
-  allowCustomRehearsalCode?: boolean;
-  /** Input id for custom rehearsal code input (e.g. "building-code-input") */
-  customRehearsalInputId?: string;
   /** Label shown above the selector */
   label?: string;
   /** Helper copy shown under the label */
   helperText?: string;
 }
 
+/**
+ * Pick a pickup building by its verified display name. Codes, IDs and coordinates stay
+ * out of the UI; the value passed to `onChange` is still the canonical building ID.
+ */
 export function BuildingSelector({
   buildings,
   value,
@@ -52,8 +53,6 @@ export function BuildingSelector({
   testIdPrefix,
   rehearsalOptions = [],
   getRehearsalOptionTestId,
-  allowCustomRehearsalCode = false,
-  customRehearsalInputId = "building-code-input",
   label,
   helperText,
 }: BuildingSelectorProps) {
@@ -62,30 +61,14 @@ export function BuildingSelector({
     () => groupVerifiedBuildings(buildings, searchQuery),
     [buildings, searchQuery],
   );
-  const allVerifiedGroups = useMemo(
-    () => groupVerifiedBuildings(buildings, ""),
+  const allBuildings = useMemo(
+    () => groupVerifiedBuildings(buildings, "").flatMap((g) => g.buildings),
     [buildings],
   );
-  const totalVerifiedCount = useMemo(
-    () => allVerifiedGroups.reduce((acc, g) => acc + g.buildings.length, 0),
-    [allVerifiedGroups],
-  );
-
-  const selectedVerifiedBuilding = useMemo(
-    () =>
-      allVerifiedGroups
-        .flatMap((g) => g.buildings)
-        .find((b) => b.id === value) ?? null,
-    [allVerifiedGroups, value],
-  );
-
-  const selectedRehearsalOption = useMemo(
-    () => rehearsalOptions.find((opt) => opt.id === value) ?? null,
-    [rehearsalOptions, value],
-  );
-
-  const isRehearsalSelected =
-    !selectedVerifiedBuilding && Boolean(value && value.trim().length > 0);
+  const selectedBuilding = allBuildings.find((b) => b.id === value) ?? null;
+  const selectedRehearsal =
+    rehearsalOptions.find((opt) => opt.id === value) ?? null;
+  const searchId = `${testIdPrefix}-building-search`;
 
   return (
     <div
@@ -94,78 +77,72 @@ export function BuildingSelector({
     >
       {label && (
         <div className="space-y-0.5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-sm font-bold text-white">{label}</span>
-            <span
-              data-testid={`${testIdPrefix}-campus-badge`}
-              className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300"
-            >
-              Marietta Campus • Verified directory (no GPS)
-            </span>
-          </div>
-          {helperText && <p className="text-xs text-zinc-400">{helperText}</p>}
+          <span className="text-sm font-bold text-ink">{label}</span>
+          {helperText && <p className="text-xs text-ink-muted">{helperText}</p>}
         </div>
       )}
 
-      {/* Search input */}
       <div className="relative">
-        <label htmlFor={`${testIdPrefix}-building-search`} className="sr-only">
-          Search Marietta campus buildings
+        <label htmlFor={searchId} className="sr-only">
+          Search campus buildings
         </label>
+        <Search
+          size={16}
+          aria-hidden="true"
+          className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted"
+        />
         <input
-          id={`${testIdPrefix}-building-search`}
-          data-testid={`${testIdPrefix}-building-search`}
+          id={searchId}
+          data-testid={searchId}
           type="search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search Marietta buildings by name, code, or category..."
-          className="min-h-[44px] w-full rounded-xl border border-zinc-700 bg-owl-black px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:border-owl-gold focus:outline-none"
+          placeholder="Search buildings"
+          className="consumer-input w-full pl-10"
         />
       </div>
 
-      {/* Loading state */}
       {loading && (
         <div
+          role="status"
           data-testid={`${testIdPrefix}-buildings-loading`}
-          className="rounded-xl border border-zinc-800 bg-owl-black/60 px-4 py-3 text-xs text-zinc-400"
+          className="h-24 animate-pulse rounded-2xl bg-surface-subtle"
         >
-          Loading verified Marietta campus buildings...
+          <span className="sr-only">Loading campus buildings</span>
         </div>
       )}
 
-      {/* Error state */}
       {!loading && error && (
         <div
           role="alert"
           data-testid={`${testIdPrefix}-buildings-error`}
-          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-500/40 bg-rose-950/30 px-3.5 py-2.5 text-xs text-rose-200"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-danger/30 bg-danger-tint px-4 py-3 text-sm text-danger"
         >
-          <span>{error}</span>
+          <span>We couldn&apos;t load campus buildings.</span>
           {onRetry && (
             <button
               type="button"
               data-testid={`${testIdPrefix}-buildings-retry`}
               onClick={onRetry}
-              className="min-h-[36px] rounded-lg border border-rose-400/50 bg-rose-900/50 px-3 py-1 font-bold text-white hover:bg-rose-800"
+              className="consumer-button-secondary min-h-11 px-4 text-xs"
             >
-              Retry
+              Try again
             </button>
           )}
         </div>
       )}
 
-      {/* Verified Campus Building Groups */}
-      {!loading && totalVerifiedCount > 0 && (
+      {!loading && allBuildings.length > 0 && (
         <div
           data-testid={`${testIdPrefix}-campus-building-groups`}
-          className="max-h-72 space-y-3 overflow-y-auto rounded-xl border border-zinc-800 bg-owl-black/50 p-3"
+          className="max-h-72 space-y-4 overflow-y-auto rounded-2xl border border-line bg-surface-subtle p-3"
         >
           {groups.length === 0 ? (
             <p
               data-testid={`${testIdPrefix}-buildings-no-match`}
-              className="py-3 text-center text-xs text-zinc-400"
+              className="py-3 text-center text-sm text-ink-muted"
             >
-              No verified campus buildings match &ldquo;{searchQuery}&rdquo;.
+              No buildings match &ldquo;{searchQuery}&rdquo;.
             </p>
           ) : (
             groups.map((group) => (
@@ -174,13 +151,12 @@ export function BuildingSelector({
                 data-testid={`${testIdPrefix}-building-group-${group.category}`}
                 className="space-y-1.5"
               >
-                <div className="text-[11px] font-bold uppercase tracking-wider text-owl-gold">
+                <div className="px-1 text-xs font-bold uppercase tracking-wider text-ink-muted">
                   {group.label}
                 </div>
                 <div className="grid gap-1.5">
                   {group.buildings.map((b) => {
                     const selected = value === b.id;
-                    const metaBadge = formatBuildingMetaBadge(b);
                     return (
                       <button
                         key={b.id}
@@ -188,20 +164,20 @@ export function BuildingSelector({
                         data-testid={`${testIdPrefix}-building-option-${b.id}`}
                         aria-pressed={selected}
                         onClick={() => onChange(b.id)}
-                        className={`flex min-h-[48px] w-full flex-col items-start justify-center rounded-xl border px-3.5 py-2.5 text-left transition ${
+                        className={`flex min-h-12 w-full items-center justify-between gap-2 rounded-xl border px-3.5 py-2.5 text-left text-sm font-semibold transition ${
                           selected
-                            ? "border-owl-gold bg-owl-gold/15 text-white ring-1 ring-owl-gold/50"
-                            : "border-zinc-800 bg-owl-black text-zinc-200 hover:border-zinc-600"
+                            ? "border-owl-gold bg-owl-goldTint text-ink"
+                            : "border-line bg-surface text-ink hover:border-owl-gold/60"
                         }`}
                       >
-                        <div className="flex w-full items-center justify-between gap-2">
-                          <span className="text-sm font-bold text-white">
-                            {b.name}
-                          </span>
-                          <span className="shrink-0 rounded-md bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-300">
-                            {metaBadge ?? "Verified"}
-                          </span>
-                        </div>
+                        <span>{b.name}</span>
+                        {selected && (
+                          <Check
+                            size={18}
+                            aria-hidden="true"
+                            className="shrink-0 text-owl-goldText"
+                          />
+                        )}
                       </button>
                     );
                   })}
@@ -212,116 +188,69 @@ export function BuildingSelector({
         </div>
       )}
 
-      {!loading && !error && totalVerifiedCount === 0 && (
+      {!loading && !error && allBuildings.length === 0 && (
         <div
           data-testid={`${testIdPrefix}-buildings-empty`}
-          className="rounded-xl border border-amber-500/30 bg-amber-950/20 px-3.5 py-2.5 text-xs text-amber-200"
+          className="rounded-2xl border border-line bg-surface-subtle px-4 py-3 text-sm text-ink-muted"
         >
-          Verified campus directory unavailable in offline synthetic fixture
-          mode. Select an explicit rehearsal location below.
+          Campus buildings aren&apos;t available right now.
         </div>
       )}
 
-      {/* Selected location summary pill */}
       <div
         data-testid={`${testIdPrefix}-selected-location-summary`}
-        className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-800 bg-owl-black/70 px-3.5 py-2 text-xs"
+        className="flex items-center gap-2 rounded-xl bg-surface-subtle px-3.5 py-2.5 text-sm"
       >
-        <span className="text-zinc-400">Selected location:</span>
-        {selectedVerifiedBuilding ? (
-          <span className="font-bold text-emerald-300">
-            {selectedVerifiedBuilding.name} ({selectedVerifiedBuilding.id})
-          </span>
-        ) : (
-          <span className="font-bold text-amber-300">
-            {selectedRehearsalOption
-              ? `${selectedRehearsalOption.label} (Synthetic rehearsal)`
-              : `${value || "None"} (Synthetic rehearsal)`}
-          </span>
-        )}
+        <MapPin
+          size={16}
+          aria-hidden="true"
+          className="shrink-0 text-owl-goldText"
+        />
+        <span className="text-ink-muted">Pickup at</span>
+        <span className="font-bold text-ink">
+          {selectedBuilding?.name ??
+            selectedRehearsal?.label ??
+            "Choose a building"}
+        </span>
       </div>
 
-      {/* Explicit Rehearsal / Synthetic Demo Locations — clearly labeled and separate */}
-      {(rehearsalOptions.length > 0 || allowCustomRehearsalCode) && (
+      {rehearsalOptions.length > 0 && (
         <div
           data-testid={`${testIdPrefix}-rehearsal-section`}
-          className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-950/15 p-3"
+          className="space-y-2 rounded-2xl border border-warning/30 bg-warning-tint p-3"
         >
-          <div className="flex flex-wrap items-center justify-between gap-1.5">
-            <span className="text-xs font-bold text-amber-300">
-              Rehearsal &amp; synthetic demo locations (unverified coordinates)
-            </span>
-            <span className="rounded-md bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-200">
-              Synthetic rehearsal
-            </span>
-          </div>
-          <p className="text-[11px] text-zinc-400">
-            For scripted A–E or 4-visitor ring rehearsal only. Uses synthetic
-            placeholder origin (no walking directions).
+          <p className="text-xs font-bold text-warning">
+            Rehearsal location (simulated, no walking directions)
           </p>
-
-          {rehearsalOptions.length > 0 && (
-            <div className="grid gap-2 pt-1">
-              {rehearsalOptions.map((opt) => {
-                const selected = value === opt.id;
-                const testId = getRehearsalOptionTestId
-                  ? getRehearsalOptionTestId(opt.id)
-                  : `${testIdPrefix}-rehearsal-option-${opt.id}`;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    data-testid={testId}
-                    aria-pressed={selected}
-                    onClick={() => onChange(opt.id)}
-                    className={`flex min-h-[48px] w-full flex-col items-start justify-center rounded-xl border px-3.5 py-2.5 text-left transition ${
-                      selected
-                        ? "border-amber-400 bg-amber-500/15 text-white ring-1 ring-amber-400/50"
-                        : "border-zinc-800 bg-owl-black text-zinc-300 hover:border-zinc-700"
-                    }`}
-                  >
-                    <div className="flex w-full items-center justify-between gap-2">
-                      <span className="text-xs font-bold text-white">
-                        {opt.label}
-                      </span>
-                      <span className="rounded-md bg-zinc-800 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
-                        Simulated
-                      </span>
-                    </div>
-                    {opt.description && (
-                      <span className="mt-0.5 text-[11px] text-zinc-400">
-                        {opt.description}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {allowCustomRehearsalCode && (
-            <div className="pt-1">
-              <label
-                htmlFor={customRehearsalInputId}
-                className="block text-[11px] font-semibold text-zinc-300"
-              >
-                Building ID or legacy rehearsal code
-              </label>
-              <input
-                id={customRehearsalInputId}
-                data-testid={customRehearsalInputId}
-                type="text"
-                maxLength={80}
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                className={`mt-1 min-h-[40px] w-full rounded-xl border bg-owl-black px-3 py-1.5 text-xs text-white ${
-                  isRehearsalSelected
-                    ? "border-amber-500/60"
-                    : "border-zinc-700"
-                }`}
-              />
-            </div>
-          )}
+          <div className="grid gap-2">
+            {rehearsalOptions.map((opt) => {
+              const selected = value === opt.id;
+              const testId = getRehearsalOptionTestId
+                ? getRehearsalOptionTestId(opt.id)
+                : `${testIdPrefix}-rehearsal-option-${opt.id}`;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  data-testid={testId}
+                  aria-pressed={selected}
+                  onClick={() => onChange(opt.id)}
+                  className={`flex min-h-12 w-full flex-col items-start justify-center rounded-xl border px-3.5 py-2.5 text-left text-sm transition ${
+                    selected
+                      ? "border-warning bg-surface text-ink"
+                      : "border-line bg-surface text-ink-muted hover:border-warning/60"
+                  }`}
+                >
+                  <span className="font-bold text-ink">{opt.label}</span>
+                  {opt.description && (
+                    <span className="mt-0.5 text-xs text-ink-muted">
+                      {opt.description}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

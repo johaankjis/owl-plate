@@ -24,8 +24,13 @@ app.include_router(build_router(backend))
 `analyze(photo: bytes, host_note: str = '') -> tuple[VisionEstimate, Literal['fixture', 'gemini']]`
 is synchronous. `validate_photo(photo: bytes) -> bytes` validates/resizes in memory.
 `notify(invite_id: str, student_id: str, drop_id: str, *, mode='seeded_waves') -> None`
-is synchronous; no external send occurs unless this adapter is supplied. No photo bytes
-are stored. Seeded waves pass the legacy invite ID positionally. Campus-feed drops call
+is synchronous; no external send occurs unless this adapter is supplied. Only the
+sanitized host listing JPEG returned by `validate_photo` for `POST /drops` is stored, in
+the `DropPhoto` table behind `services/api/storage/photos.py`: drafts keep it two hours,
+publishing moves the deadline to `min(created_at + 24h, expires_at)`, and every
+transaction, tick and demo reset purges expired photos first. It is served only by
+Bearer-authenticated, per-role scoped `GET /drops/{id}/photo` (404 for anything out of
+scope). Pickup-verification photos are never stored. Seeded waves pass the legacy invite ID positionally. Campus-feed drops call
 it once per eligible student at publish with the `FeedNotification` outbox ID and
 `mode='campus_feed'`; the push links `/student?drop=<id>` with a stable per-drop tag and
 Web Push topic. Ticks, joins, reservations and registrations never enqueue more.
@@ -85,5 +90,6 @@ Root `uv pip install -e '.[dev]'` currently fails setuptools discovery because b
 `data` and `services` are top-level packages. Worker installed dependencies from
 `pyproject.toml` without changing manager-owned packaging. Push registration is
 intentionally 503, not a simulated success; encrypted token storage/access and
-real sign-in/provisioning remain manager integrations. Backend does not persist
-or log photo bytes, provider exception details, contacts, or tokens.
+real sign-in/provisioning remain manager integrations. Backend does not log photo
+bytes, provider exception details, contacts, or tokens, and persists no photo other
+than the short-lived sanitized host listing photo described above.

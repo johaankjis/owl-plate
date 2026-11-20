@@ -127,6 +127,9 @@ class DropResponse(ContractModel):
     allergen_notice: str = "may contain, confirm with host"
     distribution_mode: DistributionMode = "seeded_waves"
     is_demo: bool
+    # Sanitized host listing photo, fetched with Bearer auth from the relative path only.
+    has_photo: bool = False
+    photo_url: str | None = None
 
 
 class ClaimResponse(ContractModel):
@@ -399,6 +402,28 @@ class HostPickupReviewsResponse(ContractModel):
 
 class HostReviewDecision(ContractModel):
     decision: Literal["approve", "reject"]
+
+
+class StudentReservation(ContractModel):
+    """One of the caller's own holds with its listing; nothing about other students."""
+
+    claim: ClaimResponse
+    drop: DropResponse
+    pickup_verification: PickupVerification | None
+
+
+class StudentReservationsResponse(ContractModel):
+    reservations: list[StudentReservation]
+    server_time: datetime
+    is_demo: bool
+
+
+class HostDropsResponse(ContractModel):
+    """The calling host's own listings in every status, newest first."""
+
+    drops: list[DropResponse]
+    server_time: datetime
+    is_demo: bool
 
 
 class ErrorDetail(ContractModel):

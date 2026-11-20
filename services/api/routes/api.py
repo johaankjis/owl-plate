@@ -25,6 +25,7 @@ from services.api.schemas.api import (
     DropResponse,
     ErrorResponse,
     FeedResponse,
+    HostDropsResponse,
     HostPantryReferralResponse,
     HostPickupReview,
     HostPickupReviewsResponse,
@@ -49,6 +50,7 @@ from services.api.schemas.api import (
     PushTokenResponse,
     SessionLeftResponse,
     SessionStudent,
+    StudentReservationsResponse,
 )
 
 P = ParamSpec("P")
@@ -112,6 +114,34 @@ def build_router(
     def get_drop(drop_id: UUID, actor: Identity) -> DropResponse:
         """Scope food details through the service's ownership check."""
         return invoke(backend.get_drop, actor, str(drop_id))
+
+    @router.get(
+        "/drops/{drop_id}/photo",
+        response_class=Response,
+        responses={200: {"content": {"image/jpeg": {}}, "description": "Sanitized JPEG"}},
+    )
+    def drop_photo(drop_id: UUID, actor: Identity) -> Response:
+        """Sanitized listing photo for in-scope callers; Bearer header only, never cached."""
+        content = invoke(backend.drop_photo, actor, str(drop_id))
+        return Response(
+            content=content,
+            media_type="image/jpeg",
+            headers={
+                "Cache-Control": "private, no-store",
+                "X-Content-Type-Options": "nosniff",
+                "Content-Disposition": 'inline; filename="drop-photo.jpg"',
+            },
+        )
+
+    @router.get("/hosts/me/drops", response_model=HostDropsResponse)
+    def host_drops(actor: Identity) -> HostDropsResponse:
+        """The calling host's own listings in every status, newest first."""
+        return invoke(backend.host_drops, actor)
+
+    @router.get("/students/me/reservations", response_model=StudentReservationsResponse)
+    def my_reservations(actor: Identity) -> StudentReservationsResponse:
+        """The calling student's own holds in every status, newest first."""
+        return invoke(backend.my_reservations, actor)
 
     @router.get("/drops/{drop_id}/dispatch", response_model=DispatchResponse)
     def dispatch(drop_id: UUID, actor: Identity) -> DispatchResponse:

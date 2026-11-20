@@ -94,6 +94,7 @@ from services.api.schemas.api import (
     DropResponse,
     FeedDrop,
     FeedResponse,
+    HostDropsResponse,
     HostPantryReferralResponse,
     HostPickupReview,
     HostPickupReviewsResponse,
@@ -112,6 +113,8 @@ from services.api.schemas.api import (
     Scenario,
     SessionLeftResponse,
     SessionStudent,
+    StudentReservation,
+    StudentReservationsResponse,
     VisionEstimate,
     WaveResponse,
 )
@@ -128,6 +131,15 @@ from services.api.sessions import (
     session_student,
     visitor_count,
     visitor_decisions,
+)
+from services.api.storage.photos import (
+    has_stored_photo,
+    photo_bytes,
+    photo_path,
+    publish_photo,
+    purge_all_photos,
+    purge_expired_photos,
+    store_photo,
 )
 from services.api.vision.errors import VisionUnavailable
 
@@ -268,9 +280,13 @@ class Backend:
         ):
             raise DomainError("forbidden", "Access denied.", 403)
 
+    def _demo_gates(self) -> bool:
+        """Both explicit demo switches; synthetic roles never work without them."""
+        return self.demo_mode and self.auth_mode == "demo"
+
     def _require_demo(self) -> None:
         """Restrict unauthenticated demo surfaces to explicit demo gates."""
-        if not (self.demo_mode and self.auth_mode == "demo"):
+        if not self._demo_gates():
             raise DomainError("forbidden", "Access denied.", 403)
 
     def areas(self) -> DemoAreasResponse:
@@ -349,12 +365,7 @@ class Backend:
     def is_visitor(self, student_id: str) -> bool:
         """Tell the push policy whether this ID is a current joined visitor."""
         with Session(self.engine) as session:
-            return (
-                session.exec(
-                    select(VisitorSession.student_id).where(VisitorSession.student_id == student_id)
-                ).first()
-                is not None
-            )
+            return self._is_visitor_in(session, student_id)
 
     def demo_status(self, actor: Actor) -> DemoStatusResponse:
         """Give presenter controls a projector-safe overview."""
@@ -467,8 +478,11 @@ class Backend:
                 suggest_if_due(session, drop, self._counts(session, drop).available, now)
         session.flush()
         sweep(session, now)
+        # After drop statuses settle, so expired food never keeps a retrievable photo.
+        purge_expired_photos(session, now)
 
     def _response(self, session: Session, drop: Drop) -> DropResponse:
+        has_photo = drop.status != "expired" and has_stored_photo(session, drop.id)
         return DropResponse(
             id=drop.id,
             status=drop.status,
@@ -487,6 +501,8 @@ class Backend:
             expires_at=timestamp(drop.data["expires_at"]) if drop.data["expires_at"] else None,
             distribution_mode=drop_mode(drop),
             is_demo=self.demo_mode,
+            has_photo=has_photo,
+            photo_url=photo_path(drop.id) if has_photo else None,
         )
 
     def _claim_response(self, claim: Claim) -> ClaimResponse:
@@ -571,6 +587,8 @@ class Backend:
             )
             session.add(drop)
             session.flush()
+            # The same sanitized bytes the vision provider saw; never the raw upload.
+            store_photo(session, drop.id, photo, now)
             return self._response(session, drop)
 
         return self._run(operation)
@@ -736,6 +754,7 @@ class Backend:
             }
             session.add(drop)
             session.flush()
+            publish_photo(session, drop.id, timestamp(drop.data["expires_at"]))
             if mode == "campus_feed":
                 self._feed_wave(session, drop, now)
                 enqueue_announcements(session, drop, now)
@@ -768,6 +787,109 @@ class Backend:
             if not allowed:
                 raise DomainError("not_found", "Not found.", 404)
             return self._response(session, drop)
+
+        return self._run(operation)
+
+    def _may_view_photo(self, session: Session, actor: Actor, drop: Drop) -> bool:
+        """Scope listing photos per role; every refusal looks like a missing photo."""
+        if actor.role == "host":
+            return drop.host_id == actor.id and drop.status in {"draft", *FEED_STATUSES}
+        if actor.role == "projector":
+            return self._demo_gates() and drop.status in FEED_STATUSES
+        if actor.role == "pantry_coordinator":
+            return (
+                self._demo_gates()
+                and drop.status != "expired"
+                and referral_for(session, drop.id) is not None
+            )
+        if actor.role != "student" or drop.status not in FEED_STATUSES:
+            return False
+        own_invite = session.exec(
+            select(Invite.id).where(Invite.drop_id == drop.id, Invite.student_id == actor.id)
+        ).first()
+        own_claim = session.exec(
+            select(Claim.id).where(Claim.drop_id == drop.id, Claim.student_id == actor.id)
+        ).first()
+        if own_invite is not None or own_claim is not None:
+            return True
+        # Joined visitors browse the campus feed; seeded personas only see their own food.
+        return drop_mode(drop) == "campus_feed" and self._is_visitor_in(session, actor.id)
+
+    @staticmethod
+    def _is_visitor_in(session: Session, student_id: str) -> bool:
+        """Whether this student ID belongs to a current joined visitor session."""
+        return (
+            session.exec(
+                select(VisitorSession.student_id).where(VisitorSession.student_id == student_id)
+            ).first()
+            is not None
+        )
+
+    def drop_photo(self, actor: Actor, drop_id: str) -> bytes:
+        """Serve the sanitized listing JPEG after purging expired photos, scoped per role.
+
+        Missing, expired and out-of-scope photos all return the same 404 so a caller can
+        never learn that another host's draft or a foreign claim exists.
+        """
+
+        def operation(session: Session, now: datetime) -> bytes | None:
+            drop = session.get(Drop, drop_id)
+            if drop is None or not self._may_view_photo(session, actor, drop):
+                return None
+            return photo_bytes(session, drop_id, now)
+
+        # Refuse only after the transaction commits, so the purge is never rolled back.
+        content = self._run(operation)
+        if content is None:
+            raise DomainError("not_found", "Not found.", 404)
+        return content
+
+    def my_reservations(self, actor: Actor) -> StudentReservationsResponse:
+        """The caller's own holds in every status, newest first; nobody else's."""
+        self.require(actor, "student")
+
+        def operation(session: Session, now: datetime) -> StudentReservationsResponse:
+            claims = sorted(
+                session.exec(select(Claim).where(Claim.student_id == actor.id)).all(),
+                key=lambda claim: (timestamp(claim.created_at), claim.id),
+                reverse=True,
+            )
+            reservations = []
+            for claim in claims:
+                drop = self._get(session, Drop, claim.drop_id)
+                attempt = latest_attempt(session, claim.id)
+                reservations.append(
+                    StudentReservation(
+                        claim=self._claim_response(claim),
+                        drop=self._response(session, drop),
+                        pickup_verification=verification_response(
+                            session, attempt, claim, drop, now
+                        )
+                        if attempt
+                        else None,
+                    )
+                )
+            return StudentReservationsResponse(
+                reservations=reservations, server_time=now, is_demo=self.demo_mode
+            )
+
+        return self._run(operation)
+
+    def host_drops(self, actor: Actor) -> HostDropsResponse:
+        """The calling host's own listings in every status so a dashboard can recover."""
+        self.require(actor, "host")
+
+        def operation(session: Session, now: datetime) -> HostDropsResponse:
+            drops = sorted(
+                session.exec(select(Drop).where(Drop.host_id == actor.id)).all(),
+                key=lambda drop: (timestamp(drop.data["created_at"]), drop.id),
+                reverse=True,
+            )
+            return HostDropsResponse(
+                drops=[self._response(session, drop) for drop in drops],
+                server_time=now,
+                is_demo=self.demo_mode,
+            )
 
         return self._run(operation)
 
@@ -1385,6 +1507,7 @@ class Backend:
                 registrations = SQLModel.metadata.tables.get(name)
                 if registrations is not None and inspect(session.connection()).has_table(name):
                     session.execute(delete(registrations))
+            purge_all_photos(session)
             for model in (
                 HostPickupNotification,
                 PickupAttempt,

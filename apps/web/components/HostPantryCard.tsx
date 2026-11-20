@@ -2,6 +2,15 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import {
+  ExternalLink,
+  HandHeart,
+  MapPin,
+  Minus,
+  Navigation,
+  Plus,
+} from "lucide-react";
+import { StatusBadge } from "./ui/StatusBadge";
 import type {
   DropResponse,
   HostPantryReferralResponse,
@@ -77,18 +86,12 @@ export function HostPantryCard({
   }, [referral?.status]);
 
   const statusTone =
-    actionState.status === "handoff_confirmed"
-      ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-200"
-      : actionState.status === "accepted"
-        ? "border-purple-400/50 bg-purple-500/20 text-purple-200"
-        : actionState.status === "requested"
-          ? "border-sky-400/40 bg-sky-500/15 text-sky-200"
-          : actionState.status === "suggested"
-            ? "border-owl-gold/50 bg-owl-gold/15 text-owl-gold"
-            : actionState.status === "rejected" ||
-                actionState.status === "expired"
-              ? "border-zinc-700 bg-zinc-900 text-zinc-300"
-              : "border-zinc-700 bg-owl-black text-zinc-300";
+    actionState.status === "handoff_confirmed" ||
+    actionState.status === "accepted"
+      ? "success"
+      : actionState.status === "requested" || actionState.status === "suggested"
+        ? "gold"
+        : "neutral";
 
   const clampedServings = clampPantryQuantity(
     servings,
@@ -105,143 +108,136 @@ export function HostPantryCard({
     <section
       data-testid="host-pantry-card"
       data-status={actionState.status ?? "none"}
-      className="space-y-4 rounded-2xl border border-purple-400/35 bg-owl-black/75 p-4 shadow-md"
+      className="consumer-card space-y-4"
     >
-      {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-base font-extrabold text-white">
-              Donate remaining food
-            </h3>
-            <span
-              data-testid="host-pantry-demo-badge"
-              className="rounded-full border border-amber-400/50 bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-bold text-amber-200"
-            >
-              Simulation only
+            <HandHeart
+              size={20}
+              aria-hidden="true"
+              className="text-owl-goldText"
+            />
+            <h3 className="text-lg font-extrabold">Donate remaining food</h3>
+            <span data-testid="host-pantry-demo-badge">
+              <StatusBadge tone="warning">Simulation only</StatusBadge>
             </span>
           </div>
           <p
             data-testid="host-pantry-eligible"
             data-eligible-servings={String(actionState.eligibleServings)}
-            className="text-xs text-zinc-300"
+            className="text-sm text-ink-muted"
           >
-            Eligible unallocated servings now:{" "}
-            <strong className="text-emerald-300">
-              {actionState.eligibleServings}
-            </strong>{" "}
-            of {drop.counts.total} total
+            <strong className="text-ink">{actionState.eligibleServings}</strong>{" "}
+            of {drop.counts.total} servings are unreserved and could be offered.
           </p>
         </div>
-
         <span
           data-testid="host-pantry-status"
           data-status={actionState.status ?? "none"}
-          className={`rounded-full border px-2.5 py-1 text-xs font-bold ${statusTone}`}
         >
-          {formatPantryStatusLabel(actionState.status)}
+          <StatusBadge tone={statusTone}>
+            {formatPantryStatusLabel(actionState.status)}
+          </StatusBadge>
         </span>
       </div>
 
-      {/* Referral quantities when a referral exists */}
       {referral && (
-        <div className="grid grid-cols-3 gap-2 rounded-xl border border-zinc-800 bg-owl-slate/70 p-2.5 text-center text-xs">
-          <div>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          {[
+            {
+              id: "host-pantry-requested-servings",
+              value: referral.requested_servings,
+              label: "Requested",
+            },
+            {
+              id: "host-pantry-accepted-servings",
+              value: referral.accepted_servings,
+              label: "Accepted",
+            },
+            {
+              id: "host-pantry-transferred-servings",
+              value: referral.transferred_servings,
+              label: "Handed off",
+            },
+          ].map((tile) => (
             <div
-              data-testid="host-pantry-requested-servings"
-              className="text-lg font-extrabold text-sky-300"
+              key={tile.id}
+              className="rounded-2xl bg-surface-subtle px-2 py-3"
             >
-              {referral.requested_servings}
+              <div
+                data-testid={tile.id}
+                className="text-xl font-extrabold tabular-nums"
+              >
+                {tile.value}
+              </div>
+              <div className="text-xs font-semibold text-ink-muted">
+                {tile.label}
+              </div>
             </div>
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
-              Requested
-            </div>
-          </div>
-          <div>
-            <div
-              data-testid="host-pantry-accepted-servings"
-              className="text-lg font-extrabold text-purple-300"
-            >
-              {referral.accepted_servings}
-            </div>
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
-              Accepted
-            </div>
-          </div>
-          <div>
-            <div
-              data-testid="host-pantry-transferred-servings"
-              className="text-lg font-extrabold text-emerald-300"
-            >
-              {referral.transferred_servings}
-            </div>
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
-              Transferred
-            </div>
-          </div>
+          ))}
         </div>
       )}
 
-      {/* Demo destination block */}
       <div
         data-testid="host-pantry-destination"
-        className="space-y-2 rounded-xl border border-zinc-800 bg-owl-slate/60 p-3 text-xs"
+        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-surface-subtle px-4 py-3 text-sm"
       >
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-start gap-2">
+          <MapPin
+            size={16}
+            aria-hidden="true"
+            className="mt-0.5 shrink-0 text-owl-goldText"
+          />
           <div>
-            <div className="font-bold text-white">
+            <div className="font-bold">
               {destination?.name ?? "KSU CARE Pantry"} (demo destination)
             </div>
-            <div className="text-zinc-300">
+            <div className="text-ink-muted">
               {destination
                 ? formatPantryDestinationLocation(destination)
                 : "Joe Mack Wilson Student Center, Room 184"}
             </div>
-            <div className="mt-0.5 text-[11px] text-zinc-400">
-              Verified Marietta campus building point (not a room entrance; no
-              GPS).
-            </div>
           </div>
-          {directionsUrl && (
-            <a
-              data-testid="host-pantry-directions-link"
-              href={directionsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-[40px] shrink-0 items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-200 transition hover:bg-emerald-500/25"
-            >
-              Walking directions
-            </a>
-          )}
         </div>
+        {directionsUrl && (
+          <a
+            data-testid="host-pantry-directions-link"
+            href={directionsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="consumer-button-secondary min-h-11 px-4 text-xs"
+          >
+            <Navigation size={14} aria-hidden="true" />
+            Walking directions
+          </a>
+        )}
       </div>
 
-      {/* Required verbatim policy notice + official KSU source links */}
-      <div className="space-y-2 rounded-xl border border-amber-500/40 bg-amber-950/25 p-3 text-xs">
-        <p
-          data-testid="host-pantry-notice"
-          className="leading-relaxed text-amber-100"
-        >
+      <div className="space-y-2 rounded-2xl border border-warning/30 bg-warning-tint px-4 py-3 text-sm">
+        <p data-testid="host-pantry-notice" className="text-warning">
           {notice}
         </p>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-0.5 text-[11px] font-semibold">
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold">
           <a
             data-testid="host-pantry-care-link"
             href={officialLinks.careSourceUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-owl-gold underline underline-offset-2 hover:text-amber-300"
+            className="inline-flex min-h-11 items-center gap-1 text-owl-goldText underline underline-offset-2"
           >
-            Official KSU CARE Services &rarr;
+            Official KSU CARE Services
+            <ExternalLink size={12} aria-hidden="true" />
           </a>
           <a
             data-testid="host-pantry-catering-link"
             href={officialLinks.cateringPolicyUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-owl-gold underline underline-offset-2 hover:text-amber-300"
+            className="inline-flex min-h-11 items-center gap-1 text-owl-goldText underline underline-offset-2"
           >
-            Official KSU Catering Policies &rarr;
+            Official KSU Catering Policies
+            <ExternalLink size={12} aria-hidden="true" />
           </a>
         </div>
       </div>
@@ -249,50 +245,51 @@ export function HostPantryCard({
       {actionState.stateNote && (
         <p
           data-testid="host-pantry-state-note"
-          className="rounded-xl border border-zinc-800 bg-owl-slate/70 px-3 py-2 text-xs leading-relaxed text-zinc-200"
+          className="rounded-2xl bg-surface-subtle px-4 py-3 text-sm text-ink-muted"
         >
           {actionState.stateNote}
         </p>
       )}
 
       {pantryError && (
-        <div
+        <p
           role="alert"
           data-testid="host-pantry-error"
-          className="rounded-xl border border-rose-500/40 bg-rose-950/35 px-3 py-2 text-xs text-rose-200"
+          className="rounded-2xl bg-danger-tint px-4 py-3 text-sm text-danger"
         >
           {pantryError}
-        </div>
+        </p>
       )}
 
-      {/* Request demo referral controls (none or suggested, unexpired, eligible > 0) */}
       {actionState.canRequest && (
-        <div className="space-y-3 rounded-xl border border-zinc-800 bg-owl-slate/70 p-3">
+        <div className="space-y-3 rounded-2xl border border-line p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <label
               htmlFor="host-pantry-servings-input"
-              className="text-xs font-bold text-white"
+              className="text-sm font-bold"
             >
-              Demo referral quantity (max {actionState.eligibleServings})
+              Servings to offer (max {actionState.eligibleServings})
             </label>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 data-testid="host-pantry-servings-decrement"
+                aria-label="Fewer servings"
                 disabled={busyAction !== null || clampedServings <= 1}
                 onClick={() =>
                   setServings((prev) =>
                     clampPantryQuantity(prev - 1, actionState.eligibleServings),
                   )
                 }
-                className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg border border-zinc-700 bg-owl-black text-base font-bold text-zinc-200 hover:bg-zinc-800 disabled:opacity-40"
+                className="consumer-button-secondary h-11 min-h-11 w-11 px-0"
               >
-                −
+                <Minus size={16} aria-hidden="true" />
               </button>
               <input
                 id="host-pantry-servings-input"
                 data-testid="host-pantry-servings-input"
                 type="number"
+                inputMode="numeric"
                 min={1}
                 max={actionState.eligibleServings}
                 value={clampedServings}
@@ -304,11 +301,12 @@ export function HostPantryCard({
                     ),
                   )
                 }
-                className="min-h-[40px] w-20 rounded-lg border border-zinc-700 bg-owl-black px-2 py-1 text-center text-sm font-extrabold text-white"
+                className="consumer-input min-h-11 w-20 px-2 text-center font-extrabold"
               />
               <button
                 type="button"
                 data-testid="host-pantry-servings-increment"
+                aria-label="More servings"
                 disabled={
                   busyAction !== null ||
                   clampedServings >= actionState.eligibleServings
@@ -318,20 +316,20 @@ export function HostPantryCard({
                     clampPantryQuantity(prev + 1, actionState.eligibleServings),
                   )
                 }
-                className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg border border-zinc-700 bg-owl-black text-base font-bold text-zinc-200 hover:bg-zinc-800 disabled:opacity-40"
+                className="consumer-button-secondary h-11 min-h-11 w-11 px-0"
               >
-                +
+                <Plus size={16} aria-hidden="true" />
               </button>
             </div>
           </div>
 
-          <label className="flex min-h-[44px] cursor-pointer items-start gap-2.5 text-xs text-zinc-200">
+          <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm">
             <input
               type="checkbox"
               data-testid="host-pantry-policy-checkbox"
               checked={policyAcknowledged}
               onChange={(e) => setPolicyAcknowledged(e.target.checked)}
-              className="mt-0.5 h-5 w-5 shrink-0 rounded border-zinc-600 accent-owl-gold"
+              className="mt-0.5 h-5 w-5 shrink-0 accent-owl-gold"
             />
             <span>
               I understand this is a <strong>simulation only</strong>: no
@@ -351,23 +349,22 @@ export function HostPantryCard({
               clampedServings > actionState.eligibleServings
             }
             onClick={() => void onRequestReferral(clampedServings)}
-            className="min-h-[48px] w-full rounded-xl bg-owl-gold px-4 py-3 text-sm font-extrabold text-owl-black transition hover:bg-owl-goldDark disabled:cursor-not-allowed disabled:opacity-40"
+            className="consumer-button w-full"
           >
-            {isRequesting ? "Requesting..." : "Request demo referral"}
+            {isRequesting ? "Requesting…" : "Request demo referral"}
           </button>
         </div>
       )}
 
-      {/* Explicit simulated handoff confirmation (only for accepted, unexpired referrals) */}
       {actionState.canConfirmHandoff && referral && (
-        <div className="space-y-3 rounded-xl border border-purple-400/40 bg-purple-950/25 p-3">
-          <label className="flex min-h-[44px] cursor-pointer items-start gap-2.5 text-xs text-zinc-100">
+        <div className="space-y-3 rounded-2xl border border-success/30 bg-success-tint p-4">
+          <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm text-ink">
             <input
               type="checkbox"
               data-testid="host-pantry-handoff-checkbox"
               checked={handoffConfirmed}
               onChange={(e) => setHandoffConfirmed(e.target.checked)}
-              className="mt-0.5 h-5 w-5 shrink-0 rounded border-zinc-600 accent-emerald-400"
+              className="mt-0.5 h-5 w-5 shrink-0 accent-owl-gold"
             />
             <span>
               Confirm <strong>simulated handoff</strong> of{" "}
@@ -377,31 +374,27 @@ export function HostPantryCard({
               or KSU approval).
             </span>
           </label>
-
           <button
             type="button"
             data-testid="host-pantry-handoff-button"
             disabled={busyAction !== null || !handoffConfirmed}
             onClick={() => void onConfirmHandoff()}
-            className="min-h-[48px] w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-extrabold text-owl-black transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
+            className="consumer-button w-full"
           >
             {isConfirmingHandoff
-              ? "Confirming handoff..."
+              ? "Confirming handoff…"
               : "Confirm simulated handoff"}
           </button>
         </div>
       )}
 
-      {/* Link to separate demo pantry coordinator screen */}
-      <div className="pt-1">
-        <Link
-          href="/pantry"
-          data-testid="open-demo-pantry-coordinator"
-          className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border border-purple-400/45 bg-purple-500/15 px-4 py-2.5 text-xs font-extrabold text-purple-200 transition hover:bg-purple-500/25"
-        >
-          Open demo pantry coordinator (/pantry) &rarr;
-        </Link>
-      </div>
+      <Link
+        href="/pantry"
+        data-testid="open-demo-pantry-coordinator"
+        className="consumer-button-secondary w-full"
+      >
+        Open demo pantry coordinator
+      </Link>
     </section>
   );
 }
