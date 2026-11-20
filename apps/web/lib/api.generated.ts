@@ -640,6 +640,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/analytics/operations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Operations
+     * @description Projector-only aggregate analytics from persisted rows; never identities.
+     */
+    get: operations["operations_analytics_operations_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/demo/recording-dataset": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Recording Dataset
+     * @description Explicitly confirmed replacement of demo data with the simulated recording set.
+     */
+    post: operations["recording_dataset_demo_recording_dataset_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/demo/status": {
     parameters: {
       query?: never;
@@ -1449,6 +1489,287 @@ export interface components {
       token: string;
       student: components["schemas"]["SessionStudent"];
     };
+    /** OperationsActivity */
+    OperationsActivity: {
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind:
+        | "listing_published"
+        | "reservation_opened"
+        | "student_pickup"
+        | "pantry_requested"
+        | "pantry_accepted"
+        | "pantry_rejected"
+        | "pantry_handoff"
+        | "pantry_expired";
+      /**
+       * Occurred At
+       * Format: date-time
+       */
+      occurred_at: string;
+      /**
+       * Drop Id
+       * Format: uuid
+       */
+      drop_id: string;
+      /** Food */
+      food: string;
+      /** Building Name */
+      building_name: string;
+      /** Servings */
+      servings: number;
+      /** Is Simulated */
+      is_simulated: boolean;
+    };
+    /** OperationsBuilding */
+    OperationsBuilding: {
+      building: components["schemas"]["Building"];
+      /** Published Listings */
+      published_listings: number;
+      /** Active Listings */
+      active_listings: number;
+      /** Available Servings */
+      available_servings: number;
+      /** Student Reserved Servings */
+      student_reserved_servings: number;
+      /** Student Pickups */
+      student_pickups: number;
+      /** Pantry Reserved Servings */
+      pantry_reserved_servings: number;
+      /** Pantry Transfers */
+      pantry_transfers: number;
+      /** Total Servings Offered */
+      total_servings_offered: number;
+      /** Expired Unclaimed Servings */
+      expired_unclaimed_servings: number;
+    };
+    /** OperationsCategory */
+    OperationsCategory: {
+      /** Category */
+      category: string;
+      /** Published Listings */
+      published_listings: number;
+      /** Total Servings Offered */
+      total_servings_offered: number;
+      /** Student Pickups */
+      student_pickups: number;
+      /** Pantry Transfers */
+      pantry_transfers: number;
+    };
+    /**
+     * OperationsDataset
+     * @description Provenance of the rows being shown; ``recording`` is always simulated data.
+     */
+    OperationsDataset: {
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind: "current" | "recording";
+      /** Label */
+      label: string;
+      /** Is Simulated */
+      is_simulated: boolean;
+      /** Seed Version */
+      seed_version: string | null;
+      /** Anchor Time */
+      anchor_time: string | null;
+    };
+    /**
+     * OperationsEstimates
+     * @description Illustrative, server-configured per-serving assumptions; never measured impact.
+     */
+    OperationsEstimates: {
+      /**
+       * Currency
+       * @default USD
+       * @constant
+       */
+      currency: "USD";
+      /** Meal Value Per Serving */
+      meal_value_per_serving: number;
+      /** Food Kg Per Serving */
+      food_kg_per_serving: number;
+      /** Recovered Servings */
+      recovered_servings: number;
+      /** Equivalent Meal Value */
+      equivalent_meal_value: number;
+      /** Recovered Food Kg */
+      recovered_food_kg: number;
+      /** Assumptions */
+      assumptions: string[];
+    };
+    /**
+     * OperationsListing
+     * @description One unexpired selected listing; the photo is the bearer-scoped relative path only.
+     */
+    OperationsListing: {
+      /**
+       * Drop Id
+       * Format: uuid
+       */
+      drop_id: string;
+      /** Food */
+      food: string;
+      /** Category */
+      category: string;
+      building: components["schemas"]["Building"];
+      /** Room */
+      room: string;
+      /**
+       * Published At
+       * Format: date-time
+       */
+      published_at: string;
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string;
+      /**
+       * Status
+       * @enum {string}
+       */
+      status: "live" | "claimed_out";
+      /** Has Photo */
+      has_photo: boolean;
+      /** Photo Url */
+      photo_url: string | null;
+      /** Total Servings */
+      total_servings: number;
+      /** Available */
+      available: number;
+      /** Held */
+      held: number;
+      /** Picked Up */
+      picked_up: number;
+      /** Pantry Held */
+      pantry_held: number;
+      /** Pantry Transferred */
+      pantry_transferred: number;
+    };
+    /**
+     * OperationsOutcomes
+     * @description Six mutually exclusive buckets that always sum to servings offered.
+     */
+    OperationsOutcomes: {
+      /** Available */
+      available: number;
+      /** Student Reserved */
+      student_reserved: number;
+      /** Student Pickups */
+      student_pickups: number;
+      /** Pantry Reserved */
+      pantry_reserved: number;
+      /** Pantry Transfers */
+      pantry_transfers: number;
+      /** Expired Unclaimed */
+      expired_unclaimed: number;
+    };
+    /** OperationsResponse */
+    OperationsResponse: {
+      /**
+       * Schema Version
+       * @default 1
+       * @constant
+       */
+      schema_version: 1;
+      dataset: components["schemas"]["OperationsDataset"];
+      /** Recording Available */
+      recording_available: boolean;
+      /**
+       * Period
+       * @enum {string}
+       */
+      period: "today" | "7d" | "30d" | "all";
+      /**
+       * Timezone
+       * @default America/New_York
+       * @constant
+       */
+      timezone: "America/New_York";
+      /** Window Start */
+      window_start: string | null;
+      /**
+       * Server Time
+       * Format: date-time
+       */
+      server_time: string;
+      summary: components["schemas"]["OperationsSummary"];
+      outcomes: components["schemas"]["OperationsOutcomes"];
+      /** Series */
+      series: components["schemas"]["OperationsSeriesPoint"][];
+      /** Buildings */
+      buildings: components["schemas"]["OperationsBuilding"][];
+      /** Activity */
+      activity: components["schemas"]["OperationsActivity"][];
+      /** Categories */
+      categories: components["schemas"]["OperationsCategory"][];
+      /** Active Listings */
+      active_listings: components["schemas"]["OperationsListing"][];
+      estimates: components["schemas"]["OperationsEstimates"];
+      /** Notes */
+      notes: string[];
+    };
+    /**
+     * OperationsSeriesPoint
+     * @description One New York day; every count is dated by its own durable event timestamp.
+     */
+    OperationsSeriesPoint: {
+      /** Date */
+      date: string;
+      /** Published Listings */
+      published_listings: number;
+      /** Servings Offered */
+      servings_offered: number;
+      /** Student Pickups */
+      student_pickups: number;
+      /** Pantry Transfers */
+      pantry_transfers: number;
+      /** Expired Unclaimed */
+      expired_unclaimed: number;
+    };
+    /** OperationsSummary */
+    OperationsSummary: {
+      /** Published Listings */
+      published_listings: number;
+      /** Active Listings */
+      active_listings: number;
+      /** Total Servings Offered */
+      total_servings_offered: number;
+      /** Available Servings */
+      available_servings: number;
+      /** Student Reserved Servings */
+      student_reserved_servings: number;
+      /** Student Pickups */
+      student_pickups: number;
+      /** Pantry Reserved Servings */
+      pantry_reserved_servings: number;
+      /** Pantry Transfers */
+      pantry_transfers: number;
+      /** Expired Unclaimed Servings */
+      expired_unclaimed_servings: number;
+      /** Pending Pickup Reviews */
+      pending_pickup_reviews: number;
+      /** Pending Pantry Requests */
+      pending_pantry_requests: number;
+      /** Buildings Served */
+      buildings_served: number;
+      /** Joined Sessions */
+      joined_sessions: number;
+      /** Student Pickup Rate Percent */
+      student_pickup_rate_percent: number;
+      /** Combined Recovery Rate Percent */
+      combined_recovery_rate_percent: number;
+      /** Average Reservation Seconds */
+      average_reservation_seconds: number | null;
+      /** Participating Hosts */
+      participating_hosts: number;
+      /** Participating Students */
+      participating_students: number;
+    };
     /** PantryDecisionRequest */
     PantryDecisionRequest: {
       /**
@@ -1721,6 +2042,17 @@ export interface components {
     PushTokenResponse: {
       /** Registered */
       registered: boolean;
+    };
+    /**
+     * RecordingDatasetRequest
+     * @description Loading replaces all demo app data, so the caller must confirm explicitly.
+     */
+    RecordingDatasetRequest: {
+      /**
+       * Confirm Reset
+       * @constant
+       */
+      confirm_reset: true;
     };
     /** SafetyReview */
     SafetyReview: {
@@ -4990,6 +5322,182 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["DemoTickResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  operations_analytics_operations_get: {
+    parameters: {
+      query?: {
+        period?: "today" | "7d" | "30d" | "all";
+      };
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OperationsResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  recording_dataset_demo_recording_dataset_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RecordingDatasetRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OperationsResponse"];
         };
       };
       /** @description Unauthorized */

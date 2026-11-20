@@ -4112,6 +4112,241 @@
         }
       }
     },
+    "/analytics/operations": {
+      "get": {
+        "summary": "Operations",
+        "description": "Projector-only aggregate analytics from persisted rows; never identities.",
+        "operationId": "operations_analytics_operations_get",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": ["today", "7d", "30d", "all"],
+              "type": "string",
+              "default": "7d",
+              "title": "Period"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/demo/recording-dataset": {
+      "post": {
+        "summary": "Recording Dataset",
+        "description": "Explicitly confirmed replacement of demo data with the simulated recording set.",
+        "operationId": "recording_dataset_demo_recording_dataset_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordingDatasetRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/demo/status": {
       "get": {
         "summary": "Status",
@@ -6033,6 +6268,711 @@
         "title": "JoinResponse",
         "description": "The bearer token is shown once; the client keeps it in local storage."
       },
+      "OperationsActivity": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "listing_published",
+              "reservation_opened",
+              "student_pickup",
+              "pantry_requested",
+              "pantry_accepted",
+              "pantry_rejected",
+              "pantry_handoff",
+              "pantry_expired"
+            ],
+            "title": "Kind"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurred At"
+          },
+          "drop_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Drop Id"
+          },
+          "food": {
+            "type": "string",
+            "title": "Food"
+          },
+          "building_name": {
+            "type": "string",
+            "title": "Building Name"
+          },
+          "servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Servings"
+          },
+          "is_simulated": {
+            "type": "boolean",
+            "title": "Is Simulated"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "occurred_at",
+          "drop_id",
+          "food",
+          "building_name",
+          "servings",
+          "is_simulated"
+        ],
+        "title": "OperationsActivity"
+      },
+      "OperationsBuilding": {
+        "properties": {
+          "building": {
+            "$ref": "#/components/schemas/Building"
+          },
+          "published_listings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Published Listings"
+          },
+          "active_listings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Active Listings"
+          },
+          "available_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Available Servings"
+          },
+          "student_reserved_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Student Reserved Servings"
+          },
+          "student_pickups": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Student Pickups"
+          },
+          "pantry_reserved_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pantry Reserved Servings"
+          },
+          "pantry_transfers": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pantry Transfers"
+          },
+          "total_servings_offered": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Servings Offered"
+          },
+          "expired_unclaimed_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expired Unclaimed Servings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "building",
+          "published_listings",
+          "active_listings",
+          "available_servings",
+          "student_reserved_servings",
+          "student_pickups",
+          "pantry_reserved_servings",
+          "pantry_transfers",
+          "total_servings_offered",
+          "expired_unclaimed_servings"
+        ],
+        "title": "OperationsBuilding"
+      },
+      "OperationsCategory": {
+        "properties": {
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "published_listings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Published Listings"
+          },
+          "total_servings_offered": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Servings Offered"
+          },
+          "student_pickups": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Student Pickups"
+          },
+          "pantry_transfers": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pantry Transfers"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "category",
+          "published_listings",
+          "total_servings_offered",
+          "student_pickups",
+          "pantry_transfers"
+        ],
+        "title": "OperationsCategory"
+      },
+      "OperationsDataset": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["current", "recording"],
+            "title": "Kind"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "is_simulated": {
+            "type": "boolean",
+            "title": "Is Simulated"
+          },
+          "seed_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed Version"
+          },
+          "anchor_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anchor Time"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "label",
+          "is_simulated",
+          "seed_version",
+          "anchor_time"
+        ],
+        "title": "OperationsDataset",
+        "description": "Provenance of the rows being shown; ``recording`` is always simulated data."
+      },
+      "OperationsEstimates": {
+        "properties": {
+          "currency": {
+            "type": "string",
+            "const": "USD",
+            "title": "Currency",
+            "default": "USD"
+          },
+          "meal_value_per_serving": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Meal Value Per Serving"
+          },
+          "food_kg_per_serving": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Food Kg Per Serving"
+          },
+          "recovered_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Recovered Servings"
+          },
+          "equivalent_meal_value": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Equivalent Meal Value"
+          },
+          "recovered_food_kg": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Recovered Food Kg"
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Assumptions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "meal_value_per_serving",
+          "food_kg_per_serving",
+          "recovered_servings",
+          "equivalent_meal_value",
+          "recovered_food_kg",
+          "assumptions"
+        ],
+        "title": "OperationsEstimates",
+        "description": "Illustrative, server-configured per-serving assumptions; never measured impact."
+      },
+      "OperationsListing": {
+        "properties": {
+          "drop_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Drop Id"
+          },
+          "food": {
+            "type": "string",
+            "title": "Food"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "building": {
+            "$ref": "#/components/schemas/Building"
+          },
+          "room": {
+            "type": "string",
+            "title": "Room"
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Published At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["live", "claimed_out"],
+            "title": "Status"
+          },
+          "has_photo": {
+            "type": "boolean",
+            "title": "Has Photo"
+          },
+          "photo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo Url"
+          },
+          "total_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Servings"
+          },
+          "available": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Available"
+          },
+          "held": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Held"
+          },
+          "picked_up": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Picked Up"
+          },
+          "pantry_held": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pantry Held"
+          },
+          "pantry_transferred": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pantry Transferred"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "drop_id",
+          "food",
+          "category",
+          "building",
+          "room",
+          "published_at",
+          "expires_at",
+          "status",
+          "has_photo",
+          "photo_url",
+          "total_servings",
+          "available",
+          "held",
+          "picked_up",
+          "pantry_held",
+          "pantry_transferred"
+        ],
+        "title": "OperationsListing",
+        "description": "One unexpired selected listing; the photo is the bearer-scoped relative path only."
+      },
+      "OperationsOutcomes": {
+        "properties": {
+          "available": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Available"
+          },
+          "student_reserved": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Student Reserved"
+          },
+          "student_pickups": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Student Pickups"
+          },
+          "pantry_reserved": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pantry Reserved"
+          },
+          "pantry_transfers": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pantry Transfers"
+          },
+          "expired_unclaimed": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expired Unclaimed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "available",
+          "student_reserved",
+          "student_pickups",
+          "pantry_reserved",
+          "pantry_transfers",
+          "expired_unclaimed"
+        ],
+        "title": "OperationsOutcomes",
+        "description": "Six mutually exclusive buckets that always sum to servings offered."
+      },
+      "OperationsResponse": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "dataset": {
+            "$ref": "#/components/schemas/OperationsDataset"
+          },
+          "recording_available": {
+            "type": "boolean",
+            "title": "Recording Available"
+          },
+          "period": {
+            "type": "string",
+            "enum": ["today", "7d", "30d", "all"],
+            "title": "Period"
+          },
+          "timezone": {
+            "type": "string",
+            "const": "America/New_York",
+            "title": "Timezone",
+            "default": "America/New_York"
+          },
+          "window_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Window Start"
+          },
+          "server_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Server Time"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/OperationsSummary"
+          },
+          "outcomes": {
+            "$ref": "#/components/schemas/OperationsOutcomes"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/OperationsSeriesPoint"
+            },
+            "type": "array",
+            "title": "Series"
+          },
+          "buildings": {
+            "items": {
+              "$ref": "#/components/schemas/OperationsBuilding"
+            },
+            "type": "array",
+            "title": "Buildings"
+          },
+          "activity": {
+            "items": {
+              "$ref": "#/components/schemas/OperationsActivity"
+            },
+            "type": "array",
+            "title": "Activity"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/OperationsCategory"
+            },
+            "type": "array",
+            "title": "Categories"
+          },
+          "active_listings": {
+            "items": {
+              "$ref": "#/components/schemas/OperationsListing"
+            },
+            "type": "array",
+            "title": "Active Listings"
+          },
+          "estimates": {
+            "$ref": "#/components/schemas/OperationsEstimates"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "dataset",
+          "recording_available",
+          "period",
+          "window_start",
+          "server_time",
+          "summary",
+          "outcomes",
+          "series",
+          "buildings",
+          "activity",
+          "categories",
+          "active_listings",
+          "estimates",
+          "notes"
+        ],
+        "title": "OperationsResponse"
+      },
+      "OperationsSeriesPoint": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "published_listings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Published Listings"
+          },
+          "servings_offered": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Servings Offered"
+          },
+          "student_pickups": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Student Pickups"
+          },
+          "pantry_transfers": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pantry Transfers"
+          },
+          "expired_unclaimed": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expired Unclaimed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "date",
+          "published_listings",
+          "servings_offered",
+          "student_pickups",
+          "pantry_transfers",
+          "expired_unclaimed"
+        ],
+        "title": "OperationsSeriesPoint",
+        "description": "One New York day; every count is dated by its own durable event timestamp."
+      },
+      "OperationsSummary": {
+        "properties": {
+          "published_listings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Published Listings"
+          },
+          "active_listings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Active Listings"
+          },
+          "total_servings_offered": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Servings Offered"
+          },
+          "available_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Available Servings"
+          },
+          "student_reserved_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Student Reserved Servings"
+          },
+          "student_pickups": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Student Pickups"
+          },
+          "pantry_reserved_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pantry Reserved Servings"
+          },
+          "pantry_transfers": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pantry Transfers"
+          },
+          "expired_unclaimed_servings": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expired Unclaimed Servings"
+          },
+          "pending_pickup_reviews": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pending Pickup Reviews"
+          },
+          "pending_pantry_requests": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pending Pantry Requests"
+          },
+          "buildings_served": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Buildings Served"
+          },
+          "joined_sessions": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Joined Sessions"
+          },
+          "student_pickup_rate_percent": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Student Pickup Rate Percent"
+          },
+          "combined_recovery_rate_percent": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Combined Recovery Rate Percent"
+          },
+          "average_reservation_seconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Reservation Seconds"
+          },
+          "participating_hosts": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Participating Hosts"
+          },
+          "participating_students": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Participating Students"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "published_listings",
+          "active_listings",
+          "total_servings_offered",
+          "available_servings",
+          "student_reserved_servings",
+          "student_pickups",
+          "pantry_reserved_servings",
+          "pantry_transfers",
+          "expired_unclaimed_servings",
+          "pending_pickup_reviews",
+          "pending_pantry_requests",
+          "buildings_served",
+          "joined_sessions",
+          "student_pickup_rate_percent",
+          "combined_recovery_rate_percent",
+          "average_reservation_seconds",
+          "participating_hosts",
+          "participating_students"
+        ],
+        "title": "OperationsSummary"
+      },
       "PantryDecisionRequest": {
         "properties": {
           "decision": {
@@ -6561,6 +7501,20 @@
         "type": "object",
         "required": ["registered"],
         "title": "PushTokenResponse"
+      },
+      "RecordingDatasetRequest": {
+        "properties": {
+          "confirm_reset": {
+            "type": "boolean",
+            "const": true,
+            "title": "Confirm Reset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["confirm_reset"],
+        "title": "RecordingDatasetRequest",
+        "description": "Loading replaces all demo app data, so the caller must confirm explicitly."
       },
       "SafetyReview": {
         "properties": {
