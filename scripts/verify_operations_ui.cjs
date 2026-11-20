@@ -10,6 +10,10 @@ const evidence = h.evidence(
   "Actual iPhone390/Android412/desktop1440 browser actions and polled analytics; fixture vision, simulated notifications",
 );
 const errors = [];
+const uploadPhoto = process.env.OWL_TEST_FOOD_PHOTO
+  ? fs.readFileSync(process.env.OWL_TEST_FOOD_PHOTO)
+  : h.photo;
+evidence.uploaded_food_photograph = Boolean(process.env.OWL_TEST_FOOD_PHOTO);
 async function noOverflow(page) {
   const dimensions = await page.evaluate(() => ({
     width: innerWidth,
@@ -83,9 +87,11 @@ async function screenshot(page, name) {
       );
       const host = await open("/host");
       await host.getByTestId("food-photo-input").setInputFiles({
-        name: "synthetic-food.png",
-        mimeType: "image/png",
-        buffer: h.photo,
+        name: process.env.OWL_TEST_FOOD_PHOTO
+          ? "food-photograph.jpg"
+          : "synthetic-food.png",
+        mimeType: process.env.OWL_TEST_FOOD_PHOTO ? "image/jpeg" : "image/png",
+        buffer: uploadPhoto,
       });
       await host.getByTestId("analyze-photo-button").click();
       await host.getByTestId("servings-input").fill("3");
@@ -164,7 +170,32 @@ async function screenshot(page, name) {
         .filter({ hasText: /^2$/ })
         .waitFor();
       const card = host.getByTestId("host-pantry-card");
-      await card.getByTestId("host-pantry-policy-checkbox").check();
+      assert.equal(await card.getByTestId("host-pantry-demo-badge").count(), 0);
+      assert.doesNotMatch(
+        await card.getByTestId("host-pantry-destination").innerText(),
+        /demo destination/i,
+      );
+      await card
+        .getByRole("link", { name: "View pantry", exact: true })
+        .waitFor();
+      await screenshot(host, `${mode}-host-pantry-card`);
+      await card.getByTestId("host-pantry-open-request-dialog").click();
+      const hostDialog = host.getByTestId("host-pantry-request-dialog");
+      assert.equal(
+        await hostDialog.getByTestId("host-pantry-policy-checkbox").isChecked(),
+        false,
+      );
+      assert.equal(
+        await hostDialog.getByTestId("host-pantry-request-button").isDisabled(),
+        true,
+      );
+      assert.match(await hostDialog.innerText(), /simulation only/i);
+      assert.equal(
+        await hostDialog.getByRole("link", { name: /KSU Catering/ }).count(),
+        1,
+      );
+      await screenshot(host, `${mode}-host-request-confirmation`);
+      await hostDialog.getByTestId("host-pantry-policy-checkbox").check();
       await card.getByTestId("host-pantry-request-button").click();
       const coordinator = await open("/pantry");
       const item = (await h.referral(drop)).referral;
@@ -172,10 +203,65 @@ async function screenshot(page, name) {
         `pantry-referral-card-${item.id}`,
       );
       await request.waitFor();
+      const photo = request.getByTestId(`pantry-referral-photo-${item.id}`);
+      await photo.locator("img").waitFor();
+      assert.equal(await photo.getAttribute("data-photo-state"), "loaded");
+      assert.ok(
+        await photo
+          .locator("img")
+          .evaluate((img) => img.complete && img.naturalWidth > 0),
+      );
+      const scoped = await fetch(`${h.web}/backend/drops/${drop.id}/photo`, {
+        headers: { Authorization: `Bearer ${h.coordinator}` },
+      });
+      assert.equal(scoped.status, 200);
+      assert.match(scoped.headers.get("content-type"), /image\/jpeg/);
+      assert.match(scoped.headers.get("cache-control"), /private, no-store/);
+      assert.equal(
+        (await fetch(`${h.web}/backend/drops/${drop.id}/photo`)).status,
+        401,
+      );
+      assert.equal(
+        (
+          await fetch(
+            `${h.web}/backend/drops/${drop.id}/photo?token=${h.coordinator}`,
+          )
+        ).status,
+        401,
+      );
       await screenshot(coordinator, `${mode}-pantry-incoming`);
-      await request.getByTestId(`pantry-policy-ack-${item.id}`).check();
+      await request.getByTestId(`pantry-open-accept-dialog-${item.id}`).click();
+      const pantryDialog = coordinator.getByTestId(
+        `pantry-decision-dialog-${item.id}`,
+      );
+      assert.equal(
+        await pantryDialog
+          .getByTestId(`pantry-policy-ack-${item.id}`)
+          .isChecked(),
+        false,
+      );
+      assert.equal(
+        await pantryDialog
+          .getByTestId(`pantry-accept-button-${item.id}`)
+          .isDisabled(),
+        true,
+      );
+      assert.match(await pantryDialog.innerText(), /simulat/i);
+      await screenshot(coordinator, `${mode}-pantry-confirmation`);
+      await pantryDialog.getByTestId(`pantry-policy-ack-${item.id}`).check();
       await request.getByTestId(`pantry-accept-button-${item.id}`).click();
-      await host.getByTestId("host-pantry-handoff-checkbox").check();
+      await host.getByTestId("host-pantry-open-handoff-dialog").click();
+      const handoff = host.getByTestId("host-pantry-handoff-dialog");
+      assert.equal(
+        await handoff.getByTestId("host-pantry-handoff-checkbox").isChecked(),
+        false,
+      );
+      assert.equal(
+        await handoff.getByTestId("host-pantry-handoff-button").isDisabled(),
+        true,
+      );
+      assert.match(await handoff.innerText(), /simulat/i);
+      await handoff.getByTestId("host-pantry-handoff-checkbox").check();
       await host.getByTestId("host-pantry-handoff-button").click();
       await host
         .getByTestId("host-count-pantry-transferred")
@@ -270,6 +356,37 @@ async function screenshot(page, name) {
         .first()
         .waitFor();
       await screenshot(coordinator, `${mode}-pantry-recording`);
+      const referrals = (await h.request("/pantry/referrals", h.coordinator))
+        .referrals;
+      const expired = referrals.find((r) => r.status === "expired");
+      assert.ok(expired);
+      assert.equal(expired.drop.has_photo, false);
+      assert.equal(
+        (
+          await fetch(`${h.web}/backend/drops/${expired.drop_id}/photo`, {
+            headers: { Authorization: `Bearer ${h.coordinator}` },
+          })
+        ).status,
+        404,
+      );
+      const expiredCard = coordinator.getByTestId(
+        `pantry-referral-card-${expired.id}`,
+      );
+      assert.equal(await expiredCard.getAttribute("data-layout"), "compact");
+      await expiredCard
+        .getByTestId(`pantry-referral-illustration-${expired.id}`)
+        .waitFor();
+      assert.match(await expiredCard.innerText(), /Illustration/);
+      await dashboard.emulateMedia({
+        colorScheme: "dark",
+        reducedMotion: "reduce",
+      });
+      await coordinator.emulateMedia({
+        colorScheme: "dark",
+        reducedMotion: "reduce",
+      });
+      await screenshot(dashboard, `${mode}-analytics-dark`);
+      await screenshot(coordinator, `${mode}-pantry-dark`);
       const alias = await open("/impact");
       await alias
         .getByRole("heading", { name: "Food Rescue Analytics", exact: true })
