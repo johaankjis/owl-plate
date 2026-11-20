@@ -3,7 +3,21 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="theme-color"
+      content="#f8f8fa"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#0f1013"
+      media="(prefers-color-scheme: dark)"
+    />
     <title>Owl Plate – What's left?</title>
     <style>
       :root {
@@ -23,9 +37,48 @@
         --success-tint: #dcfce7;
         --warning: #92400e;
         --warning-tint: #fef3c7;
-        --danger: #be123c;
-        --danger-tint: #ffe4e6;
-        --shadow: 0 3px 20px rgba(18, 18, 20, 0.045);
+
+        /* Chart series: one fixed colour per count, checked for colour-blind separation. */
+        --series-available: #15803d;
+        --series-held: #e5a41b;
+        --series-picked-up: #2e79f5;
+        --series-pantry-held: #6928b0;
+        --series-pantry-transferred: #e24ea0;
+
+        --ambient: rgba(253, 187, 48, 0.13);
+        --sheen: rgba(253, 187, 48, 0.1);
+        --halo: rgba(253, 187, 48, 0.5);
+        --plate: linear-gradient(160deg, #ffffff, #f4f5f9);
+        --track: #e9ebf1;
+        --hub: #ffffff;
+        --shadow-card:
+          0 1px 1px rgba(18, 18, 20, 0.03), 0 4px 10px rgba(18, 18, 20, 0.035),
+          0 18px 36px -12px rgba(18, 18, 20, 0.09),
+          inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        --shadow-raised:
+          0 1px 1px rgba(18, 18, 20, 0.04), 0 8px 16px rgba(18, 18, 20, 0.06),
+          0 26px 44px -14px rgba(18, 18, 20, 0.14),
+          inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        --shadow-plate:
+          0 1px 2px rgba(18, 18, 20, 0.05),
+          0 12px 26px -8px rgba(18, 18, 20, 0.12),
+          inset 0 1px 0 rgba(255, 255, 255, 0.95),
+          inset 0 0 0 1px rgba(18, 18, 20, 0.04);
+        --shadow-hub:
+          0 1px 2px rgba(18, 18, 20, 0.08),
+          0 8px 16px -4px rgba(18, 18, 20, 0.14), inset 0 1px 0 #ffffff;
+        --shadow-button:
+          inset 0 1px 0 rgba(255, 255, 255, 0.5),
+          0 1px 2px rgba(138, 94, 0, 0.28),
+          0 10px 22px -8px rgba(229, 164, 27, 0.75);
+        --shadow-button-pressed:
+          inset 0 1px 0 rgba(255, 255, 255, 0.35),
+          0 1px 2px rgba(138, 94, 0, 0.3);
+
+        --dur-fast: 150ms;
+        --dur-normal: 220ms;
+        --dur-slow: 350ms;
+        --ease: cubic-bezier(0.22, 1, 0.36, 1);
       }
 
       @media (prefers-color-scheme: dark) {
@@ -46,9 +99,40 @@
           --success-tint: #163424;
           --warning: #fbbf24;
           --warning-tint: #3d2f16;
-          --danger: #fb7185;
-          --danger-tint: #3b1e29;
-          --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+
+          --series-available: #0a8558;
+          --series-held: #c98500;
+          --series-picked-up: #1899ec;
+          --series-pantry-held: #8f54dc;
+          --series-pantry-transferred: #e652a3;
+
+          --ambient: rgba(253, 187, 48, 0.07);
+          --sheen: rgba(253, 187, 48, 0.07);
+          --halo: rgba(253, 187, 48, 0.4);
+          --plate: linear-gradient(160deg, #1f2026, #15161a);
+          --track: #0f1013;
+          --hub: #1d1e24;
+          --shadow-card:
+            0 1px 1px rgba(0, 0, 0, 0.3), 0 8px 20px rgba(0, 0, 0, 0.26),
+            0 24px 48px -14px rgba(0, 0, 0, 0.5),
+            inset 0 1px 0 rgba(255, 255, 255, 0.05);
+          --shadow-raised:
+            0 1px 1px rgba(0, 0, 0, 0.35), 0 12px 24px rgba(0, 0, 0, 0.34),
+            0 30px 56px -14px rgba(0, 0, 0, 0.6),
+            inset 0 1px 0 rgba(255, 255, 255, 0.07);
+          --shadow-plate:
+            0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 30px -8px rgba(0, 0, 0, 0.6),
+            inset 0 1px 0 rgba(255, 255, 255, 0.06),
+            inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+          --shadow-hub:
+            0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 18px -4px rgba(0, 0, 0, 0.55),
+            inset 0 1px 0 rgba(255, 255, 255, 0.07);
+          --shadow-button:
+            inset 0 1px 0 rgba(255, 255, 255, 0.45),
+            0 1px 2px rgba(0, 0, 0, 0.5),
+            0 12px 26px -10px rgba(253, 187, 48, 0.5);
+          --shadow-button-pressed:
+            inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 1px 2px rgba(0, 0, 0, 0.5);
         }
       }
 
@@ -70,7 +154,10 @@
         min-height: 100dvh;
         display: flex;
         flex-direction: column;
-        background: var(--bg);
+        background:
+          radial-gradient(90% 420px at 50% 0%, var(--ambient), transparent 72%)
+            no-repeat,
+          var(--bg);
         color: var(--ink);
         font-family:
           ui-sans-serif,
@@ -82,6 +169,7 @@
         font-size: 16px;
         line-height: 1.45;
         overflow-wrap: anywhere;
+        -webkit-font-smoothing: antialiased;
       }
 
       :focus-visible {
@@ -89,9 +177,25 @@
         outline-offset: 3px;
       }
 
+      [data-series="available"] {
+        --series: var(--series-available);
+      }
+      [data-series="held"] {
+        --series: var(--series-held);
+      }
+      [data-series="picked_up"] {
+        --series: var(--series-picked-up);
+      }
+      [data-series="pantry_held"] {
+        --series: var(--series-pantry-held);
+      }
+      [data-series="pantry_transferred"] {
+        --series: var(--series-pantry-transferred);
+      }
+
       .shell {
         width: 100%;
-        max-width: 440px;
+        max-width: 460px;
         margin: 0 auto;
         flex: 1;
         display: flex;
@@ -123,6 +227,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        box-shadow: var(--shadow-button);
       }
 
       .brand-name {
@@ -141,6 +246,7 @@
       .pill {
         display: inline-flex;
         align-items: center;
+        gap: 6px;
         border-radius: 9999px;
         padding: 4px 12px;
         font-size: 12px;
@@ -157,6 +263,19 @@
       .status-badge {
         background: var(--surface-subtle);
         color: var(--ink-muted);
+        transition:
+          background-color var(--dur-slow) var(--ease),
+          color var(--dur-slow) var(--ease);
+      }
+
+      .status-badge::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: currentColor;
+        opacity: 0.55;
+        transition: opacity var(--dur-slow) var(--ease);
       }
 
       .status-badge[data-tone="success"] {
@@ -164,9 +283,18 @@
         color: var(--success);
       }
 
+      .status-badge[data-tone="success"]::before {
+        opacity: 1;
+        animation: breathe 2400ms ease-in-out infinite;
+      }
+
       .status-badge[data-tone="gold"] {
         background: var(--gold-tint);
         color: var(--gold-text);
+      }
+
+      .status-badge[data-tone="gold"]::before {
+        opacity: 1;
       }
 
       main {
@@ -174,15 +302,30 @@
         display: flex;
         flex-direction: column;
         gap: 14px;
-        padding: 4px 16px 12px;
+        padding: 4px 16px 0;
+      }
+
+      .info,
+      .metrics {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        min-width: 0;
+      }
+
+      .metrics {
+        perspective: 1100px;
       }
 
       .card {
+        position: relative;
         background: var(--surface);
         border: 1px solid var(--border);
         border-radius: 24px;
         padding: 18px;
-        box-shadow: var(--shadow);
+        box-shadow: var(--shadow-card);
+        animation: rise var(--dur-slow) var(--ease) backwards;
+        animation-delay: calc(var(--order, 0) * 45ms);
       }
 
       .listing-card {
@@ -241,6 +384,7 @@
         font-size: 14px;
         font-weight: 600;
         line-height: 1.4;
+        animation: rise var(--dur-normal) var(--ease) backwards;
       }
 
       .error-banner svg {
@@ -248,118 +392,214 @@
         margin-top: 2px;
       }
 
-      .counts-card {
+      .hero {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 16px;
+        padding: 22px 18px 16px;
+        transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+        transition:
+          transform var(--dur-slow) var(--ease),
+          box-shadow var(--dur-slow) var(--ease);
       }
 
-      .hero-count {
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: radial-gradient(
+          260px circle at var(--sheen-x, 50%) var(--sheen-y, 0%),
+          var(--sheen),
+          transparent 70%
+        );
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity var(--dur-slow) var(--ease);
+      }
+
+      .ring-stage {
+        position: relative;
+        width: min(216px, 62vw);
+        aspect-ratio: 1;
+        margin: 0 auto;
+        touch-action: manipulation;
+      }
+
+      .ring-stage::before,
+      .ring-stage::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        pointer-events: none;
+      }
+
+      .ring-stage::before {
+        background: var(--plate);
+        box-shadow: var(--shadow-plate);
+      }
+
+      .ring-stage.is-fresh::after {
+        animation: halo 700ms var(--ease);
+      }
+
+      .ring {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        transition: opacity var(--dur-normal) var(--ease);
+      }
+
+      .hero[aria-busy="true"] .ring {
+        opacity: 0.5;
+      }
+
+      .ring-track {
+        fill: none;
+        stroke: var(--track);
+        stroke-width: 16;
+      }
+
+      .seg {
+        fill: none;
+        stroke: var(--series);
+        stroke-width: 16;
+        stroke-dasharray: 0 528;
+        transition: opacity var(--dur-fast) var(--ease);
+      }
+
+      .seg.is-dim {
+        opacity: 0.26;
+      }
+
+      .ring-hub {
+        position: absolute;
+        inset: 18%;
+        border-radius: 50%;
+        background: var(--hub);
+        box-shadow: var(--shadow-hub);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+      }
+
+      .hub-num {
+        display: inline-block;
+        font-size: 60px;
+        font-weight: 800;
+        line-height: 0.95;
+        letter-spacing: -0.035em;
+        color: var(--ink);
+      }
+
+      .hub-num[data-len="3"] {
+        font-size: 48px;
+      }
+
+      .hub-num[data-len="4"],
+      .hub-num[data-len="5"] {
+        font-size: 36px;
+      }
+
+      .hub-label {
         display: flex;
         align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--ink-muted);
+      }
+
+      .swatch {
+        width: 10px;
+        height: 10px;
+        flex-shrink: 0;
+        border-radius: 3px;
+        background: var(--series);
+      }
+
+      .tip {
+        position: absolute;
+        left: 0;
+        top: 0;
+        z-index: 3;
+        padding: 8px 12px;
+        border-radius: 12px;
+        background: var(--ink);
+        color: var(--bg);
+        font-size: 13px;
+        line-height: 1.35;
+        white-space: nowrap;
+        pointer-events: none;
+        opacity: 0;
+        transform: translate(-50%, -100%);
+        transition: opacity var(--dur-fast) var(--ease);
+        box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.45);
+      }
+
+      .tip[data-side="below"] {
+        transform: translate(-50%, 0);
+      }
+
+      .tip[data-open="true"] {
+        opacity: 1;
+      }
+
+      .tip-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .tip-key {
+        width: 12px;
+        height: 3px;
+        border-radius: 2px;
+        background: var(--series);
+      }
+
+      .tip-value {
+        font-weight: 800;
+      }
+
+      .tip-share {
+        display: block;
+        opacity: 0.72;
+        font-size: 12px;
+      }
+
+      .hero-facts {
+        display: flex;
+        align-items: flex-end;
         justify-content: space-between;
         gap: 12px;
-        flex-wrap: wrap;
-        border-radius: 18px;
-        background: var(--success-tint);
-        padding: 16px 18px;
+        border-top: 1px solid var(--border);
+        padding-top: 12px;
       }
 
-      .hero-primary {
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
+      .fact-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ink-muted);
       }
 
-      .hero-num {
-        font-size: 56px;
-        font-weight: 800;
-        line-height: 1;
-        letter-spacing: -0.03em;
-        font-variant-numeric: tabular-nums;
-        color: var(--success);
-      }
-
-      .hero-label {
-        margin-top: 4px;
-        font-size: 14px;
-        font-weight: 700;
-        color: var(--success);
-      }
-
-      .total-box {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 14px;
-        padding: 10px 14px;
-        text-align: center;
-        min-width: 112px;
-      }
-
-      .total-num {
+      .fact-value {
+        display: inline-block;
         font-size: 26px;
         font-weight: 800;
         line-height: 1.1;
-        font-variant-numeric: tabular-nums;
-        color: var(--ink);
+        letter-spacing: -0.02em;
       }
 
-      .total-label {
-        margin-top: 2px;
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--ink-muted);
-      }
-
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-      }
-
-      .tile {
-        background: var(--surface-subtle);
-        border-radius: 16px;
-        padding: 14px 10px;
-        text-align: center;
-        min-width: 0;
-      }
-
-      .num {
-        font-size: 32px;
-        font-weight: 800;
-        line-height: 1.1;
-        font-variant-numeric: tabular-nums;
-        color: var(--ink);
-      }
-
-      .num-accent {
-        color: var(--gold-text);
-      }
-
-      .cap {
-        margin-top: 6px;
-        font-size: 12px;
-        font-weight: 600;
-        line-height: 1.3;
-        color: var(--ink-muted);
-      }
-
-      .section-divider {
-        border: 0;
-        border-top: 1px solid var(--border);
-        margin: 2px 0 0;
-      }
-
-      .meta-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        flex-wrap: wrap;
+      .fact-end {
+        text-align: right;
         font-size: 13px;
         color: var(--ink-muted);
-        padding-top: 2px;
       }
 
       .updated-text {
@@ -368,16 +608,119 @@
       }
 
       .live-status {
+        display: block;
+        min-height: 18px;
         font-weight: 700;
         color: var(--gold-text);
-        min-height: 18px;
       }
 
-      footer {
-        padding: 8px 16px 20px;
+      .tiles {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin: 0;
+      }
+
+      .tile {
         display: flex;
         flex-direction: column;
+        gap: 10px;
+        min-width: 0;
+        border-radius: 20px;
+        padding: 14px;
+        transition:
+          transform var(--dur-normal) var(--ease),
+          box-shadow var(--dur-normal) var(--ease);
+      }
+
+      .tile.is-lit {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-raised);
+      }
+
+      .tile-label {
+        display: flex;
+        align-items: flex-start;
+        gap: 7px;
+        min-height: 2.6em;
+        font-size: 12.5px;
+        font-weight: 600;
+        line-height: 1.3;
+        color: var(--ink-muted);
+      }
+
+      .tile-label .swatch {
+        margin-top: 3px;
+      }
+
+      .tile-value {
+        margin: auto 0 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         gap: 8px;
+      }
+
+      .num {
+        display: inline-block;
+        font-size: 34px;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+      }
+
+      .dial {
+        position: relative;
+        width: 48px;
+        height: 48px;
+        flex-shrink: 0;
+      }
+
+      .dial svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .dial-track,
+      .dial-arc {
+        fill: none;
+        stroke: var(--series);
+        stroke-width: 5;
+      }
+
+      .dial-track {
+        stroke-opacity: 0.2;
+      }
+
+      .dial-arc {
+        stroke-dasharray: 0 114;
+      }
+
+      .dial-pct {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: var(--ink-muted);
+      }
+
+      .is-popped {
+        animation: pop var(--dur-slow) var(--ease);
+      }
+
+      .action {
+        position: sticky;
+        bottom: 0;
+        z-index: 5;
+        margin: 0 -16px;
+        padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+        background: linear-gradient(to top, var(--bg) 74%, transparent);
       }
 
       .primary-btn {
@@ -396,12 +739,14 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
+        gap: 10px;
         padding: 14px 24px;
+        box-shadow: var(--shadow-button);
         transition:
-          background-color 150ms ease,
-          opacity 150ms ease,
-          transform 100ms ease;
+          background-color var(--dur-fast) var(--ease),
+          opacity var(--dur-normal) var(--ease),
+          box-shadow var(--dur-fast) var(--ease),
+          transform var(--dur-fast) var(--ease);
       }
 
       .primary-btn:hover:not(:disabled) {
@@ -409,12 +754,29 @@
       }
 
       .primary-btn:active:not(:disabled) {
-        transform: scale(0.99);
+        transform: scale(0.97);
+        box-shadow: var(--shadow-button-pressed);
       }
 
       .primary-btn:disabled {
         opacity: 0.55;
         cursor: not-allowed;
+        box-shadow: var(--shadow-button-pressed);
+      }
+
+      .spinner {
+        display: none;
+        width: 20px;
+        height: 20px;
+        animation: spin 800ms linear infinite;
+      }
+
+      .primary-btn[data-busy="true"] .spinner {
+        display: block;
+      }
+
+      footer {
+        padding: 0 16px 16px;
       }
 
       .disclosure {
@@ -435,11 +797,152 @@
         text-decoration: underline;
         text-underline-offset: 2px;
         touch-action: manipulation;
+        border-radius: 6px;
+        transition: color var(--dur-fast) var(--ease);
+      }
+
+      .disclosure a:hover {
+        color: var(--gold-text);
+      }
+
+      @media (hover: hover) and (pointer: fine) {
+        .hero:hover {
+          box-shadow: var(--shadow-raised);
+        }
+
+        .hero:hover::before {
+          opacity: 1;
+        }
+      }
+
+      @media (min-width: 900px) {
+        .shell {
+          max-width: 980px;
+        }
+
+        header {
+          padding: 24px 24px 16px;
+        }
+
+        main {
+          display: grid;
+          grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+          grid-template-rows: auto 1fr;
+          align-items: start;
+          gap: 20px;
+          padding: 4px 24px 8px;
+        }
+
+        .info {
+          grid-column: 1;
+          grid-row: 1;
+        }
+
+        .metrics {
+          grid-column: 2;
+          grid-row: 1 / span 2;
+        }
+
+        .action {
+          grid-column: 1;
+          grid-row: 2;
+          position: static;
+          margin: 0;
+          padding: 0;
+          background: none;
+        }
+
+        .food-name {
+          font-size: 30px;
+        }
+
+        .ring-stage {
+          width: 248px;
+        }
+
+        .hub-num {
+          font-size: 68px;
+        }
+
+        .hub-num[data-len="3"] {
+          font-size: 54px;
+        }
+
+        .hub-num[data-len="4"],
+        .hub-num[data-len="5"] {
+          font-size: 40px;
+        }
+
+        footer {
+          padding: 8px 24px 20px;
+        }
+      }
+
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+      }
+
+      @keyframes pop {
+        0% {
+          transform: scale(0.92);
+        }
+        55% {
+          transform: scale(1.05);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+
+      @keyframes breathe {
+        50% {
+          opacity: 0.35;
+        }
+      }
+
+      @keyframes halo {
+        from {
+          box-shadow: 0 0 0 0 var(--halo);
+        }
+        to {
+          box-shadow: 0 0 0 18px transparent;
+        }
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @media (forced-colors: active) {
+        .ring,
+        .dial,
+        .swatch,
+        .tip-key {
+          forced-color-adjust: none;
+        }
       }
 
       @media (prefers-reduced-motion: reduce) {
-        * {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-delay: 0s !important;
+          animation-iteration-count: 1 !important;
           transition-duration: 0.01ms !important;
+        }
+
+        .hero {
+          transform: none;
+        }
+
+        .tile.is-lit {
+          transform: none;
         }
       }
     </style>
@@ -459,8 +962,12 @@
               stroke-linecap="round"
               stroke-linejoin="round"
             >
-              <path d="m16 2-2.3 2.3a3 3 0 0 0 0 4.2l1.8 1.8a3 3 0 0 0 4.2 0L22 8" />
-              <path d="M15 15 3.3 3.3a4.2 4.2 0 0 0 0 6l7.3 7.3c.7.7 2 .7 2.8 0L15 15Zm0 0 7 7" />
+              <path
+                d="m16 2-2.3 2.3a3 3 0 0 0 0 4.2l1.8 1.8a3 3 0 0 0 4.2 0L22 8"
+              />
+              <path
+                d="M15 15 3.3 3.3a4.2 4.2 0 0 0 0 6l7.3 7.3c.7.7 2 .7 2.8 0L15 15Zm0 0 7 7"
+              />
               <path d="m2.1 21.8 6.4-6.3" />
               <path d="m19 5-7 7" />
             </svg>
@@ -474,21 +981,50 @@
       </header>
 
       <main>
-        <section class="card listing-card" aria-label="Listing details">
-          <div class="listing-top">
-            <span
-              class="pill status-badge"
-              id="status-badge"
-              data-tone="neutral"
-              data-it-bind="status_label"
-              >Loading…</span
-            >
-          </div>
-          <h1 class="food-name" data-it-bind="food_name">Shared food</h1>
-          <p class="location">
+        <div class="info">
+          <section class="card listing-card" aria-label="Listing details">
+            <div class="listing-top">
+              <span
+                class="pill status-badge"
+                id="status-badge"
+                data-tone="neutral"
+                data-it-bind="status_label"
+                >Loading…</span
+              >
+            </div>
+            <h1 class="food-name" data-it-bind="food_name">Shared food</h1>
+            <p class="location">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+              <span data-it-bind="location">Campus pickup</span>
+            </p>
+            <p class="answer" data-it-bind="answer">
+              Tap “What's left?” to check servings.
+            </p>
+          </section>
+
+          <div
+            class="error-banner"
+            id="error-box"
+            data-it-show="error"
+            role="alert"
+            style="display: none"
+          >
             <svg
-              width="16"
-              height="16"
+              width="18"
+              height="18"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -497,95 +1033,236 @@
               stroke-linejoin="round"
               aria-hidden="true"
             >
-              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
-              <circle cx="12" cy="10" r="3" />
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" x2="12" y1="8" y2="12" />
+              <line x1="12" x2="12.01" y1="16" y2="16" />
             </svg>
-            <span data-it-bind="location">Campus pickup</span>
-          </p>
-          <p class="answer" data-it-bind="answer">
-            Tap “What's left?” to check servings.
-          </p>
-        </section>
-
-        <div
-          class="error-banner"
-          id="error-box"
-          data-it-show="error"
-          role="alert"
-          style="display: none"
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" x2="12" y1="8" y2="12" />
-            <line x1="12" x2="12.01" y1="16" y2="16" />
-          </svg>
-          <span id="error-text" data-it-bind="error"></span>
+            <span id="error-text" data-it-bind="error"></span>
+          </div>
         </div>
 
-        <section class="card counts-card" aria-label="Serving counts">
-          <div class="hero-count">
-            <div class="hero-primary">
-              <div class="hero-num" data-it-bind="available">–</div>
-              <div class="hero-label">Available</div>
+        <section class="metrics" aria-label="Serving counts">
+          <div class="card hero" id="hero" aria-busy="false" style="--order: 1">
+            <div class="ring-stage" id="ring-stage">
+              <svg
+                class="ring"
+                id="ring"
+                viewBox="0 0 200 200"
+                role="img"
+                aria-label="Shares of the total servings appear here after a check."
+              >
+                <circle class="ring-track" cx="100" cy="100" r="84" />
+                <g transform="rotate(-90 100 100)">
+                  <circle
+                    class="seg"
+                    data-series="available"
+                    cx="100"
+                    cy="100"
+                    r="84"
+                  />
+                  <circle
+                    class="seg"
+                    data-series="held"
+                    cx="100"
+                    cy="100"
+                    r="84"
+                  />
+                  <circle
+                    class="seg"
+                    data-series="picked_up"
+                    cx="100"
+                    cy="100"
+                    r="84"
+                  />
+                  <circle
+                    class="seg"
+                    data-series="pantry_held"
+                    cx="100"
+                    cy="100"
+                    r="84"
+                  />
+                  <circle
+                    class="seg"
+                    data-series="pantry_transferred"
+                    cx="100"
+                    cy="100"
+                    r="84"
+                  />
+                </g>
+              </svg>
+              <div class="ring-hub series" data-series="available">
+                <div class="hub-num" data-it-bind="available">–</div>
+                <div class="hub-label">
+                  <span class="swatch" aria-hidden="true"></span>
+                  <span class="series-name">Available</span>
+                </div>
+              </div>
+              <div
+                class="tip"
+                id="tip"
+                aria-hidden="true"
+                data-open="false"
+                data-side="above"
+              >
+                <span class="tip-row">
+                  <span class="tip-key"></span>
+                  <span class="tip-value" id="tip-value"></span>
+                  <span id="tip-name"></span>
+                </span>
+                <span class="tip-share" id="tip-share"></span>
+              </div>
             </div>
-            <div class="total-box">
-              <div class="total-num" data-it-bind="total">–</div>
-              <div class="total-label">Total servings</div>
+
+            <div class="hero-facts">
+              <div>
+                <div class="fact-label">Total servings</div>
+                <div class="fact-value" data-it-bind="total">–</div>
+              </div>
+              <div class="fact-end">
+                <p class="updated-text">
+                  Updated
+                  <time id="checked-time" data-it-bind="checked_at">—</time>
+                  <span hidden data-it-bind="checked_at_iso"></span>
+                </p>
+                <span
+                  class="live-status"
+                  id="status"
+                  role="status"
+                  aria-live="polite"
+                ></span>
+              </div>
             </div>
           </div>
 
-          <div class="grid">
-            <div class="tile">
-              <div class="num num-accent" data-it-bind="held">–</div>
-              <div class="cap">Student reservations</div>
+          <dl class="tiles">
+            <div class="card tile series" data-series="held" style="--order: 2">
+              <dt class="tile-label">
+                <span class="swatch" aria-hidden="true"></span>
+                <span class="series-name">Student reservations</span>
+              </dt>
+              <dd class="tile-value">
+                <span class="num" data-it-bind="held">–</span>
+                <span class="dial" aria-hidden="true">
+                  <svg viewBox="0 0 44 44">
+                    <circle class="dial-track" cx="22" cy="22" r="18" />
+                    <circle
+                      class="dial-arc"
+                      cx="22"
+                      cy="22"
+                      r="18"
+                      transform="rotate(-90 22 22)"
+                    />
+                  </svg>
+                  <span class="dial-pct">–</span>
+                </span>
+              </dd>
             </div>
-            <div class="tile">
-              <div class="num" data-it-bind="picked_up">–</div>
-              <div class="cap">Completed pickups</div>
+            <div
+              class="card tile series"
+              data-series="picked_up"
+              style="--order: 3"
+            >
+              <dt class="tile-label">
+                <span class="swatch" aria-hidden="true"></span>
+                <span class="series-name">Completed pickups</span>
+              </dt>
+              <dd class="tile-value">
+                <span class="num" data-it-bind="picked_up">–</span>
+                <span class="dial" aria-hidden="true">
+                  <svg viewBox="0 0 44 44">
+                    <circle class="dial-track" cx="22" cy="22" r="18" />
+                    <circle
+                      class="dial-arc"
+                      cx="22"
+                      cy="22"
+                      r="18"
+                      transform="rotate(-90 22 22)"
+                    />
+                  </svg>
+                  <span class="dial-pct">–</span>
+                </span>
+              </dd>
             </div>
-          </div>
-
-          <hr class="section-divider" />
-
-          <div class="grid">
-            <div class="tile">
-              <div class="num" data-it-bind="pantry_held">0</div>
-              <div class="cap">Pantry reserved</div>
+            <div
+              class="card tile series"
+              data-series="pantry_held"
+              style="--order: 4"
+            >
+              <dt class="tile-label">
+                <span class="swatch" aria-hidden="true"></span>
+                <span class="series-name">Pantry reserved</span>
+              </dt>
+              <dd class="tile-value">
+                <span class="num" data-it-bind="pantry_held">–</span>
+                <span class="dial" aria-hidden="true">
+                  <svg viewBox="0 0 44 44">
+                    <circle class="dial-track" cx="22" cy="22" r="18" />
+                    <circle
+                      class="dial-arc"
+                      cx="22"
+                      cy="22"
+                      r="18"
+                      transform="rotate(-90 22 22)"
+                    />
+                  </svg>
+                  <span class="dial-pct">–</span>
+                </span>
+              </dd>
             </div>
-            <div class="tile">
-              <div class="num" data-it-bind="pantry_transferred">0</div>
-              <div class="cap">Pantry transfers (simulated)</div>
+            <div
+              class="card tile series"
+              data-series="pantry_transferred"
+              style="--order: 5"
+            >
+              <dt class="tile-label">
+                <span class="swatch" aria-hidden="true"></span>
+                <span class="series-name">Pantry transfers (simulated)</span>
+              </dt>
+              <dd class="tile-value">
+                <span class="num" data-it-bind="pantry_transferred">–</span>
+                <span class="dial" aria-hidden="true">
+                  <svg viewBox="0 0 44 44">
+                    <circle class="dial-track" cx="22" cy="22" r="18" />
+                    <circle
+                      class="dial-arc"
+                      cx="22"
+                      cy="22"
+                      r="18"
+                      transform="rotate(-90 22 22)"
+                    />
+                  </svg>
+                  <span class="dial-pct">–</span>
+                </span>
+              </dd>
             </div>
-          </div>
-
-          <div class="meta-row">
-            <p class="updated-text">
-              Updated <time id="checked-time" data-it-bind="checked_at">—</time>
-            </p>
-            <span
-              class="live-status"
-              id="status"
-              role="status"
-              aria-live="polite"
-            ></span>
-          </div>
+          </dl>
         </section>
+
+        <div class="action">
+          <button
+            id="ask"
+            type="button"
+            class="primary-btn"
+            data-busy="false"
+            disabled
+          >
+            <svg
+              class="spinner"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <path d="M12 3a9 9 0 1 0 9 9" />
+            </svg>
+            <span id="ask-label">What's left?</span>
+          </button>
+        </div>
       </main>
 
       <footer>
-        <button id="ask" type="button" class="primary-btn" disabled>
-          <span id="ask-label">What's left?</span>
-        </button>
         <p class="disclosure">
           Demo only · not a
           <a
@@ -614,12 +1291,345 @@
       const checkedTime = document.getElementById("checked-time");
       const errorBox = document.getElementById("error-box");
       const errorText = document.getElementById("error-text");
+      const hero = document.getElementById("hero");
+      const stage = document.getElementById("ring-stage");
+      const ring = document.getElementById("ring");
+      const tip = document.getElementById("tip");
+      const tipValue = document.getElementById("tip-value");
+      const tipName = document.getElementById("tip-name");
+      const tipShare = document.getElementById("tip-share");
       const uuid =
         /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       const UNLINKED_COPY = "This display isn't linked to a listing.";
       let binding = null;
       let waiting = false;
       let waitTimer = null;
+
+      /* ---- Serving counts: numbers and share-of-total rings ---- */
+
+      const COUNT_KEYS = [
+        "total",
+        "available",
+        "held",
+        "picked_up",
+        "pantry_held",
+        "pantry_transferred",
+      ];
+      const SERIES = COUNT_KEYS.slice(1);
+      const COUNTER_MS = 600;
+      const RING_LENGTH = 2 * Math.PI * 84;
+      const DIAL_LENGTH = 2 * Math.PI * 18;
+      const SEGMENT_GAP = 3;
+      const NO_MATCH = { matches: false };
+      const reduceMotion = window.matchMedia
+        ? window.matchMedia("(prefers-reduced-motion: reduce)")
+        : NO_MATCH;
+      const finePointer = window.matchMedia
+        ? window.matchMedia("(hover: hover) and (pointer: fine)")
+        : NO_MATCH;
+
+      const numberEls = {};
+      COUNT_KEYS.forEach((key) => {
+        numberEls[key] = document.querySelector(`[data-it-bind="${key}"]`);
+      });
+      const seriesParts = {};
+      SERIES.forEach((key) => {
+        const home = document.querySelector(`.series[data-series="${key}"]`);
+        seriesParts[key] = {
+          home,
+          name: home.querySelector(".series-name").textContent.trim(),
+          segment: ring.querySelector(`.seg[data-series="${key}"]`),
+          dialArc: home.querySelector(".dial-arc"),
+          dialPct: home.querySelector(".dial-pct"),
+        };
+      });
+
+      /* Last real counts received, what is painted right now, and where it is heading. */
+      const known = {};
+      let shown = { nums: {}, shares: noShares() };
+      let goal = { nums: {}, shares: noShares() };
+      let tween = null;
+
+      function noShares() {
+        const shares = {};
+        SERIES.forEach((key) => {
+          shares[key] = 0;
+        });
+        return shares;
+      }
+
+      /* Shares are drawn only when every count is real and the parts add up to the total. */
+      function sharesOf(counts) {
+        const shares = noShares();
+        if (!COUNT_KEYS.every((key) => counts[key] !== undefined))
+          return shares;
+        const sum = SERIES.reduce((running, key) => running + counts[key], 0);
+        if (counts.total <= 0 || sum !== counts.total) return shares;
+        SERIES.forEach((key) => {
+          shares[key] = counts[key] / counts.total;
+        });
+        return shares;
+      }
+
+      function hasShares(shares) {
+        return SERIES.some((key) => shares[key] > 0);
+      }
+
+      function shareText(share) {
+        const percent = share * 100;
+        if (percent > 0 && percent < 1) return "<1%";
+        if (percent > 99 && percent < 100) return ">99%";
+        return `${Math.round(percent)}%`;
+      }
+
+      function setText(el, text) {
+        if (el.textContent !== text) el.textContent = text;
+      }
+
+      function retrigger(el, className) {
+        el.classList.remove(className);
+        void el.offsetWidth;
+        el.classList.add(className);
+      }
+
+      function paint(numberKeys) {
+        numberKeys.forEach((key) => {
+          setText(numberEls[key], String(Math.round(shown.nums[key])));
+        });
+        if (shown.nums.available !== undefined) {
+          numberEls.available.dataset.len = String(
+            String(Math.round(shown.nums.available)).length,
+          );
+        }
+
+        const drawing = hasShares(shown.shares) || hasShares(goal.shares);
+        const gap =
+          SERIES.filter((key) => shown.shares[key] > 0.0005).length > 1
+            ? SEGMENT_GAP
+            : 0;
+        let start = 0;
+        SERIES.forEach((key) => {
+          const part = seriesParts[key];
+          const share = shown.shares[key];
+          const length = share * RING_LENGTH;
+          const drawn =
+            length > 0 ? Math.max(length - gap, Math.min(length, 1.2)) : 0;
+          const lead = start + (length - drawn) / 2;
+          part.segment.style.strokeDasharray = `${drawn.toFixed(2)} ${(RING_LENGTH - drawn).toFixed(2)}`;
+          part.segment.style.strokeDashoffset = (RING_LENGTH - lead).toFixed(2);
+          start += length;
+          if (part.dialArc) {
+            const arc = share * DIAL_LENGTH;
+            part.dialArc.style.strokeDasharray = `${arc.toFixed(2)} ${(DIAL_LENGTH - arc).toFixed(2)}`;
+            setText(part.dialPct, drawing ? shareText(share) : "–");
+          }
+        });
+      }
+
+      function describeRing() {
+        if (!hasShares(goal.shares)) {
+          return "Shares of the total servings appear here after a check.";
+        }
+        const parts = SERIES.map(
+          (key) => `${seriesParts[key].name} ${goal.nums[key]}`,
+        );
+        return `Total servings ${goal.nums.total}: ${parts.join(", ")}.`;
+      }
+
+      function stopTween() {
+        if (!tween) return;
+        cancelAnimationFrame(tween.frame);
+        clearTimeout(tween.timer);
+        tween = null;
+      }
+
+      function settle() {
+        const numberKeys = tween ? tween.keys : [];
+        stopTween();
+        shown = { nums: { ...goal.nums }, shares: { ...goal.shares } };
+        paint(numberKeys);
+        ring.setAttribute("aria-label", describeRing());
+      }
+
+      function step(now) {
+        if (!tween) return;
+        const progress = Math.min(
+          1,
+          Math.max(0, (now - tween.startedAt) / COUNTER_MS),
+        );
+        if (progress >= 1) {
+          settle();
+          return;
+        }
+        const eased = 1 - Math.pow(1 - progress, 4);
+        const mix = (from, to) => from + (to - from) * eased;
+        tween.keys.forEach((key) => {
+          shown.nums[key] = mix(tween.from.nums[key], goal.nums[key]);
+        });
+        SERIES.forEach((key) => {
+          shown.shares[key] = mix(tween.from.shares[key], goal.shares[key]);
+        });
+        paint(tween.keys);
+        tween.frame = requestAnimationFrame(step);
+      }
+
+      function paintMetrics(next) {
+        COUNT_KEYS.forEach((key) => {
+          const value = next[key];
+          if (Number.isInteger(value) && value >= 0) known[key] = value;
+        });
+        const nextGoal = { nums: { ...known }, shares: sharesOf(known) };
+        const changed =
+          COUNT_KEYS.some((key) => nextGoal.nums[key] !== goal.nums[key]) ||
+          SERIES.some((key) => nextGoal.shares[key] !== goal.shares[key]);
+        if (!changed) return;
+
+        stopTween();
+        goal = nextGoal;
+        hideTip();
+        if (reduceMotion.matches || document.hidden) {
+          settle();
+          return;
+        }
+
+        /* Numbers roll only between two real values; a first reading appears as-is. */
+        const from = { nums: { ...shown.nums }, shares: { ...shown.shares } };
+        const keys = COUNT_KEYS.filter(
+          (key) =>
+            from.nums[key] !== undefined &&
+            goal.nums[key] !== undefined &&
+            from.nums[key] !== goal.nums[key],
+        );
+        shown.nums = { ...goal.nums, ...pick(from.nums, keys) };
+        tween = {
+          from,
+          keys,
+          startedAt: performance.now(),
+          frame: 0,
+          timer: setTimeout(settle, COUNTER_MS + 300),
+        };
+        keys.forEach((key) => retrigger(numberEls[key], "is-popped"));
+        paint(keys);
+        tween.frame = requestAnimationFrame(step);
+      }
+
+      function pick(source, keys) {
+        const picked = {};
+        keys.forEach((key) => {
+          picked[key] = source[key];
+        });
+        return picked;
+      }
+
+      /* ---- Ring details on hover or touch, and the gentle card tilt ---- */
+
+      let tipTimer = null;
+
+      function spotlight(seriesKey) {
+        SERIES.forEach((key) => {
+          const part = seriesParts[key];
+          part.segment.classList.toggle(
+            "is-dim",
+            seriesKey !== null && key !== seriesKey,
+          );
+          part.home.classList.toggle("is-lit", key === seriesKey);
+        });
+      }
+
+      function hideTip() {
+        clearTimeout(tipTimer);
+        tip.dataset.open = "false";
+        spotlight(null);
+      }
+
+      function seriesAt(event) {
+        if (!hasShares(goal.shares)) return null;
+        const box = ring.getBoundingClientRect();
+        const half = box.width / 2;
+        const dx = event.clientX - (box.left + half);
+        const dy = event.clientY - (box.top + half);
+        const reach = Math.hypot(dx, dy) / half;
+        if (reach < 0.62 || reach > 1) return null;
+        let turn = Math.atan2(dx, -dy) / (2 * Math.PI);
+        if (turn < 0) turn += 1;
+        let covered = 0;
+        for (const key of SERIES) {
+          covered += goal.shares[key];
+          if (turn < covered) return key;
+        }
+        return null;
+      }
+
+      function showTip(event) {
+        const key = seriesAt(event);
+        if (key === null) {
+          hideTip();
+          return;
+        }
+        clearTimeout(tipTimer);
+        tip.dataset.series = key;
+        tipValue.textContent = String(goal.nums[key]);
+        tipName.textContent = seriesParts[key].name;
+        tipShare.textContent = `${shareText(goal.shares[key])} of total servings`;
+        /* The note sits just outside the ring, so it never covers the ring or its number. */
+        const box = stage.getBoundingClientRect();
+        const halfTip = tip.offsetWidth / 2;
+        const below = event.clientY - box.top > box.height / 2;
+        const x = Math.min(
+          Math.max(event.clientX - box.left, halfTip - 28),
+          box.width - halfTip + 28,
+        );
+        tip.dataset.side = below ? "below" : "above";
+        tip.style.left = `${x.toFixed(1)}px`;
+        tip.style.top = `${(below ? box.height + 8 : -8).toFixed(1)}px`;
+        tip.dataset.open = "true";
+        spotlight(key);
+        if (event.pointerType !== "mouse") tipTimer = setTimeout(hideTip, 2400);
+      }
+
+      /* Listening on the whole card keeps the note steady while the card tilts. */
+      hero.addEventListener("pointermove", showTip);
+      hero.addEventListener("pointerdown", showTip);
+
+      SERIES.forEach((key) => {
+        const home = seriesParts[key].home;
+        if (!home.classList.contains("tile")) return;
+        home.addEventListener("pointerenter", () => {
+          if (hasShares(goal.shares)) spotlight(key);
+        });
+        home.addEventListener("pointerleave", () => spotlight(null));
+      });
+
+      hero.addEventListener("pointermove", (event) => {
+        if (!finePointer.matches || reduceMotion.matches) return;
+        const box = hero.getBoundingClientRect();
+        const across = (event.clientX - box.left) / box.width;
+        const down = (event.clientY - box.top) / box.height;
+        hero.style.setProperty(
+          "--tilt-x",
+          `${((0.5 - down) * 5).toFixed(2)}deg`,
+        );
+        hero.style.setProperty(
+          "--tilt-y",
+          `${((across - 0.5) * 5).toFixed(2)}deg`,
+        );
+        hero.style.setProperty("--sheen-x", `${(across * 100).toFixed(1)}%`);
+        hero.style.setProperty("--sheen-y", `${(down * 100).toFixed(1)}%`);
+      });
+      hero.addEventListener("pointerleave", (event) => {
+        if (event.pointerType === "mouse") hideTip();
+        ["--tilt-x", "--tilt-y", "--sheen-x", "--sheen-y"].forEach((name) => {
+          hero.style.removeProperty(name);
+        });
+      });
+
+      /* ---- Listing link, button and status ---- */
+
+      function setBusy(busy) {
+        const flag = busy ? "true" : "false";
+        ask.dataset.busy = flag;
+        hero.setAttribute("aria-busy", flag);
+      }
 
       function clearWaitTimer() {
         if (waitTimer !== null) {
@@ -634,8 +1644,7 @@
         return "neutral";
       }
 
-      function handleState(state) {
-        const next = state && typeof state === "object" ? state : {};
+      function syncControls(next) {
         const dropId = typeof next.drop_id === "string" ? next.drop_id : "";
         const pageId = typeof next.page_id === "string" ? next.page_id : "";
         binding =
@@ -644,7 +1653,11 @@
             : null;
 
         if (typeof next.status_label === "string") {
-          statusBadge.dataset.tone = badgeTone(next.status_label);
+          const tone = badgeTone(next.status_label);
+          if (statusBadge.dataset.tone !== tone) {
+            statusBadge.dataset.tone = tone;
+            retrigger(statusBadge, "is-popped");
+          }
         }
         if (typeof next.checked_at_iso === "string" && next.checked_at_iso) {
           checkedTime.setAttribute("datetime", next.checked_at_iso);
@@ -659,6 +1672,7 @@
         }
 
         clearWaitTimer();
+        setBusy(false);
         if (!binding) {
           waiting = false;
           ask.disabled = true;
@@ -674,9 +1688,16 @@
           status.textContent = hasError
             ? "Couldn't refresh right now."
             : "Updated";
+          if (!hasError) retrigger(stage, "is-fresh");
         } else if (status.textContent === UNLINKED_COPY) {
           status.textContent = "";
         }
+      }
+
+      function handleState(state) {
+        const next = state && typeof state === "object" ? state : {};
+        syncControls(next);
+        paintMetrics(next);
       }
 
       if (typeof It !== "undefined" && typeof It.onState === "function") {
@@ -689,6 +1710,7 @@
         if (!binding || waiting) return;
         waiting = true;
         ask.disabled = true;
+        setBusy(true);
         askLabel.textContent = "Checking…";
         status.textContent = "Checking…";
         clearWaitTimer();
@@ -696,6 +1718,7 @@
           if (!waiting) return;
           waiting = false;
           ask.disabled = !binding;
+          setBusy(false);
           askLabel.textContent = "What's left?";
           status.textContent = "Still checking… Tap to try again.";
         }, 12000);
@@ -705,6 +1728,7 @@
           clearWaitTimer();
           waiting = false;
           ask.disabled = !binding;
+          setBusy(false);
           askLabel.textContent = "What's left?";
           status.textContent =
             "Couldn't send that request. Try again in a moment.";
